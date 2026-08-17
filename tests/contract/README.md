@@ -2,4 +2,4 @@
 
 Provider and system contract tests.
 
-Do not implement functionality here until the active mission authorizes it.
+M-001 authorizes `scripts/validate-master-contracts.py` as the no-dependency master-contract consistency check.

@@ -1,0 +1,66 @@
+{
+  "mission": "M-001",
+  "title": "Ratify master contracts",
+  "classification": "M-001 READY FOR INDEPENDENT REVIEW",
+  "starting_sha": "23471a9be093cb4ca5b9f935d6dc09b2703b8d9c",
+  "branch": "arena/01a01112-vibeflow-greenfield",
+  "timestamp_utc": "2026-08-17T18:59:54Z",
+  "m001_status": "REVIEW",
+  "later_missions_started": false,
+  "result": "PASS",
+  "checks": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS"
+  },
+  "counts": {
+    "approved_harvest_entries": 35,
+    "canonical_resources": 35,
+    "capability_origins": {
+      "REPLIT-DERIVED-REQUIREMENT": 385,
+      "VibeFlow-native requirement": 20
+    },
+    "capability_statuses": {
+      "NOT_STARTED": 405
+    },
+    "event_types": 37,
+    "frontend_surface_contracts": 13,
+    "invariants": 20,
+    "ledger_r2v_refs": 390,
+    "mission_statuses": {
+      "LOCKED": 150,
+      "REVIEW": 1
+    },
+    "missions": 151,
+    "phases": 33,
+    "replit_trace_rows": 390,
+    "v1_gates": 15,
+    "vibeflow_capabilities": 405
+  },
+  "architectural_conflicts": [],
+  "mechanical_corrections": [
+    "ACTIVE_MISSION.md M-000 to M-001 REVIEW",
+    "stale M-000 pointers in README and workspace bootstrap status",
+    "repo-sanitize.sh secret-scan -e and scanner-failure handling",
+    "no-dependency validate-master-contracts.py",
+    "M-001 READY to REVIEW in DAG and register",
+    "SHA256SUMS updated only for those two pack files"
+  ],
+  "errors": [],
+  "warnings": [],
+  "notes": [
+    "INDEX acceptance (V1_ACCEPTANCE.yaml) and SOURCE_OF_TRUTH verification (VERIFICATION_MASTER.md) are complementary.",
+    "State machines declare states, terminals, and semantic rules rather than explicit edges.",
+    "Event catalog records are facts with unique event_id; replay is not command re-execution.",
+    "Frontend projection/wildcard event names not in the 37-type catalog are UI projections, not an independent authoritative vocabulary."
+  ]
+}
