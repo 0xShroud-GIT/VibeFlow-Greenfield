@@ -1,0 +1,120 @@
+{
+  "adr": {
+    "reason": "M-003 makes the existing threat/trust summary explicit and machine-enforceable without changing the previously ratified authority model.",
+    "required": false
+  },
+  "as_of": "2026-08-17",
+  "asset_ids": [
+    "AS-001",
+    "AS-002",
+    "AS-003",
+    "AS-004",
+    "AS-005",
+    "AS-006",
+    "AS-007",
+    "AS-008",
+    "AS-009",
+    "AS-010",
+    "AS-011",
+    "AS-012"
+  ],
+  "branch": "mission/m-003-threat-model",
+  "ci_note": "GitHub Actions results are bound to the final PR head SHA and reviewed externally; they are not self-referentially embedded in this evidence file.",
+  "classification": "M-003 READY FOR REVIEW (implementation self-audited; independent acceptance pending)",
+  "contract_counts": {
+    "assets": 12,
+    "non_negotiable_invariants_crosswalked": 20,
+    "threats": 24,
+    "trust_boundaries": 13
+  },
+  "dependency": "M-003 depends_on M-002; M-001 and M-002 were accepted/merged and are represented as DONE",
+  "mission": "M-003",
+  "mission_transition": {
+    "M-001": "DONE",
+    "M-002": "DONE",
+    "M-003": "REVIEW",
+    "M-004+": "LOCKED"
+  },
+  "phase": "0 — Architecture Constitution",
+  "scope": {
+    "architecture_ratification_only": true,
+    "dependency_installation": false,
+    "m004_work": false,
+    "monorepo_initialization": false,
+    "product_implementation": false
+  },
+  "security_decisions": [
+    "VibeFlow Control Plane remains authoritative for VibeFlow resources; provider/client claims are observations or requests.",
+    "External content from agent/model/tool/workspace/repository/provider/web is untrusted data when it crosses into authority decisions.",
+    "All privileged actions are server-bound to authenticated actor plus canonical tenant/project/resource/binding/grant/policy/approval context.",
+    "Plaintext secrets are confined to approved broker/KMS custody and minimum authorized runtime channel; never ordinary client/prompt/event/evidence/log/analytics/bridge state.",
+    "High-risk/irreversible actions preserve policy/evidence semantics, fresh approval where required, and idempotency/deduplication.",
+    "Agent/provider completion never directly becomes VERIFIED; verification binds independent evidence where feasible to exact revision/check.",
+    "Workspace/repository/provider mutable state is reconciled before verification/release claims.",
+    "Ambiguous identity/scope/binding/freshness/continuity/approval/evidence fails closed or enters explicit reconciliation.",
+    "Provider-specific behavior stays behind adapters; no provider can silently weaken core authority.",
+    "No new cryptography/security protocol is invented; approved standards/libraries/providers remain the implementation path."
+  ],
+  "starting_main_sha": "41209e0b0ee2ab6a45f2cf66eef2d19177d7e4d4",
+  "tests": {
+    "count": 18,
+    "path": "tests/contract/test_m003_security_contracts.py",
+    "style": "deterministic stdlib mutation tests"
+  },
+  "threat_ids": [
+    "TM-001",
+    "TM-002",
+    "TM-003",
+    "TM-004",
+    "TM-005",
+    "TM-006",
+    "TM-007",
+    "TM-008",
+    "TM-009",
+    "TM-010",
+    "TM-011",
+    "TM-012",
+    "TM-013",
+    "TM-014",
+    "TM-015",
+    "TM-016",
+    "TM-017",
+    "TM-018",
+    "TM-019",
+    "TM-020",
+    "TM-021",
+    "TM-022",
+    "TM-023",
+    "TM-024"
+  ],
+  "title": "Ratify threat model and trust boundaries",
+  "trust_boundary_ids": [
+    "TB-001",
+    "TB-002",
+    "TB-003",
+    "TB-004",
+    "TB-005",
+    "TB-006",
+    "TB-007",
+    "TB-008",
+    "TB-009",
+    "TB-010",
+    "TB-011",
+    "TB-012",
+    "TB-013"
+  ],
+  "validator": {
+    "checks": [
+      "exact sequential AS-001..AS-012, TM-001..TM-024, TB-001..TB-013",
+      "required fields per threat and boundary",
+      "valid asset/boundary cross-references and complete boundary/asset threat coverage",
+      "INV-001..INV-020 exact crosswalk",
+      "SECURITY_MASTER normative references and fail-closed principles",
+      "SECRET_HANDLING non-exfiltration markers",
+      "WORKSPACE_ISOLATION observed-certification markers",
+      "anti-authority markers for agent verification, tool permission, repo/workspace, replay/reconciliation, raw bridge secrets"
+    ],
+    "dependencies": "Python standard library only",
+    "path": "scripts/validate-threat-model.py"
+  }
+}
