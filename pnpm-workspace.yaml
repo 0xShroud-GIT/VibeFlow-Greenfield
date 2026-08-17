@@ -4,3 +4,10 @@ packages:
   - workers/*
   - packages/*
   - adapters/*
+
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+blockExoticSubdeps: true
+strictDepBuilds: true
+trustLockfile: false

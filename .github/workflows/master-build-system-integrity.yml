@@ -9,6 +9,15 @@ on:
       - 'evidence/**'
       - '.ai/**'
       - '.github/workflows/master-build-system-integrity.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.npmrc'
+      - 'tsconfig.base.json'
+      - 'turbo.json'
+      - 'packages/**'
+      - '.github/workflows/repository-foundation.yml'
   push:
     branches: [main]
     paths:
@@ -18,6 +27,15 @@ on:
       - 'evidence/**'
       - '.ai/**'
       - '.github/workflows/master-build-system-integrity.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.npmrc'
+      - 'tsconfig.base.json'
+      - 'turbo.json'
+      - 'packages/**'
+      - '.github/workflows/repository-foundation.yml'
 
 permissions:
   contents: read
@@ -47,3 +65,9 @@ jobs:
       - name: Run M-003 security contract tests
         shell: bash
         run: python3 tests/contract/test_m003_security_contracts.py
+      - name: Validate M-004 foundation
+        shell: bash
+        run: python3 scripts/validate-m004-foundation.py
+      - name: Run M-004 foundation mutation tests
+        shell: bash
+        run: python3 tests/contract/test_m004_foundation.py

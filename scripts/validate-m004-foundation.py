@@ -1,71 +1,37 @@
 #!/usr/bin/env python3
-"""M-004 Foundation validator — stdlib only.
+"""M-004 repository-foundation contract validator (stdlib only).
 
-Deterministically inspects the repository and fails for foundation contract violations.
-
-Checks A-W as defined in M-004 mission packet:
-A. exact Node pin / supported 24.x engine
-B. exact packageManager pnpm@11.4.0
-C. exact approved external dependency pins
-D. no dependency ranges (^, ~, latest)
-E. no arbitrary git/http/file external dependency sources
-F. only approved M-004 dependencies
-G. exactly one pnpm lockfile
-H. no npm/yarn/bun lockfiles
-I. required workspace globs exist
-J. no package.json files under apps/services/workers/adapters
-K. exactly seven M-004 shared package manifests
-L. expected @vibeflow/* names
-M. all shared packages are private, 0.0.0 and ESM
-N. TypeBox uses `typebox` 1.x, never @sinclair/typebox
-O. mandatory TypeScript strict flags
-P. no VibeFlow package lifecycle scripts
-Q. no dangerouslyAllowAllBuilds
-R. release-age policy remains enabled
-S. trustLockfile is not true
-T. no obvious workspace dependency cycles
-U. M-004 mission progression remains coherent
-V. M-005 remains LOCKED
-W. foundation CI workflow exists
+This validator checks the ratified M-004 toolchain, workspace shape, dependency
+policy, mission progression, and the existence/content of foundation CI.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_ROOT = Path(__file__).resolve().parents[1]
 
-def get_repo_root() -> Path:
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--root", type=str, default=None)
-    args, _ = parser.parse_known_args()
-    if args.root:
-        return Path(args.root).resolve()
-    return REPO_ROOT
-
-# Approved exact pins for M-004
-APPROVED_DEPS = {
+NODE_PIN = "24.19.0"
+PNPM_PIN = "11.4.0"
+APPROVED_ROOT_DEV = {
     "typescript": "6.0.3",
     "turbo": "2.10.6",
     "vitest": "4.1.7",
-    "typebox": "1.3.6",
 }
-
-# Only these external dependencies are allowed as direct dependencies at M-004
-ALLOWED_EXTERNAL_DEPS = set(APPROVED_DEPS.keys())
-
-EXPECTED_WORKSPACE_GLOBS = [
+TYPEBOX_PIN = "1.3.6"
+EXPECTED_GLOBS = [
     "apps/*",
     "services/*",
     "workers/*",
     "packages/*",
     "adapters/*",
 ]
-
 EXPECTED_PACKAGES = {
     "core": "@vibeflow/core",
     "contracts": "@vibeflow/contracts",
@@ -75,7 +41,6 @@ EXPECTED_PACKAGES = {
     "verification": "@vibeflow/verification",
     "ui": "@vibeflow/ui",
 }
-
 STRICT_FLAGS = {
     "strict": True,
     "noUncheckedIndexedAccess": True,
@@ -85,612 +50,420 @@ STRICT_FLAGS = {
     "useUnknownInCatchVariables": True,
     "forceConsistentCasingInFileNames": True,
 }
+FORBIDDEN_LIFECYCLE = {"preinstall", "install", "postinstall", "prepare"}
+IGNORED_WALK_PARTS = {
+    ".git", "node_modules", "dist", ".turbo", ".cache", ".vite",
+    "__pycache__", ".pytest_cache", ".next", ".expo",
+}
+PNPM_PROJECT_SETTINGS = {
+    "minimumReleaseAge",
+    "minimumReleaseAgeStrict",
+    "minimumReleaseAgeIgnoreMissingTime",
+    "blockExoticSubdeps",
+    "strictDepBuilds",
+    "trustLockfile",
+    "dangerouslyAllowAllBuilds",
+    "allowBuilds",
+}
 
-FORBIDDEN_LIFECYCLE_SCRIPTS = {"preinstall", "install", "postinstall", "prepare"}
 
-def load_json(path: Path):
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception as e:
-        return None, str(e)
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    return parser.parse_args()
 
-def parse_npmrc(path: Path):
-    data = {}
+
+def read_json(path: Path, errors: list[str], label: str) -> dict[str, Any]:
     if not path.is_file():
-        return data
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line=line.strip()
-        if not line or line.startswith("#") or line.startswith(";"):
-            continue
-        if "=" in line:
-            k,v = line.split("=",1)
-            data[k.strip()] = v.strip()
-        elif ":" in line:
-            k,v = line.split(":",1)
-            data[k.strip()] = v.strip()
+        errors.append(f"{label}: missing {path}")
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        errors.append(f"{label}: invalid JSON in {path}: {exc}")
+        return {}
+    if not isinstance(data, dict):
+        errors.append(f"{label}: expected JSON object in {path}")
+        return {}
     return data
 
-def check_file_exists(path: Path, errors: list[str]):
-    if not path.is_file():
-        errors.append(f"Missing required file: {path.relative_to(REPO_ROOT)}")
+
+def parse_scalar(value: str) -> Any:
+    value = value.strip().strip("'\"")
+    lower = value.lower()
+    if lower == "true":
+        return True
+    if lower == "false":
         return False
-    return True
+    if re.fullmatch(r"-?\d+", value):
+        return int(value)
+    return value
+
+
+def parse_workspace(path: Path, errors: list[str]) -> tuple[list[str], dict[str, Any], dict[str, Any]]:
+    """Parse the tiny YAML subset M-004 intentionally uses."""
+    if not path.is_file():
+        errors.append("I: missing pnpm-workspace.yaml")
+        return [], {}, {}
+    packages: list[str] = []
+    settings: dict[str, Any] = {}
+    allow_builds: dict[str, Any] = {}
+    section: str | None = None
+
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip(" "))
+        stripped = raw.strip()
+
+        if indent == 0:
+            section = None
+            if stripped.endswith(":"):
+                key = stripped[:-1]
+                if key in {"packages", "allowBuilds"}:
+                    section = key
+                    continue
+            if ":" not in stripped:
+                errors.append(f"I: malformed pnpm-workspace.yaml line: {raw}")
+                continue
+            key, value = stripped.split(":", 1)
+            settings[key.strip()] = parse_scalar(value)
+            continue
+
+        if section == "packages":
+            if stripped.startswith("- "):
+                packages.append(stripped[2:].strip().strip("'\""))
+            else:
+                errors.append(f"I: malformed packages entry: {raw}")
+        elif section == "allowBuilds":
+            if ":" not in stripped:
+                errors.append(f"Q: malformed allowBuilds entry: {raw}")
+            else:
+                key, value = stripped.split(":", 1)
+                allow_builds[key.strip().strip("'\"")] = parse_scalar(value)
+        else:
+            errors.append(f"I: unexpected nested pnpm-workspace.yaml entry: {raw}")
+
+    return packages, settings, allow_builds
+
+
+def dependency_fields(pkg: dict[str, Any]) -> dict[str, str]:
+    merged: dict[str, str] = {}
+    for field in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+        value = pkg.get(field) or {}
+        if isinstance(value, dict):
+            for name, spec in value.items():
+                merged[str(name)] = str(spec)
+    return merged
+
+
+def has_range_or_exotic(spec: str) -> tuple[bool, bool]:
+    lowered = spec.lower()
+    ranged = (
+        spec.startswith(("^", "~", ">", "<", "="))
+        or spec in {"latest", "*"}
+        or " || " in spec
+        or re.search(r"(^|[.\s])x($|[.\s])", spec, re.I) is not None
+    )
+    exotic = lowered.startswith(
+        ("git+", "git://", "github:", "gitlab:", "bitbucket:",
+         "http://", "https://", "file:", "link:")
+    )
+    return ranged, exotic
+
+
+def active_path(path: Path, root: Path) -> bool:
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return False
+    return not any(part in IGNORED_WALK_PARTS for part in rel.parts)
+
+
+def parse_dag_statuses(path: Path, errors: list[str]) -> dict[str, str]:
+    if not path.is_file():
+        errors.append("U: missing MISSION_DAG.yaml")
+        return {}
+    statuses: dict[str, str] = {}
+    current: str | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"\s*-\s*mission_id:\s*(M-\d{3})\s*$", line)
+        if match:
+            current = match.group(1)
+            continue
+        if current:
+            match = re.match(r"\s*status:\s*([A-Z_]+)\s*$", line)
+            if match:
+                statuses[current] = match.group(1)
+                current = None
+    return statuses
+
+
+def parse_register_statuses(path: Path, errors: list[str]) -> dict[str, str]:
+    if not path.is_file():
+        errors.append("U: missing MISSION_REGISTER.csv")
+        return {}
+    try:
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+    except Exception as exc:
+        errors.append(f"U: failed to parse MISSION_REGISTER.csv: {exc}")
+        return {}
+    statuses: dict[str, str] = {}
+    for row in rows:
+        mid = (row.get("mission_id") or "").strip()
+        status = (row.get("status") or "").strip()
+        if mid:
+            statuses[mid] = status
+    return statuses
+
 
 def main() -> int:
-    global REPO_ROOT
-    REPO_ROOT = get_repo_root()
+    root = parse_args().root.resolve()
     errors: list[str] = []
-    warnings: list[str] = []
 
-    # ---- Load root package.json ----
-    root_pkg_path = REPO_ROOT / "package.json"
-    if check_file_exists(root_pkg_path, errors):
-        root_pkg = json.loads(root_pkg_path.read_text(encoding="utf-8"))
-    else:
-        root_pkg = {}
+    root_pkg = read_json(root / "package.json", errors, "A")
+    nvmrc = root / ".nvmrc"
+    if not nvmrc.is_file() or nvmrc.read_text(encoding="utf-8").strip() != NODE_PIN:
+        errors.append(f"A: .nvmrc must pin {NODE_PIN}")
+    engines = root_pkg.get("engines") or {}
+    if engines.get("node") != "24.x":
+        errors.append(f"A: engines.node must be '24.x', got {engines.get('node')!r}")
+    if engines.get("pnpm") != PNPM_PIN:
+        errors.append(f"A: engines.pnpm must be '{PNPM_PIN}', got {engines.get('pnpm')!r}")
+    if root_pkg.get("packageManager") != f"pnpm@{PNPM_PIN}":
+        errors.append(f"B: packageManager must be pnpm@{PNPM_PIN}")
+    if root_pkg.get("private") is not True or root_pkg.get("type") != "module":
+        errors.append("B: root package must be private and ESM")
 
-    # A. exact Node pin / supported 24.x engine
-    nvmrc_path = REPO_ROOT / ".nvmrc"
-    if not nvmrc_path.is_file():
-        errors.append("A: Missing .nvmrc (expected 24.19.0)")
-    else:
-        nvmrc = nvmrc_path.read_text(encoding="utf-8").strip()
-        if nvmrc != "24.19.0":
-            errors.append(f"A: Wrong Node pin in .nvmrc: expected '24.19.0', got '{nvmrc}'")
+    root_dev = root_pkg.get("devDependencies") or {}
+    root_runtime = root_pkg.get("dependencies") or {}
+    if root_runtime:
+        errors.append("F: root dependencies must be empty at M-004")
+    if root_dev != APPROVED_ROOT_DEV:
+        errors.append(f"C/F: root devDependencies must equal {APPROVED_ROOT_DEV}, got {root_dev}")
 
-    # Check engines.node
-    engines = root_pkg.get("engines", {}) if isinstance(root_pkg, dict) else {}
-    node_engine = engines.get("node", "")
-    if node_engine != "24.x":
-        errors.append(f"A: Wrong engines.node: expected '24.x', got '{node_engine}'")
-    pnpm_engine = engines.get("pnpm", "")
-    if pnpm_engine != "11.4.0":
-        errors.append(f"A: Wrong engines.pnpm: expected '11.4.0', got '{pnpm_engine}'")
+    root_scripts = root_pkg.get("scripts") or {}
+    required_root_scripts = {
+        "build": "turbo run build",
+        "typecheck": "turbo run typecheck",
+        "test": "turbo run test",
+        "foundation:validate": "python3 scripts/validate-m004-foundation.py",
+        "check": "python3 scripts/validate-m004-foundation.py && pnpm run typecheck && pnpm run test && pnpm run build",
+    }
+    for name, command in required_root_scripts.items():
+        if root_scripts.get(name) != command:
+            errors.append(f"B: root script {name!r} must be {command!r}")
+    for name in FORBIDDEN_LIFECYCLE:
+        if name in root_scripts:
+            errors.append(f"P: forbidden root lifecycle script {name!r}")
 
-    # B. exact packageManager pnpm@11.4.0
-    pkg_manager = root_pkg.get("packageManager", "")
-    if pkg_manager != "pnpm@11.4.0":
-        errors.append(f"B: Wrong packageManager: expected 'pnpm@11.4.0', got '{pkg_manager}'")
+    packages_root = root / "packages"
+    found_manifests = {
+        p.parent.name: p for p in packages_root.glob("*/package.json")
+        if p.is_file() and active_path(p, root)
+    }
+    if set(found_manifests) != set(EXPECTED_PACKAGES):
+        errors.append(
+            f"K: expected exactly seven manifests {sorted(EXPECTED_PACKAGES)}, "
+            f"got {sorted(found_manifests)}"
+        )
 
-    # Check root private, type module
-    if root_pkg.get("private") is not True:
-        errors.append("Root package.json must have \"private\": true")
-    if root_pkg.get("type") != "module":
-        errors.append("Root package.json must have \"type\": \"module\" for ESM")
+    all_specs: list[tuple[str, str, str]] = []
+    workspace_graph: dict[str, list[str]] = {}
 
-    # Collect all dependencies for checks C/D/E/F/N/P
-    # Root devDependencies
-    root_dev_deps = root_pkg.get("devDependencies", {}) or {}
-    root_deps = root_pkg.get("dependencies", {}) or {}
-    all_root_deps = {**root_deps, **root_dev_deps}
-
-    # Check C: exact approved external dependency pins
-    # Approved pins must match exactly
-    for dep, expected in [("typescript","6.0.3"), ("turbo","2.10.6"), ("vitest","4.1.7")]:
-        actual = root_dev_deps.get(dep)
-        if actual is None:
-            errors.append(f"C: Missing required devDependency '{dep}' with pin '{expected}'")
-        elif actual != expected:
-            errors.append(f"C: Wrong pin for '{dep}': expected '{expected}', got '{actual}'")
-
-    # Check contracts typebox
-    contracts_pkg_path = REPO_ROOT / "packages" / "contracts" / "package.json"
-    if contracts_pkg_path.is_file():
-        contracts_pkg = json.loads(contracts_pkg_path.read_text(encoding="utf-8"))
-        c_deps = contracts_pkg.get("dependencies", {}) or {}
-        c_dev_deps = contracts_pkg.get("devDependencies", {}) or {}
-        c_all = {**c_deps, **c_dev_deps}
-        actual = c_all.get("typebox")
-        if actual != "1.3.6":
-            errors.append(f"C: Wrong pin for 'typebox' in packages/contracts: expected '1.3.6', got '{actual}'")
-    else:
-        errors.append("C: Missing packages/contracts/package.json for typebox check")
-        c_all = {}
-
-    # D. no dependency ranges (^, ~, latest)
-    # Check all package.json files
-    def check_no_ranges(deps: dict, location: str):
-        for name, ver in deps.items():
-            if not isinstance(ver, str):
-                continue
-            if ver.strip() == "":
-                continue
-            if ver.startswith("^") or ver.startswith("~"):
-                errors.append(f"D: Dependency range forbidden for '{name}' in {location}: '{ver}' (no ^ or ~)")
-            if ver == "latest" or ver.startswith("latest"):
-                errors.append(f"D: Dependency 'latest' forbidden for '{name}' in {location}: '{ver}'")
-            if "*" in ver:
-                # allow workspace:*? but we forbid general *
-                if ver != "*" and "workspace:" not in ver:
-                    # Check if version contains * not as workspace
-                    # For M-004 we forbid ranges like "1.x" is allowed? But spec says no ^,~ latest. We treat * as range too
-                    if "*" in ver:
-                        # But workspace:* is not considered range failure for D, but should be checked elsewhere
-                        # We'll only flag if not workspace
-                        if "workspace" not in ver:
-                            errors.append(f"D: Dependency range forbidden for '{name}' in {location}: '{ver}' (no *)")
-            # Also check npm dist-tag like "next" or "beta" without pin - treat as range? We'll consider if version contains non-exact semver like "x"
-            # But we only enforce ^ ~ latest * for now per spec
-
-    check_no_ranges(all_root_deps, "root package.json")
-    # Check all packages
-    for pkg_dir in EXPECTED_PACKAGES.keys():
-        ppath = REPO_ROOT / "packages" / pkg_dir / "package.json"
-        if ppath.is_file():
-            data = json.loads(ppath.read_text(encoding="utf-8"))
-            deps = {**(data.get("dependencies") or {}), **(data.get("devDependencies") or {})}
-            check_no_ranges(deps, f"packages/{pkg_dir}/package.json")
-
-    # E. no arbitrary git/http/file external dependency sources
-    def check_no_exotic(deps: dict, location: str):
-        for name, ver in deps.items():
-            if not isinstance(ver, str):
-                continue
-            lower = ver.lower()
-            if lower.startswith("git+") or "github:" in lower or lower.startswith("git://"):
-                errors.append(f"E: Git URL dependency forbidden for '{name}' in {location}: '{ver}'")
-            if lower.startswith("http://") or lower.startswith("https://"):
-                errors.append(f"E: HTTP URL dependency forbidden for '{name}' in {location}: '{ver}'")
-            if lower.startswith("file:") or lower.startswith("link:"):
-                errors.append(f"E: File/link dependency forbidden for '{name}' in {location}: '{ver}'")
-            # workspace: is allowed only for internal but M-004 should avoid
-            # We don't fail on workspace: here, but will be handled in T
-
-    check_no_exotic(all_root_deps, "root package.json")
-    for pkg_dir in EXPECTED_PACKAGES.keys():
-        ppath = REPO_ROOT / "packages" / pkg_dir / "package.json"
-        if ppath.is_file():
-            data = json.loads(ppath.read_text(encoding="utf-8"))
-            deps = {**(data.get("dependencies") or {}), **(data.get("devDependencies") or {})}
-            check_no_exotic(deps, f"packages/{pkg_dir}/package.json")
-
-    # F. only approved M-004 dependencies
-    # Root should only have typescript, turbo, vitest as direct deps (allow also maybe other internal? but spec says only approved)
-    allowed_root = {"typescript", "turbo", "vitest"}
-    for dep in all_root_deps.keys():
-        # Check if dep is internal @vibeflow/* with workspace: — currently none, but if present would be considered internal and we should allow? But spec says avoid unnecessary internal deps
-        if dep.startswith("@vibeflow/"):
-            # workspace internal - flag as unnecessary at M-004? For F we consider it not allowed unless needed
-            errors.append(f"F: Unapproved external dependency '{dep}' in root package.json (only {sorted(allowed_root)} and typebox in contracts are allowed)")
-        elif dep not in allowed_root:
-            # Allow typebox only in contracts, not root
-            if dep == "typebox":
-                errors.append(f"F: Unapproved external dependency 'typebox' in root package.json (only packages/contracts should need TypeBox)")
-            else:
-                errors.append(f"F: Unapproved external dependency '{dep}' in root package.json: '{dep}' not in approved M-004 set {sorted(allowed_root)}")
-
-    # Check contracts allowed deps: only typebox
-    if contracts_pkg_path.is_file():
-        contracts_pkg = json.loads(contracts_pkg_path.read_text(encoding="utf-8"))
-        c_deps = {**(contracts_pkg.get("dependencies") or {}), **(contracts_pkg.get("devDependencies") or {})}
-        for dep in c_deps.keys():
-            if dep != "typebox":
-                errors.append(f"F: Unapproved external dependency '{dep}' in packages/contracts (only typebox@1.3.6 is allowed)")
-
-    # Check other packages should have no dependencies (since M-004 shells have no product behavior)
-    for pkg_dir in EXPECTED_PACKAGES.keys():
-        if pkg_dir == "contracts":
+    for dirname, expected_name in EXPECTED_PACKAGES.items():
+        manifest = root / "packages" / dirname / "package.json"
+        pkg = read_json(manifest, errors, "K")
+        if not pkg:
             continue
-        ppath = REPO_ROOT / "packages" / pkg_dir / "package.json"
-        if ppath.is_file():
-            data = json.loads(ppath.read_text(encoding="utf-8"))
-            deps = {**(data.get("dependencies") or {}), **(data.get("devDependencies") or {})}
-            # Filter peerDependencies? not expected
-            if deps:
-                for dep in deps.keys():
-                    errors.append(f"F: Unapproved external dependency '{dep}' in packages/{pkg_dir}/package.json (M-004 shells must have no external dependencies except contracts->typebox)")
+        if pkg.get("name") != expected_name:
+            errors.append(f"L: packages/{dirname} must be named {expected_name}")
+        if pkg.get("private") is not True or pkg.get("version") != "0.0.0" or pkg.get("type") != "module":
+            errors.append(f"M: packages/{dirname} must be private, version 0.0.0, and ESM")
+        scripts = pkg.get("scripts") or {}
+        expected_scripts = {
+            "build": "tsc -p tsconfig.json",
+            "typecheck": "tsc --noEmit",
+            "test": "vitest run --passWithNoTests",
+        }
+        if scripts != expected_scripts:
+            errors.append(f"M: packages/{dirname} scripts must be cross-platform foundation scripts only")
+        for name in FORBIDDEN_LIFECYCLE:
+            if name in scripts:
+                errors.append(f"P: forbidden lifecycle script {name!r} in packages/{dirname}")
 
-    # G. exactly one pnpm lockfile
-    pnpm_lock_root = REPO_ROOT / "pnpm-lock.yaml"
-    if not pnpm_lock_root.is_file():
-        errors.append("G: Missing required pnpm-lock.yaml at repository root")
-    # Check nested pnpm-lock.yaml
-    nested = list(REPO_ROOT.rglob("pnpm-lock.yaml"))
-    # Filter out root
-    nested_filtered = [p for p in nested if p.resolve() != pnpm_lock_root.resolve()]
-    if nested_filtered:
-        for p in nested_filtered:
-            rel = p.relative_to(REPO_ROOT)
-            errors.append(f"G: Nested pnpm-lock.yaml forbidden: {rel}")
-    # Also check exactly one - if multiple, already flagged; if zero flagged above
+        deps = dependency_fields(pkg)
+        for dep, spec in deps.items():
+            all_specs.append((f"packages/{dirname}", dep, spec))
+            if spec.startswith("workspace:"):
+                workspace_graph.setdefault(expected_name, []).append(dep)
 
-    # H. no npm/yarn/bun lockfiles
-    forbidden_lockfiles = ["package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]
-    for name in forbidden_lockfiles:
-        for found in REPO_ROOT.rglob(name):
-            # Ignore .git and node_modules? But spec says reject any such lockfiles at repo level? We'll check anywhere not in .git/node_modules? For simplicity, check root and any not in node_modules/.git
-            # Skip node_modules/.git paths
-            parts = found.relative_to(REPO_ROOT).parts
-            if "node_modules" in parts or ".git" in parts:
-                continue
-            errors.append(f"H: Forbidden lockfile present: {found.relative_to(REPO_ROOT)}")
-
-    # I. required workspace globs exist
-    ws_path = REPO_ROOT / "pnpm-workspace.yaml"
-    if not ws_path.is_file():
-        errors.append("I: Missing pnpm-workspace.yaml")
-    else:
-        text = ws_path.read_text(encoding="utf-8")
-        for glob in EXPECTED_WORKSPACE_GLOBS:
-            # Simple check: glob string appears
-            if glob not in text:
-                errors.append(f"I: Missing required workspace glob '{glob}' in pnpm-workspace.yaml")
-        # Check that only those globs? We require exactly reservation but not necessarily exclusive; but we check that expected ones exist
-        # Also validate packages key exists
-        if "packages:" not in text:
-            errors.append("I: pnpm-workspace.yaml missing 'packages:' key")
-
-    # J. no package.json files under apps/services/workers/adapters
-    for prefix in ["apps", "services", "workers", "adapters"]:
-        base = REPO_ROOT / prefix
-        if base.is_dir():
-            for found in base.rglob("package.json"):
-                parts = found.relative_to(REPO_ROOT).parts
-                if "node_modules" in parts:
-                    continue
-                errors.append(f"J: Forbidden package.json under {prefix}: {found.relative_to(REPO_ROOT)}")
-
-    # K. exactly seven M-004 shared package manifests
-    found_packages = []
-    for pkg_dir in EXPECTED_PACKAGES.keys():
-        ppath = REPO_ROOT / "packages" / pkg_dir / "package.json"
-        if ppath.is_file():
-            found_packages.append(pkg_dir)
-        else:
-            errors.append(f"K: Missing shared package manifest: packages/{pkg_dir}/package.json")
-    # Also check that there are not extra package manifests under packages/* that are not expected?
-    # Let's detect extra
-    packages_root = REPO_ROOT / "packages"
-    if packages_root.is_dir():
-        for child in packages_root.iterdir():
-            if child.is_dir():
-                if child.name not in EXPECTED_PACKAGES:
-                    # If it has package.json, it's extra
-                    if (child / "package.json").is_file():
-                        errors.append(f"K: Unexpected package manifest: packages/{child.name}/package.json (expected only seven)")
-        # Count
-        if len(found_packages) != 7:
-            errors.append(f"K: Expected exactly seven M-004 shared package manifests, found {len(found_packages)}")
-
-    # L. expected @vibeflow/* names
-    for dir_name, expected_name in EXPECTED_PACKAGES.items():
-        ppath = REPO_ROOT / "packages" / dir_name / "package.json"
-        if ppath.is_file():
-            data = json.loads(ppath.read_text(encoding="utf-8"))
-            actual = data.get("name", "")
-            if actual != expected_name:
-                errors.append(f"L: Wrong package name in packages/{dir_name}/package.json: expected '{expected_name}', got '{actual}'")
-
-    # M. all shared packages are private, 0.0.0 and ESM
-    for dir_name in EXPECTED_PACKAGES.keys():
-        ppath = REPO_ROOT / "packages" / dir_name / "package.json"
-        if ppath.is_file():
-            data = json.loads(ppath.read_text(encoding="utf-8"))
-            if data.get("private") is not True:
-                errors.append(f"M: Package packages/{dir_name}/package.json must have \"private\": true")
-            if data.get("version") != "0.0.0":
-                errors.append(f"M: Package packages/{dir_name}/package.json must have version \"0.0.0\", got '{data.get('version')}'")
-            if data.get("type") != "module":
-                errors.append(f"M: Package packages/{dir_name}/package.json must have \"type\": \"module\"")
-
-    # N. TypeBox uses `typebox` 1.x, never @sinclair/typebox
-    # Check all package.json for @sinclair/typebox
-    for pkg_json_path in REPO_ROOT.rglob("package.json"):
-        parts = pkg_json_path.relative_to(REPO_ROOT).parts
-        if "node_modules" in parts or ".git" in parts:
-            continue
-        data = json.loads(pkg_json_path.read_text(encoding="utf-8"))
-        for field in ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]:
-            deps = data.get(field) or {}
+        if dirname == "contracts":
+            if (pkg.get("dependencies") or {}) != {"typebox": TYPEBOX_PIN}:
+                errors.append(f"C/N: contracts must depend only on typebox@{TYPEBOX_PIN}")
             if "@sinclair/typebox" in deps:
-                errors.append(f"N: Forbidden TypeBox 0.x package '@sinclair/typebox' found in {pkg_json_path.relative_to(REPO_ROOT)}")
-            if "typebox" in deps:
-                ver = deps["typebox"]
-                # Must be 1.x - check not 0.x, and specifically our pin
-                if ver.startswith("0.") or ver.startswith("0.x") or ver.startswith("@"):
-                    errors.append(f"N: TypeBox must be 1.x line, got '{ver}' in {pkg_json_path.relative_to(REPO_ROOT)}")
-                # Also ensure it's not referencing outdated registry - we already check pin
-    # Also ensure contracts uses typebox 1.3.6
-    # Already checked in C
+                errors.append("N: @sinclair/typebox is forbidden; use typebox 1.x")
+        elif deps:
+            errors.append(f"F: packages/{dirname} must have no dependencies at M-004")
 
-    # O. mandatory TypeScript strict flags
-    ts_base_path = REPO_ROOT / "tsconfig.base.json"
-    if not ts_base_path.is_file():
-        errors.append("O: Missing tsconfig.base.json")
-    else:
-        try:
-            ts_data = json.loads(ts_base_path.read_text(encoding="utf-8"))
-            opts = ts_data.get("compilerOptions", {})
-            for flag, expected in STRICT_FLAGS.items():
-                actual = opts.get(flag)
-                if actual != expected:
-                    errors.append(f"O: Missing or wrong TypeScript strict flag '{flag}': expected {expected}, got {actual}")
-            # Also check modern ESM settings: module should be NodeNext or ESNext etc.
-            mod = opts.get("module", "")
-            if mod not in ("NodeNext", "Node16", "ESNext", "ES2022"):
-                # Not a hard failure but warn? Spec says must use modern ESM/Node-compatible - we enforce NodeNext
-                if mod != "NodeNext":
-                    errors.append(f"O: tsconfig.base.json module should be 'NodeNext' for ESM, got '{mod}'")
-            # Check strict at top
-            if opts.get("strict") is not True:
-                errors.append("O: tsconfig.base.json must have \"strict\": true")
-        except Exception as e:
-            errors.append(f"O: Failed to parse tsconfig.base.json: {e}")
+        for required in ("tsconfig.json", "src/index.ts"):
+            if not (root / "packages" / dirname / required).is_file():
+                errors.append(f"K: missing packages/{dirname}/{required}")
 
-    # Also check each package tsconfig extends base
-    for dir_name in EXPECTED_PACKAGES.keys():
-        tsc_path = REPO_ROOT / "packages" / dir_name / "tsconfig.json"
-        if not tsc_path.is_file():
-            errors.append(f"O: Missing tsconfig for package {dir_name}: packages/{dir_name}/tsconfig.json")
-        else:
-            try:
-                data = json.loads(tsc_path.read_text(encoding="utf-8"))
-                extends = data.get("extends", "")
-                if "tsconfig.base.json" not in extends:
-                    errors.append(f"O: packages/{dir_name}/tsconfig.json must extend tsconfig.base.json")
-            except Exception as e:
-                errors.append(f"O: Failed to parse packages/{dir_name}/tsconfig.json: {e}")
+    if not (root / "packages/contracts/src/typebox-smoke.test.ts").is_file():
+        errors.append("N: missing TypeBox compatibility smoke test")
 
-    # P. no VibeFlow package lifecycle scripts
-    def check_lifecycle(pkg_path: Path):
-        data = json.loads(pkg_path.read_text(encoding="utf-8"))
-        scripts = data.get("scripts") or {}
-        for script in FORBIDDEN_LIFECYCLE_SCRIPTS:
-            if script in scripts:
-                errors.append(f"P: Forbidden lifecycle script '{script}' in {pkg_path.relative_to(REPO_ROOT)}")
+    for dep, spec in {**root_runtime, **root_dev}.items():
+        all_specs.append(("root", dep, str(spec)))
+    for location, dep, spec in all_specs:
+        ranged, exotic = has_range_or_exotic(spec)
+        if ranged:
+            errors.append(f"D: dependency range/dist-tag forbidden: {location} {dep}={spec}")
+        if exotic:
+            errors.append(f"E: exotic dependency source forbidden: {location} {dep}={spec}")
+        if dep == "@sinclair/typebox":
+            errors.append(f"N: forbidden TypeBox 0.x package in {location}")
 
-    if root_pkg_path.is_file():
-        check_lifecycle(root_pkg_path)
-    for dir_name in EXPECTED_PACKAGES.keys():
-        ppath = REPO_ROOT / "packages" / dir_name / "package.json"
-        if ppath.is_file():
-            check_lifecycle(ppath)
+    pnpm_locks = [p for p in root.rglob("pnpm-lock.yaml") if active_path(p, root)]
+    if set(pnpm_locks) != {root / "pnpm-lock.yaml"}:
+        errors.append(
+            "G: exactly one root pnpm-lock.yaml required, got "
+            f"{[str(p.relative_to(root)) for p in pnpm_locks]}"
+        )
+    for name in ("package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"):
+        found = [p for p in root.rglob(name) if active_path(p, root)]
+        if found:
+            errors.append(f"H: forbidden lockfile(s): {[str(p.relative_to(root)) for p in found]}")
 
-    # Q, R, S: check .npmrc / pnpm-workspace.yaml supply chain settings
-    npmrc_path = REPO_ROOT / ".npmrc"
-    npmrc = parse_npmrc(npmrc_path) if npmrc_path.is_file() else {}
-    # Also check pnpm-workspace.yaml may contain settings? But we focus on .npmrc
+    workspace_globs, pnpm_settings, allow_builds = parse_workspace(root / "pnpm-workspace.yaml", errors)
+    if workspace_globs != EXPECTED_GLOBS:
+        errors.append(f"I: workspace globs must exactly equal {EXPECTED_GLOBS}, got {workspace_globs}")
 
-    # Q. no dangerouslyAllowAllBuilds
-    if npmrc.get("dangerouslyAllowAllBuilds", "").lower() == "true":
-        errors.append("Q: 'dangerouslyAllowAllBuilds' must not be enabled")
+    required_settings = {
+        "minimumReleaseAge": 1440,
+        "minimumReleaseAgeStrict": True,
+        "minimumReleaseAgeIgnoreMissingTime": False,
+        "blockExoticSubdeps": True,
+        "strictDepBuilds": True,
+        "trustLockfile": False,
+    }
+    for key, expected in required_settings.items():
+        if pnpm_settings.get(key) != expected:
+            errors.append(f"R/S: pnpm-workspace.yaml {key} must be {expected!r}, got {pnpm_settings.get(key)!r}")
+    if pnpm_settings.get("dangerouslyAllowAllBuilds") is True:
+        errors.append("Q: dangerouslyAllowAllBuilds must not be enabled")
+    if allow_builds:
+        errors.append(f"Q: M-004 expects no allowBuilds approvals, got {allow_builds}")
 
-    # Also check if any other config file has it
-    for cfg in [REPO_ROOT / "pnpm-workspace.yaml", REPO_ROOT / ".npmrc"]:
-        if cfg.is_file():
-            text = cfg.read_text(encoding="utf-8")
-            if "dangerouslyAllowAllBuilds" in text and "true" in text.lower():
-                # already flagged, but ensure detection if not via parse
-                if "Q: 'dangerouslyAllowAllBuilds'" not in str(errors):
-                    # check more strictly
-                    if re.search(r"dangerouslyAllowAllBuilds\s*=\s*true", text, re.IGNORECASE):
-                        errors.append("Q: 'dangerouslyAllowAllBuilds' must not be enabled")
+    npmrc = root / ".npmrc"
+    if npmrc.is_file():
+        for line in npmrc.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith(("#", ";")):
+                continue
+            key = re.split(r"[:=]", stripped, maxsplit=1)[0].strip()
+            if key in PNPM_PROJECT_SETTINGS or key in {"engine-strict", "save-exact"}:
+                errors.append(f"R: project pnpm setting {key!r} must be in pnpm-workspace.yaml, not .npmrc")
 
-    # R. release-age policy remains enabled
-    # minimumReleaseAge=1440
-    mra = npmrc.get("minimumReleaseAge", "")
-    if mra != "1440":
-        errors.append(f"R: 'minimumReleaseAge' must be 1440, got '{mra}'")
-    mras = npmrc.get("minimumReleaseAgeStrict", "")
-    if mras.lower() != "true":
-        errors.append(f"R: 'minimumReleaseAgeStrict' must be true, got '{mras}'")
-    mra_ignore = npmrc.get("minimumReleaseAgeIgnoreMissingTime", "")
-    if mra_ignore.lower() != "false":
-        errors.append(f"R: 'minimumReleaseAgeIgnoreMissingTime' must be false, got '{mra_ignore}'")
-    block_exotic = npmrc.get("blockExoticSubdeps", "")
-    if block_exotic.lower() != "true":
-        errors.append(f"R: 'blockExoticSubdeps' must be true, got '{block_exotic}'")
-    strict_builds = npmrc.get("strictDepBuilds", "")
-    if strict_builds.lower() != "true":
-        errors.append(f"R: 'strictDepBuilds' must be true, got '{strict_builds}'")
+    for prefix in ("apps", "services", "workers", "adapters"):
+        base = root / prefix
+        if base.is_dir():
+            found = [p for p in base.rglob("package.json") if active_path(p, root)]
+            if found:
+                errors.append(f"J: package.json forbidden under {prefix}: {[str(p.relative_to(root)) for p in found]}")
 
-    # S. trustLockfile is not true
-    trust = npmrc.get("trustLockfile", "")
-    if trust.lower() == "true":
-        errors.append("S: 'trustLockfile' must not be true")
-    # Also check if trustLockfile missing? spec says trustLockfile is not true, but should be false
-    if trust.lower() != "false":
-        # If missing or not false, error: spec says trustLockfile is not true and should be false
-        # We require false explicitly
-        if trust == "":
-            errors.append("S: 'trustLockfile' must be false (missing)")
-        elif trust.lower() != "false":
-            errors.append(f"S: 'trustLockfile' must be false, got '{trust}'")
+    tsconfig = read_json(root / "tsconfig.base.json", errors, "O")
+    opts = tsconfig.get("compilerOptions") or {}
+    for flag, expected in STRICT_FLAGS.items():
+        if opts.get(flag) != expected:
+            errors.append(f"O: {flag} must be {expected!r}")
+    if opts.get("module") != "NodeNext" or opts.get("moduleResolution") != "NodeNext":
+        errors.append("O: TypeScript module and moduleResolution must both be NodeNext")
 
-    # T. no obvious workspace dependency cycles
-    # Build graph of workspace deps
-    workspace_deps = {}  # pkg name -> list of dep names that are workspace: protocol
-    for dir_name, pkg_name in EXPECTED_PACKAGES.items():
-        ppath = REPO_ROOT / "packages" / dir_name / "package.json"
-        if not ppath.is_file():
-            continue
-        data = json.loads(ppath.read_text(encoding="utf-8"))
-        deps = {**(data.get("dependencies") or {}), **(data.get("devDependencies") or {})}
-        for dep, ver in deps.items():
-            if isinstance(ver, str) and ver.startswith("workspace:"):
-                workspace_deps.setdefault(pkg_name, []).append(dep)
-    # Detect cycles via DFS
-    def has_cycle():
-        visited = set()
-        rec_stack = set()
-        def dfs(node):
-            visited.add(node)
-            rec_stack.add(node)
-            for neigh in workspace_deps.get(node, []):
-                if neigh not in visited:
-                    if dfs(neigh):
-                        return True
-                elif neigh in rec_stack:
-                    return True
-            rec_stack.remove(node)
+    for dirname in EXPECTED_PACKAGES:
+        config = read_json(root / "packages" / dirname / "tsconfig.json", errors, "O")
+        if "tsconfig.base.json" not in str(config.get("extends", "")):
+            errors.append(f"O: packages/{dirname}/tsconfig.json must extend tsconfig.base.json")
+
+    def visit(node: str, visiting: set[str], visited: set[str]) -> bool:
+        if node in visiting:
+            return True
+        if node in visited:
             return False
-        for n in workspace_deps:
-            if n not in visited:
-                if dfs(n):
-                    return True
+        visiting.add(node)
+        for neighbor in workspace_graph.get(node, []):
+            if visit(neighbor, visiting, visited):
+                return True
+        visiting.remove(node)
+        visited.add(node)
         return False
 
-    if workspace_deps and has_cycle():
-        errors.append(f"T: Workspace dependency cycle detected: {workspace_deps}")
-    # Also if M-004 has any workspace deps at all, we consider? Spec says M-004 should avoid unnecessary internal package dependencies
-    # But not strictly forbidden, we already have check F that would flag workspace deps? Let's warn if any workspace deps present
-    if workspace_deps:
-        # For M-004 we expect no workspace deps; if any, it's at least warning but we treat as error per spec "should avoid"
-        # Not a hard error unless cycle, but we can warn
-        # To keep deterministic, we will error if any workspace deps found
-        errors.append(f"T: Unexpected workspace dependencies at M-004 (should avoid): {workspace_deps}")
+    if workspace_graph:
+        visited: set[str] = set()
+        if any(visit(node, set(), visited) for node in workspace_graph):
+            errors.append(f"T: workspace dependency cycle detected: {workspace_graph}")
+        errors.append(f"T: M-004 shared package shells must not depend on each other yet: {workspace_graph}")
 
-    # U. M-004 mission progression remains coherent
-    # V. M-005 remains LOCKED
-    dag_path = REPO_ROOT / "master-build-system" / "10_IMPLEMENTATION" / "MISSION_DAG.yaml"
-    reg_path = REPO_ROOT / "master-build-system" / "10_IMPLEMENTATION" / "MISSION_REGISTER.csv"
-    # Simple parsing for statuses
-    def parse_dag_statuses(p: Path):
-        text = p.read_text(encoding="utf-8") if p.is_file() else ""
-        # naive regex for mission_id and status
-        pattern = re.compile(r"mission_id:\s*(M-\d{3})\s*\n.*?status:\s*(\w+)", re.DOTALL)
-        # Better line-based
-        statuses = {}
-        current_id = None
-        for line in text.splitlines():
-            m = re.match(r"\s*-?\s*mission_id:\s*(M-\d{3})", line)
-            if m:
-                current_id = m.group(1)
-            m2 = re.match(r"\s*status:\s*(\w+)", line)
-            if m2 and current_id:
-                statuses[current_id] = m2.group(1)
-                current_id = None  # reset after pairing? but status line follows after id, so we keep?
-                # Actually status follows after mission_id block, so current_id is still valid prior
-                # We'll keep current_id for next? Let's store and continue
-                # To handle multiple fields, we need to capture status associated with last mission_id seen
-                # The above simplistic will treat status as belonging to last seen mission_id
-                # So we should not reset current_id immediately before reading status? We already did.
-                # Instead we need to track latest mission_id until status found
-                pass
-        # Alternative: iterate lines and track
-        statuses2 = {}
-        last_id = None
-        for line in text.splitlines():
-            id_match = re.search(r"mission_id:\s*(M-\d{3})", line)
-            if id_match:
-                last_id = id_match.group(1)
-            status_match = re.search(r"status:\s*(\w+)", line)
-            if status_match and last_id:
-                # This will capture every status line after an id, but there are many statuses; we need to ensure we capture the last status before next mission_id?
-                # Better to capture when we see status and associate with most recent id not yet assigned
-                # We'll assume each mission block has exactly one status line after id
-                # So we can assign and clear last_id after assignment to avoid reassigning same id to next status
-                # But if we clear, then next status without new id would be missed (but there is always id before status)
-                # We'll assign and keep last_id until next id overrides
-                statuses2[last_id] = status_match.group(1)
-        return statuses2
+    dag = parse_dag_statuses(root / "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml", errors)
+    register = parse_register_statuses(root / "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv", errors)
+    expected_progression = {"M-001": "DONE", "M-002": "DONE", "M-003": "DONE", "M-004": "REVIEW"}
+    for mid, expected in expected_progression.items():
+        if dag.get(mid) != expected:
+            errors.append(f"U: DAG {mid} must be {expected}, got {dag.get(mid)!r}")
+        if register.get(mid) != expected:
+            errors.append(f"U: register {mid} must be {expected}, got {register.get(mid)!r}")
+    for index in range(5, 152):
+        mid = f"M-{index:03d}"
+        if dag.get(mid) != "LOCKED":
+            errors.append(f"V: DAG {mid} must remain LOCKED, got {dag.get(mid)!r}")
+        if register.get(mid) != "LOCKED":
+            errors.append(f"V: register {mid} must remain LOCKED, got {register.get(mid)!r}")
 
-    dag_statuses = parse_dag_statuses(dag_path) if dag_path.is_file() else {}
-
-    # Parse register
-    reg_statuses = {}
-    if reg_path.is_file():
-        lines = reg_path.read_text(encoding="utf-8").splitlines()
-        if lines:
-            header = lines[0].split(",")
-            try:
-                idx_id = header.index("mission_id")
-                idx_status = header.index("status")
-            except ValueError:
-                errors.append("U: MISSION_REGISTER.csv missing mission_id/status columns")
-                idx_id = idx_status = None
-            if idx_id is not None:
-                for line in lines[1:]:
-                    # naive csv split respecting quotes? Use simple but handle quoted commas
-                    # Use csv module would be safer, but we implement simple
-                    # For robustness, use csv
-                    import csv
-                    reader = csv.reader([line])
-                    row = next(reader)
-                    if len(row) > max(idx_id, idx_status):
-                        reg_statuses[row[idx_id].strip()] = row[idx_status].strip()
+    workflow = root / ".github/workflows/repository-foundation.yml"
+    if not workflow.is_file():
+        errors.append("W: missing .github/workflows/repository-foundation.yml")
     else:
-        errors.append("U: Missing MISSION_REGISTER.csv")
-
-    # Validate progression
-    expected_progression = {
-        "M-001": "DONE",
-        "M-002": "DONE",
-        "M-003": "DONE",
-        "M-004": "REVIEW",
-    }
-    for mid, exp_status in expected_progression.items():
-        dag_actual = dag_statuses.get(mid)
-        reg_actual = reg_statuses.get(mid)
-        if dag_actual != exp_status:
-            errors.append(f"U: MISSION_DAG.yaml status for {mid} expected '{exp_status}', got '{dag_actual}'")
-        if reg_actual != exp_status:
-            errors.append(f"U: MISSION_REGISTER.csv status for {mid} expected '{exp_status}', got '{reg_actual}'")
-
-    # Check M-005..M-151 are LOCKED in both
-    for i in range(5, 152):
-        mid = f"M-{i:03d}"
-        dag_s = dag_statuses.get(mid)
-        reg_s = reg_statuses.get(mid)
-        if dag_s is not None and dag_s != "LOCKED":
-            errors.append(f"V: {mid} must remain LOCKED in MISSION_DAG.yaml, got '{dag_s}'")
-        if reg_s is not None and reg_s != "LOCKED":
-            errors.append(f"V: {mid} must remain LOCKED in MISSION_REGISTER.csv, got '{reg_s}'")
-
-    # W. foundation CI workflow exists
-    wf_path = REPO_ROOT / ".github" / "workflows" / "repository-foundation.yml"
-    if not wf_path.is_file():
-        errors.append("W: Missing foundation CI workflow .github/workflows/repository-foundation.yml")
-    else:
-        text = wf_path.read_text(encoding="utf-8")
-        # Check it contains required steps
-        required_snippets = [
-            "node --version",
-            "pnpm --version",
+        text = workflow.read_text(encoding="utf-8")
+        for snippet in (
+            "node-version: 24.19.0",
+            "corepack enable",
+            'test "$(node --version)" = "v24.19.0"',
+            'test "$(pnpm --version)" = "11.4.0"',
             "pnpm install --frozen-lockfile",
             "pnpm run check",
-            "24.19.0",
-            "11.4.0",
-        ]
-        for snippet in required_snippets:
+        ):
             if snippet not in text:
-                errors.append(f"W: Foundation workflow missing required snippet '{snippet}'")
-        # Also check it triggers on pull_request and push
-        if "pull_request" not in text:
-            errors.append("W: Foundation workflow should run on pull_request")
-        if "push" not in text:
-            errors.append("W: Foundation workflow should run on push")
+                errors.append(f"W: repository-foundation workflow missing {snippet!r}")
 
-    # Also check turbo.json exists
-    turbo_path = REPO_ROOT / "turbo.json"
-    if not turbo_path.is_file():
-        errors.append("Missing turbo.json")
+    integrity = root / ".github/workflows/master-build-system-integrity.yml"
+    if not integrity.is_file():
+        errors.append("W: missing master-build-system-integrity workflow")
     else:
-        try:
-            turbo_data = json.loads(turbo_path.read_text(encoding="utf-8"))
-            tasks = turbo_data.get("tasks", {})
-            for t in ["build", "typecheck", "test"]:
-                if t not in tasks:
-                    errors.append(f"turbo.json missing required task '{t}'")
-        except Exception as e:
-            errors.append(f"Failed to parse turbo.json: {e}")
+        text = integrity.read_text(encoding="utf-8")
+        for snippet in (
+            "python3 scripts/validate-m004-foundation.py",
+            "python3 tests/contract/test_m004_foundation.py",
+        ):
+            if snippet not in text:
+                errors.append(f"W: integrity workflow missing {snippet!r}")
 
-    # Print results
+    turbo = read_json(root / "turbo.json", errors, "W")
+    tasks = turbo.get("tasks") or {}
+    if set(tasks) != {"build", "typecheck", "test"}:
+        errors.append(f"W: turbo tasks must be build/typecheck/test only, got {sorted(tasks)}")
+
     if errors:
         print("M-004 foundation validation FAILED")
-        for e in errors:
-            print(f"  ERROR: {e}")
-        if warnings:
-            for w in warnings:
-                print(f"  WARN: {w}")
+        for error in errors:
+            print(f"  ERROR: {error}")
         print(f"Total errors: {len(errors)}")
         return 1
-    else:
-        print("M-004 foundation validation PASSED")
-        if warnings:
-            for w in warnings:
-                print(f"  WARN: {w}")
-        return 0
+
+    print("M-004 foundation validation PASSED")
+    print("  packages=7 lockfiles=1 mission=M-004:REVIEW")
+    return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
