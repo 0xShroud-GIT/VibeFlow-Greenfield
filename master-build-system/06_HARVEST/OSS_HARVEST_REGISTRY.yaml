@@ -12,6 +12,10 @@ entries:
   license: MIT
   source: https://nodejs.org/en/about/previous-releases
   rule: Use LTS, not Current, for control-plane production.
+  use: JS runtime for all VibeFlow TypeScript services and workers.
+  ownership: Node.js owns the runtime process/V8; VibeFlow owns application code, lifecycle and deployment.
+  upgrade_policy: Stay on the active LTS line (24.x); minors/security releases via lockfile refresh from M-004; next LTS via migration mission.
+  replacement_strategy: Foundational runtime with no drop-in substitute; control via pinned container image and engines field.
 - id: H-002
   capability: language
   name: TypeScript
@@ -21,6 +25,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/microsoft/TypeScript
   rule: Strict mode. Avoid type-any escape hatches in contracts.
+  use: Language and static type checking for all VibeFlow code.
+  ownership: TypeScript owns the compiler/language; VibeFlow owns its types, contracts and strict-mode policy.
+  upgrade_policy: Follow stable minors; major versions via explicit toolchain mission.
+  replacement_strategy: Compiler-only toolchain dependency; product code has no runtime coupling.
 - id: H-003
   capability: package_manager
   name: pnpm
@@ -30,6 +38,10 @@ entries:
   license: MIT
   source: https://github.com/pnpm/pnpm
   rule: Single workspace lockfile.
+  use: Package installation and the single workspace lockfile (from M-004).
+  ownership: pnpm owns dependency resolution/install; VibeFlow owns dependency policy and CI gates.
+  upgrade_policy: Stay on 11.x stable; major versions via toolchain mission.
+  replacement_strategy: Any workspace-capable package manager behind standard package.json manifests.
 - id: H-004
   capability: monorepo_build
   name: Turborepo
@@ -39,6 +51,10 @@ entries:
   license: MIT
   source: https://github.com/vercel/turborepo
   rule: Build/test caching only; architecture does not depend on Turborepo.
+  use: Monorepo build/test task graph and caching only.
+  ownership: Turborepo owns task scheduling/caching; VibeFlow owns build definitions; architecture must not depend on Turborepo.
+  upgrade_policy: Stay on 2.10.x stable; removal must stay possible without architecture change.
+  replacement_strategy: Remove turbo and run package scripts directly (pnpm -r or equivalent); caching is optional.
 - id: H-005
   capability: mobile
   name: Expo
@@ -48,6 +64,10 @@ entries:
   license: MIT
   source: https://expo.dev/changelog
   rule: Expo Router and EAS where useful; custom native modules only for real gaps.
+  use: Mobile app framework, native modules and build tooling (EAS where useful).
+  ownership: Expo owns mobile tooling/native modules; VibeFlow owns mobile control UX and the native-web bridge.
+  upgrade_policy: Follow Expo SDK releases via mobile migration missions; custom native modules only for real gaps.
+  replacement_strategy: Eject to bare React Native retaining application code; tooling-only coupling.
 - id: H-006
   capability: mobile_runtime
   name: React Native
@@ -57,6 +77,10 @@ entries:
   license: MIT
   source: https://github.com/facebook/react-native
   rule: Follow Expo-compatible RN version.
+  use: Native mobile rendering runtime for the control app.
+  ownership: React Native owns native rendering; VibeFlow owns product state and navigation policy.
+  upgrade_policy: Follow the Expo-SDK-compatible RN line (0.85.x).
+  replacement_strategy: Version pinned by Expo SDK choice; workspace-web remains the full fallback surface.
 - id: H-007
   capability: web_editor
   name: Monaco Editor
@@ -66,6 +90,10 @@ entries:
   license: MIT
   source: https://github.com/microsoft/monaco-editor
   rule: VibeFlow owns project/revision/session integration, not text editor internals.
+  use: Workspace-web code editor surface.
+  ownership: Monaco owns text editing internals; VibeFlow owns project/revision/session integration, permissions and mobile bridge integration.
+  upgrade_policy: Stay on 0.56.x; upgrades gated by editor regression suites.
+  replacement_strategy: Alternative browser editor (e.g. CodeMirror) behind the editor panel interface.
 - id: H-008
   capability: web_terminal
   name: xterm.js
@@ -75,6 +103,10 @@ entries:
   license: MIT
   source: https://github.com/xtermjs/xterm.js
   rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation. Use the official @xterm/*
+  use: Workspace-web terminal front-end (user-facing PTY rendering).
+  ownership: xterm.js owns terminal emulation/rendering; VibeFlow owns TerminalSession authority, workspace binding, transport, policy and evidence.
+  upgrade_policy: Stay on 6.0.x via @xterm/* scoped packages from M-004.
+  replacement_strategy: Alternative terminal emulator behind the TerminalTransport interface.
     scoped npm packages (legacy xterm/xterm-* names are deprecated upstream).
 - id: H-009
   capability: api_server
@@ -85,6 +117,10 @@ entries:
   license: MIT
   source: https://github.com/fastify/fastify
   rule: Start as modular control-plane service; avoid early microservices.
+  use: Modular control-plane HTTP API service.
+  ownership: Fastify owns HTTP plumbing/plugin lifecycle; VibeFlow owns API contracts, authorization and state semantics.
+  upgrade_policy: Stay on 5.x; apply security patches promptly.
+  replacement_strategy: Route handlers stay framework-portable; swap HTTP framework behind the server bootstrap.
 - id: H-010
   capability: database
   name: PostgreSQL
@@ -94,6 +130,10 @@ entries:
   license: PostgreSQL
   source: https://www.postgresql.org/docs/18/
   rule: Authoritative control-plane database.
+  use: Authoritative control-plane database service.
+  ownership: PostgreSQL owns storage/engine; VibeFlow owns schema and authority semantics.
+  upgrade_policy: Stay on 18.x minors; major upgrades via migration mission with backup/restore evidence.
+  replacement_strategy: SQL engine behind Drizzle SQL migrations; switchable to managed PostgreSQL providers.
 - id: H-011
   capability: orm_migrations
   name: Drizzle ORM + Kit
@@ -103,6 +143,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/drizzle-team/drizzle-orm
   rule: Use SQL migrations committed to repo; do not use RC line without explicit upgrade mission.
+  use: Type-safe query building and SQL migration kit.
+  ownership: Drizzle owns query building/migration mechanics; VibeFlow owns the schema and migration policy (SQL committed to repo).
+  upgrade_policy: Stay on 0.45.2 stable; 1.0 line only via explicit upgrade mission (RC excluded).
+  replacement_strategy: Plain SQL migrations already canonical; migration runner is replaceable.
 - id: H-012
   capability: authentication
   name: Better Auth
@@ -112,6 +156,10 @@ entries:
   license: MIT
   source: https://github.com/better-auth/better-auth
   rule: Wrap behind Identity module; enterprise SAML/SCIM may later use dedicated provider.
+  use: Commodity authentication mechanics behind the VibeFlow Identity module.
+  ownership: Better Auth supplies auth protocols/sessions; VibeFlow owns product identity linking and tenant/project authorization; never VibeFlow authority.
+  upgrade_policy: Stay on 1.6.x stable; breaking changes via identity mission.
+  replacement_strategy: Another auth library/IdP behind the Identity module interface; enterprise SAML/SCIM via dedicated provider later.
 - id: H-013
   capability: authorization
   name: OpenFGA
@@ -121,6 +169,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/openfga/openfga
   rule: Use when relationship authorization complexity exceeds local policy tables; do not introduce in Phase 1 by default.
+  use: Relationship-based authorization evaluation once complexity exceeds local policy tables (not Phase 1).
+  ownership: OpenFGA evaluates relationship tuples; VibeFlow owns grants, policy and approval semantics.
+  upgrade_policy: ADOPT_LATER; adopt at 1.18.x+ only with an authorization mission.
+  replacement_strategy: Local policy tables remain the default path; OpenFGA is an add-on evaluator.
 - id: H-014
   capability: durable_workflows
   name: Temporal TypeScript SDK
@@ -130,6 +182,10 @@ entries:
   license: MIT
   source: https://github.com/temporalio/sdk-typescript
   rule: Temporal supplies durable workflow mechanics; VibeFlow owns Task/Execution domain semantics.
+  use: Durable workflow engine mechanics for long-running Task/Execution orchestration.
+  ownership: Temporal supplies durable execution/retries/timers; VibeFlow owns Task/Execution/Recovery domain semantics.
+  upgrade_policy: Stay on 1.21.x SDK; server versions per Temporal support matrix.
+  replacement_strategy: ExecutionRunner abstraction isolates the engine; DB-backed durable queue is the small-scale fallback.
 - id: H-015
   capability: coding_agent
   name: OpenHands Software Agent SDK
@@ -139,6 +195,10 @@ entries:
   license: MIT
   source: https://github.com/OpenHands/software-agent-sdk
   rule: Default BYOA-compatible adapter/reference, never core authority. MIT applies to the SDK repo; the OpenHands
+  use: Default BYOA-compatible coding-agent adapter and reference implementation.
+  ownership: OpenHands SDK is an adapter/reference only, never core authority; VibeFlow owns remote authority/recovery/verification semantics.
+  upgrade_policy: Track the current 1.x reference line at the Phase-9 adapter mission; re-certify capabilities on upgrades.
+  replacement_strategy: Any ACP-compatible agent behind the AgentBinding adapter interface.
     application's enterprise/ directory is separately licensed source-available code that VibeFlow must not incorporate.
 - id: H-016
   capability: workspace_provider
@@ -150,6 +210,10 @@ entries:
     never incorporate or vendor Daytona source.
   source: https://github.com/daytonaio/daytona
   rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification. Certification (Phase 11) must
+  use: Primary BYOW workspace provider (sandbox compute behind an adapter).
+  ownership: Daytona operates sandboxes as an external provider; VibeFlow retains WorkspaceBinding authority, capability certification and reconciliation.
+  upgrade_policy: API-level integration only; re-certify the operated service per Phase 11 (OSS repository frozen June 2026).
+  replacement_strategy: E2B or user BYOW behind the same WorkspaceProvider interface.
     validate the operated Daytona service, since the open-source repository no longer receives updates.
 - id: H-017
   capability: workspace_provider
@@ -161,6 +225,10 @@ entries:
   license: Apache-2.0 (repository; JS SDK npm packages declare MIT — confirm package-level at pin)
   source: https://github.com/e2b-dev/E2B
   rule: Secondary workspace/sandbox adapter; never assume equivalent persistence semantics.
+  use: Secondary workspace/sandbox provider adapter.
+  ownership: E2B operates sandboxes; VibeFlow retains WorkspaceBinding authority; persistence semantics must not be assumed equivalent.
+  upgrade_policy: Stay near the current 2.x SDK line at the Phase-11 mission; re-certify on SDK majors.
+  replacement_strategy: Daytona or user BYOW behind the same WorkspaceProvider interface.
 - id: H-018
   capability: agent_client_protocol
   name: Agent Client Protocol (ACP)
@@ -170,6 +238,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/agentclientprotocol/agent-client-protocol
   rule: Client↔coding-agent interoperability. VibeFlow remote/recovery/authority semantics remain separate.
+  use: Coding-agent client interoperability wire protocol.
+  ownership: ACP owns the editor-client/agent wire contract; VibeFlow owns remote authority/recovery/verification semantics.
+  upgrade_policy: Pin the stable schema line (1.20.x); ACP v2 only behind a flag once stable.
+  replacement_strategy: Per-agent adapters remain possible; VibeFlow remote semantics are protocol-independent.
 - id: H-019
   capability: tool_context_protocol
   name: Model Context Protocol (MCP)
@@ -179,6 +251,10 @@ entries:
   license: Apache-2.0 (spec; upstream MIT-to-Apache-2.0 transition), CC-BY-4.0 (non-spec docs), MIT (TS SDK)
   source: https://modelcontextprotocol.io/specification/2026-07-28
   rule: Agent↔tools/data. Use official TypeScript SDK v2 stable line.
+  use: Agent-to-tools/data interoperability protocol and SDK.
+  ownership: MCP owns tool/data interop; VibeFlow owns connection catalog, grants, policy, approval and audit semantics.
+  upgrade_policy: Official TypeScript SDK v2 stable line; spec profile changes via interop mission.
+  replacement_strategy: Per-connection adapters; VibeFlow grant/policy layer is independent of MCP.
 - id: H-020
   capability: agent_to_agent
   name: Agent2Agent (A2A)
@@ -188,6 +264,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/a2aproject/A2A
   rule: Do not use for ordinary child processes or internal service RPC.
+  use: Agent-to-agent delegation protocol when genuine cross-agent delegation is needed.
+  ownership: A2A owns the delegation wire format; VibeFlow owns delegation authority and grant attenuation.
+  upgrade_policy: Spec 1.0.x / JS SDK 1.0.x when delegation activates (Phase 28).
+  replacement_strategy: Not required for core; internal delegation stays VibeFlow-defined.
 - id: H-021
   capability: agent_ui_events
   name: AG-UI
@@ -197,6 +277,10 @@ entries:
   license: MIT (verified ag-ui-protocol/ag-ui)
   source: https://docs.ag-ui.com/
   rule: Compatibility layer only; VibeFlow UI state remains canonical.
+  use: Optional compatibility bridge for agent-to-UI event streams.
+  ownership: AG-UI defines compatibility event shapes; VibeFlow UI state remains canonical.
+  upgrade_policy: Pin a stable profile only if/when the bridge activates.
+  replacement_strategy: Drop the bridge; canonical UI events are VibeFlow-defined.
 - id: H-022
   capability: model_provider_abstraction
   name: Vercel AI SDK
@@ -206,6 +290,10 @@ entries:
   license: Apache-2.0/MIT by package; verify
   source: https://github.com/vercel/ai
   rule: Use for VibeFlow-owned model calls; coding agents may own their own model runtime.
+  use: Model-provider abstraction for VibeFlow-owned model calls.
+  ownership: Vercel AI SDK wraps provider APIs behind VibeFlow's model interface; never becomes ModelBinding authority; coding agents may own their runtime.
+  upgrade_policy: Stay on 7.0.x stable; majors via model-integration mission.
+  replacement_strategy: Direct provider SDKs behind the same VibeFlow model interface.
 - id: H-023
   capability: environment_definition
   name: Development Containers Specification
@@ -215,6 +303,10 @@ entries:
   license: CC-BY-4.0 (spec text; attribution when reproducing) / MIT (code, LICENSE-CODE)
   source: https://containers.dev/
   rule: Environment description, not workspace authority.
+  use: Declarative development-environment description format.
+  ownership: Dev Containers describe environments; VibeFlow owns policy over allowed environment features and Workspace authority.
+  upgrade_policy: Use stable spec fields only; track the living spec via interop missions.
+  replacement_strategy: VibeFlow environment profile schema maps to/from alternative formats.
 - id: H-024
   capability: observability
   name: OpenTelemetry JS
@@ -224,6 +316,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/open-telemetry/opentelemetry-js
   rule: Trace IDs correlate Task/Execution/Provider/Verification; redact secrets.
+  use: Telemetry transport (traces/metrics/logs) for the control plane and workers.
+  ownership: OpenTelemetry carries telemetry; VibeFlow owns semantic correlation (Task/Execution/Provider/Verification trace IDs) and redaction policy.
+  upgrade_policy: Stay on the 2.10.x stable package line with matched experimental versions.
+  replacement_strategy: Exporters/instrumentation are swappable behind the observability interface.
 - id: H-025
   capability: schema_validation
   name: TypeBox or JSON Schema-native validator
@@ -233,6 +329,10 @@ entries:
   license: MIT
   source: https://github.com/sinclairzx81/typebox
   rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,
+  use: JSON Schema construction and runtime validation for contracts.
+  ownership: TypeBox owns schema building/validation mechanics; VibeFlow owns the contracts (JSON Schema first, generated types derived).
+  upgrade_policy: Choose 1.x (ESM) or 0.x LTS at M-004, then stay on that stable line.
+  replacement_strategy: Contracts are plain JSON Schema; any JSON-Schema-native validator can replace it.
     ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.
 - id: H-026
   capability: web_e2e
@@ -243,6 +343,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/microsoft/playwright
   rule: Workspace web and control-plane browser E2E.
+  use: Browser E2E automation for workspace web and control plane.
+  ownership: Playwright drives browsers; VibeFlow owns journey definitions and verification evidence.
+  upgrade_policy: Current stable; pin browser binaries per suite.
+  replacement_strategy: Alternative browser driver behind the E2E harness; journeys are VibeFlow-owned.
 - id: H-027
   capability: mobile_e2e
   name: Maestro
@@ -252,6 +356,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/mobile-dev-inc/Maestro
   rule: Black-box Android/iOS critical journeys.
+  use: Black-box mobile E2E automation for critical Android/iOS journeys.
+  ownership: Maestro drives devices; VibeFlow owns critical-journey definitions and acceptance evidence.
+  upgrade_policy: Current stable CLI; verify device-driver health per mobile phase.
+  replacement_strategy: Alternative mobile driver or scripted journeys behind the E2E harness.
 - id: H-028
   capability: unit_test
   name: Vitest
@@ -261,6 +369,10 @@ entries:
   license: MIT
   source: https://github.com/vitest-dev/vitest
   rule: Default TypeScript unit/contract runner.
+  use: Default TypeScript unit/contract test runner.
+  ownership: Vitest owns test execution; VibeFlow owns the test contracts.
+  upgrade_policy: Stay on stable 4.x (betas excluded).
+  replacement_strategy: Tests stay runner-portable where practical; any TS runner can substitute.
 - id: H-029
   capability: secret_scan
   name: Gitleaks
@@ -270,6 +382,10 @@ entries:
   license: MIT
   source: https://github.com/gitleaks/gitleaks
   rule: Required CI/pre-commit secret scanning.
+  use: Required CI/pre-commit secret scanning.
+  ownership: Gitleaks owns scanning mechanics; VibeFlow owns the secret policy and CI gates.
+  upgrade_policy: 8.30.x; security-patch-only posture upstream — track alternatives for M-006.
+  replacement_strategy: Swap the scanner binary inside the same CI secret gate (trufflehog/betterleaks class).
 - id: H-030
   capability: container_scan
   name: Trivy
@@ -279,6 +395,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/aquasecurity/trivy
   rule: Container/dependency/misconfiguration scan. Verify release provenance/checksums when adopting CI binaries
+  use: Container/dependency/misconfiguration scanning in CI.
+  ownership: Trivy owns scanning mechanics; VibeFlow owns security gates and evidence.
+  upgrade_policy: Current stable (0.72.x+); verify release provenance/checksums at adoption.
+  replacement_strategy: Alternative scanner behind the same CI gate.
     (upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).
 - id: H-031
   capability: dependency_vulnerability
@@ -289,6 +409,10 @@ entries:
   license: Apache-2.0
   source: https://github.com/google/osv-scanner
   rule: Dependency vulnerability gate.
+  use: Dependency vulnerability scanning gate in CI.
+  ownership: OSV-Scanner owns scanning mechanics; VibeFlow owns the dependency gate policy.
+  upgrade_policy: Stay on the v2 line.
+  replacement_strategy: Alternative SCA tool behind the same CI gate.
 - id: H-032
   capability: static_security
   name: Semgrep Community Edition
@@ -298,6 +422,10 @@ entries:
   license: LGPL/engine; rules vary — review
   source: https://github.com/semgrep/semgrep
   rule: Use under license policy; do not vendor restricted rulesets.
+  use: Static security analysis engine (CI tool, not linked code).
+  ownership: Semgrep CE owns analysis execution (LGPL-2.1 engine — review required); VibeFlow owns security policy and the rules it ships.
+  upgrade_policy: CE engine current stable; community/permissive rules only; never vendor restricted rulesets.
+  replacement_strategy: Opengrep or another SAST engine behind the same CI gate.
 - id: H-033
   capability: git_host
   name: GitHub API / Octokit
@@ -307,6 +435,10 @@ entries:
   license: MIT
   source: https://github.com/octokit/octokit.js
   rule: RepositoryBinding adapter; GitHub never becomes Project authority.
+  use: GitHub REST/GraphQL client for the RepositoryBinding adapter.
+  ownership: Octokit wraps the GitHub API; GitHub never becomes Project authority; provider code stays behind adapters.
+  upgrade_policy: Current stable (5.x/@octokit/core 7.x).
+  replacement_strategy: Plain GitHub REST/GraphQL client behind the RepositoryBinding adapter.
 - id: H-034
   capability: object_storage
   name: S3-compatible SDK
@@ -316,6 +448,10 @@ entries:
   license: Apache-2.0 (aws-sdk-js-v3 verified); other S3-compatible provider SDK licenses vary — review at adapter selection
   source: https://github.com/aws/aws-sdk-js-v3
   rule: Evidence/artifact blob bytes may use S3/R2; metadata remains VibeFlow.
+  use: S3-compatible object storage client for evidence/artifact bytes.
+  ownership: The SDK transfers bytes to S3-compatible stores; VibeFlow retains authoritative metadata where specified.
+  upgrade_policy: Stay on the stable 3.x line; provider-specific SDKs reviewed at adapter selection.
+  replacement_strategy: Provider-native S3-compatible SDKs behind the storage adapter.
 - id: H-035
   capability: event_envelope
   name: CloudEvents
@@ -325,3 +461,7 @@ entries:
   license: Apache-2.0
   source: https://github.com/cloudevents/spec
   rule: Use as external/webhook envelope; internal event schema remains VibeFlow-defined.
+  use: External event envelope format (webhooks/external integration).
+  ownership: CloudEvents provides the external envelope; internal event semantics remain VibeFlow-defined (EVENT_CATALOG).
+  upgrade_policy: Stay on 1.0.x stable.
+  replacement_strategy: VibeFlow-defined envelope already canonical internally; external envelope is a bridging format.

@@ -8,6 +8,8 @@ registry validator fail deterministically for:
   - invalid or non-official/missing source;
   - unsupported decision or integration classification;
   - missing/unresolved license classification;
+  - fake GitHub-repository provenance (generic github.com is not proof);
+  - missing use/ownership/upgrade-policy/replacement-strategy data;
   - mission dependency progression violations (unlocked dependent, unlocked
     mission without DONE dependencies, multiple active missions, DONE mission
     after the active one, zero active missions, missing dependency, dependency
@@ -103,7 +105,7 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
         )
         result = run_script(HARVEST, box.root)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("not in the official upstream allowlist", result.stdout)
+        self.assertIn("rejected official-identity check", result.stdout)
 
     def test_missing_source_fails(self) -> None:
         box = RepoSandbox(self.tmp)
@@ -159,6 +161,74 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
         result = run_script(HARVEST, box.root)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unresolved license classification", result.stdout)
+
+    def test_fake_github_repository_fails(self) -> None:
+        """Generic github.com is not provenance: a look-alike repo must fail."""
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "  source: https://github.com/microsoft/TypeScript",
+            "  source: https://github.com/attacker/TypeScript-mirror",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("rejected official-identity check", result.stdout)
+        self.assertIn("microsoft/TypeScript", result.stdout)
+
+    def test_same_slug_wrong_owner_github_repo_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "  source: https://github.com/vercel/turborepo",
+            "  source: https://github.com/vercel-mirror/turborepo",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("rejected official-identity check", result.stdout)
+
+    def test_missing_ownership_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        registry = box.path("master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
+        text = registry.read_text(encoding="utf-8")
+        first = text.index("  ownership: ")
+        line_end = text.index("\n", first)
+        registry.write_text(text[:first] + "  ownership: ''" + text[line_end:], encoding="utf-8")
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field 'ownership'", result.stdout)
+
+    def test_missing_upgrade_policy_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        registry = box.path("master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
+        text = registry.read_text(encoding="utf-8")
+        first = text.index("  upgrade_policy: ")
+        line_end = text.index("\n", first)
+        registry.write_text(text[:first] + "  upgrade_policy: ''" + text[line_end:], encoding="utf-8")
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field 'upgrade_policy'", result.stdout)
+
+    def test_missing_replacement_strategy_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        registry = box.path("master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
+        text = registry.read_text(encoding="utf-8")
+        first = text.index("  replacement_strategy: ")
+        line_end = text.index("\n", first)
+        registry.write_text(text[:first] + "  replacement_strategy: ''" + text[line_end:], encoding="utf-8")
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field 'replacement_strategy'", result.stdout)
+
+    def test_missing_use_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        registry = box.path("master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
+        text = registry.read_text(encoding="utf-8")
+        first = text.index("  use: ")
+        line_end = text.index("\n", first)
+        registry.write_text(text[:first] + "  use: ''" + text[line_end:], encoding="utf-8")
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field 'use'", result.stdout)
 
     def test_entry_count_change_fails(self) -> None:
         box = RepoSandbox(self.tmp)

@@ -33,7 +33,24 @@ load_simple_yaml = _vmc.load_simple_yaml
 
 EXPECTED_ENTRY_COUNT = 35
 EXPECTED_IDS = [f"H-{i:03d}" for i in range(1, EXPECTED_ENTRY_COUNT + 1)]
-REQUIRED_FIELDS = ("id", "capability", "name", "version", "decision", "integration", "license", "source", "rule")
+# LICENSE_POLICY.md requires every entry to record: approved version/version line,
+# license classification, use, ownership boundary, upgrade policy and replacement
+# strategy (plus registry identity fields).
+REQUIRED_FIELDS = (
+    "id",
+    "capability",
+    "name",
+    "version",
+    "decision",
+    "integration",
+    "license",
+    "source",
+    "rule",
+    "use",
+    "ownership",
+    "upgrade_policy",
+    "replacement_strategy",
+)
 
 SUPPORTED_DECISIONS = {
     "ADOPT",
@@ -95,44 +112,51 @@ UNRESOLVED_LICENSE_MARKERS = (
     "unknown",
 )
 
-# Official upstream source hosts verified during M-002 (evidence:
+# Exact official upstream identities verified during M-002 (evidence:
 # evidence/missions/M-002/DEPENDENCY_HARVEST_RATIFICATION.md).
-OFFICIAL_SOURCE_HOSTS: dict[str, set[str]] = {
-    "H-001": {"nodejs.org", "www.nodejs.org"},
-    "H-002": {"github.com"},
-    "H-003": {"github.com"},
-    "H-004": {"github.com"},
-    "H-005": {"expo.dev", "www.expo.dev"},
-    "H-006": {"github.com"},
-    "H-007": {"github.com"},
-    "H-008": {"github.com"},
-    "H-009": {"github.com"},
-    "H-010": {"postgresql.org", "www.postgresql.org"},
-    "H-011": {"github.com"},
-    "H-012": {"github.com"},
-    "H-013": {"github.com"},
-    "H-014": {"github.com"},
-    "H-015": {"github.com"},
-    "H-016": {"github.com"},
-    "H-017": {"github.com"},
-    "H-018": {"github.com"},
-    "H-019": {"modelcontextprotocol.io", "www.modelcontextprotocol.io", "github.com"},
-    "H-020": {"github.com"},
-    "H-021": {"docs.ag-ui.com", "ag-ui.com", "www.ag-ui.com", "github.com"},
-    "H-022": {"github.com"},
-    "H-023": {"containers.dev", "www.containers.dev", "github.com"},
-    "H-024": {"github.com"},
-    "H-025": {"github.com"},
-    "H-026": {"github.com"},
-    "H-027": {"github.com"},
-    "H-028": {"github.com"},
-    "H-029": {"github.com"},
-    "H-030": {"github.com"},
-    "H-031": {"github.com"},
-    "H-032": {"github.com"},
-    "H-033": {"github.com"},
-    "H-034": {"github.com"},
-    "H-035": {"github.com"},
+#
+# Generic `github.com` is NOT proof of provenance. For GitHub-hosted projects the
+# expected `owner/repo` path must match exactly (case-insensitive); for official
+# domains the exact hostname (optionally with a path prefix) must match.
+# Spec formats:
+#   ("github", "owner/repo")            -> https://github.com/owner/repo[/...]
+#   ("domain", "host[/path-prefix]")    -> https://host/path-prefix[/...]
+OFFICIAL_SOURCES: dict[str, list[tuple[str, str]]] = {
+    "H-001": [("domain", "nodejs.org")],
+    "H-002": [("github", "microsoft/TypeScript")],
+    "H-003": [("github", "pnpm/pnpm")],
+    "H-004": [("github", "vercel/turborepo")],
+    "H-005": [("domain", "expo.dev")],
+    "H-006": [("github", "facebook/react-native")],
+    "H-007": [("github", "microsoft/monaco-editor")],
+    "H-008": [("github", "xtermjs/xterm.js")],
+    "H-009": [("github", "fastify/fastify")],
+    "H-010": [("domain", "postgresql.org")],
+    "H-011": [("github", "drizzle-team/drizzle-orm")],
+    "H-012": [("github", "better-auth/better-auth")],
+    "H-013": [("github", "openfga/openfga")],
+    "H-014": [("github", "temporalio/sdk-typescript")],
+    "H-015": [("github", "OpenHands/software-agent-sdk")],
+    "H-016": [("github", "daytonaio/daytona")],
+    "H-017": [("github", "e2b-dev/E2B")],
+    "H-018": [("github", "agentclientprotocol/agent-client-protocol")],
+    "H-019": [("domain", "modelcontextprotocol.io")],
+    "H-020": [("github", "a2aproject/A2A")],
+    "H-021": [("domain", "docs.ag-ui.com")],
+    "H-022": [("github", "vercel/ai")],
+    "H-023": [("domain", "containers.dev")],
+    "H-024": [("github", "open-telemetry/opentelemetry-js")],
+    "H-025": [("github", "sinclairzx81/typebox")],
+    "H-026": [("github", "microsoft/playwright")],
+    "H-027": [("github", "mobile-dev-inc/Maestro")],
+    "H-028": [("github", "vitest-dev/vitest")],
+    "H-029": [("github", "gitleaks/gitleaks")],
+    "H-030": [("github", "aquasecurity/trivy")],
+    "H-031": [("github", "google/osv-scanner")],
+    "H-032": [("github", "semgrep/semgrep")],
+    "H-033": [("github", "octokit/octokit.js")],
+    "H-034": [("github", "aws/aws-sdk-js-v3")],
+    "H-035": [("github", "cloudevents/spec")],
 }
 
 # DO_NOT_INVENT.yaml problems must remain covered by ratified registry names.
@@ -170,14 +194,32 @@ def classify_license(raw: str) -> str:
     return "UNCLASSIFIED"
 
 
-def source_host(url: str) -> str | None:
+def source_matches(url: str, specs: list[tuple[str, str]]) -> tuple[bool, str]:
+    """True when the URL is exactly one of the official upstream identities."""
     try:
         parsed = urllib.parse.urlparse(url)
-        if parsed.scheme != "https" or not parsed.netloc:
-            return None
-        return parsed.netloc.lower()
     except ValueError:
-        return None
+        return False, "unparseable URL"
+    if parsed.scheme != "https":
+        return False, "must use https"
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").strip("/")
+    for kind, expected in specs:
+        if kind == "github":
+            if host not in ("github.com", "www.github.com"):
+                continue
+            parts = path.split("/")
+            if len(parts) >= 2 and "/".join(parts[:2]).lower() == expected.lower():
+                return True, ""
+        elif kind == "domain":
+            expected_host = expected.split("/", 1)[0].lower()
+            # www.<official-domain> is the same official identity, nothing else.
+            if host not in (expected_host, "www." + expected_host):
+                continue
+            prefix = expected.split("/", 1)[1].strip("/") if "/" in expected else ""
+            if not prefix or path == prefix or path.startswith(prefix.rstrip("/") + "/"):
+                return True, ""
+    return False, f"URL does not match any official upstream identity {[s[1] for s in specs]}"
 
 
 def validate(root: Path) -> dict:
@@ -240,14 +282,10 @@ def validate(root: Path) -> dict:
 
         source = str(entry.get("source") or "")
         if source:
-            host = source_host(source)
-            allowed = OFFICIAL_SOURCE_HOSTS.get(hid, set())
-            if host is None:
-                errors.append(f"{hid}: source must be a well-formed https URL, got '{source}'")
-            elif host not in allowed:
-                errors.append(
-                    f"{hid}: source host '{host}' is not in the official upstream allowlist {sorted(allowed)}"
-                )
+            specs = OFFICIAL_SOURCES.get(hid, [])
+            ok, why = source_matches(source, specs)
+            if not ok:
+                errors.append(f"{hid}: source '{source}' rejected official-identity check ({why})")
 
     # Registry must stay synchronized with the pack summary.
     try:
