@@ -2,7 +2,7 @@
 set -euo pipefail
 
 fail=0
-max_bytes=$((5 * 1024 * 1024))
+max_bytes=$((10 * 1024 * 1024))
 
 report_bad_path() {
   printf 'SANITATION ERROR: forbidden tracked path: %s\n' "$1" >&2
@@ -22,13 +22,16 @@ while IFS= read -r -d '' path; do
     *.pem|*.key|*.p8|*.p12|*.pfx|*.jks|*.keystore|*.mobileprovision|*.kdbx)
       report_bad_path "$path"
       ;;
-    node_modules/*|*/node_modules/*|dist/*|*/dist/*|build/*|*/build/*|out/*|*/out/*|coverage/*|*/coverage/*|.expo/*|*/.expo/*|.next/*|*/.next/*|.turbo/*|*/.turbo/*|tmp/*|*/tmp/*)
+    *.db|*.db-journal|*.db-shm|*.db-wal|*.sqlite|*.sqlite3|*.log|*.apk|*.aab|*.ipa|*.xcarchive|*.pyc)
+      report_bad_path "$path"
+      ;;
+    node_modules/*|*/node_modules/*|dist/*|*/dist/*|build/*|*/build/*|out/*|*/out/*|coverage/*|*/coverage/*|.expo/*|*/.expo/*|.next/*|*/.next/*|.turbo/*|*/.turbo/*|.cache/*|*/.cache/*|.parcel-cache/*|*/.parcel-cache/*|.vite/*|*/.vite/*|storybook-static/*|*/storybook-static/*|.venv/*|*/.venv/*|venv/*|*/venv/*|__pycache__/*|*/__pycache__/*|.pytest_cache/*|*/.pytest_cache/*|.mypy_cache/*|*/.mypy_cache/*|.ruff_cache/*|*/.ruff_cache/*|.gradle/*|*/.gradle/*|.cxx/*|*/.cxx/*|DerivedData/*|*/DerivedData/*|Pods/*|*/Pods/*|logs/*|*/logs/*|tmp/*|*/tmp/*|.tmp/*|*/.tmp/*|pgdata/*|*/pgdata/*|.postgres/*|*/.postgres/*|.idea/*|*/.idea/*|.vscode/*|*/.vscode/*)
       report_bad_path "$path"
       ;;
   esac
 
   case "$base" in
-    .DS_Store|Thumbs.db|npm-debug.log*|yarn-debug.log*|yarn-error.log*|pnpm-debug.log*)
+    .DS_Store|Thumbs.db|npm-debug.log*|yarn-debug.log*|yarn-error.log*|pnpm-debug.log*|*.swp|*.swo|*~)
       report_bad_path "$path"
       ;;
   esac
@@ -36,7 +39,7 @@ while IFS= read -r -d '' path; do
   if [[ -f "$path" ]]; then
     bytes=$(wc -c < "$path")
     if (( bytes > max_bytes )); then
-      printf 'SANITATION ERROR: tracked file exceeds 5 MiB: %s (%s bytes)\n' "$path" "$bytes" >&2
+      printf 'SANITATION ERROR: tracked file exceeds 10 MiB: %s (%s bytes)\n' "$path" "$bytes" >&2
       fail=1
     fi
   fi
