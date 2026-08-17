@@ -1,26 +1,68 @@
 # dependencies
 node_modules/
 .pnpm-store/
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+.yarn/build-state.yml
 
 # build/cache
 .turbo/
 dist/
 build/
+out/
 coverage/
 .expo/
 .next/
+.cache/
+.parcel-cache/
+.vite/
+storybook-static/
 
 # environment/secrets
 .env
 .env.*
 !.env.example
+!.env.*.example
 *.pem
 *.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.kdbx
+
+# local databases/runtime state
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+pgdata/
+.postgres/
+
+# logs/temp
+*.log
+logs/
+tmp/
+.tmp/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # editor/OS
 .DS_Store
+Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
 # local evidence output
 /evidence/local/
