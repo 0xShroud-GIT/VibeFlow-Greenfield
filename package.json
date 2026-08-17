@@ -1,0 +1,22 @@
+{
+  "name": "vibeflow",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.4.0",
+  "engines": {
+    "node": "24.x",
+    "pnpm": "11.4.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "foundation:validate": "python3 scripts/validate-m004-foundation.py",
+    "check": "python3 scripts/validate-m004-foundation.py && pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "devDependencies": {
+    "turbo": "2.10.6",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  }
+}
