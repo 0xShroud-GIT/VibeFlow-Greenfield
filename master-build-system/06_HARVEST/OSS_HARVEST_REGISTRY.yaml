@@ -103,11 +103,11 @@ entries:
   license: MIT
   source: https://github.com/xtermjs/xterm.js
   rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation. Use the official @xterm/*
+    scoped npm packages (legacy xterm/xterm-* names are deprecated upstream).
   use: Workspace-web terminal front-end (user-facing PTY rendering).
   ownership: xterm.js owns terminal emulation/rendering; VibeFlow owns TerminalSession authority, workspace binding, transport, policy and evidence.
   upgrade_policy: Stay on 6.0.x via @xterm/* scoped packages from M-004.
   replacement_strategy: Alternative terminal emulator behind the TerminalTransport interface.
-    scoped npm packages (legacy xterm/xterm-* names are deprecated upstream).
 - id: H-009
   capability: api_server
   name: Fastify
@@ -195,11 +195,11 @@ entries:
   license: MIT
   source: https://github.com/OpenHands/software-agent-sdk
   rule: Default BYOA-compatible adapter/reference, never core authority. MIT applies to the SDK repo; the OpenHands
+    application's enterprise/ directory is separately licensed source-available code that VibeFlow must not incorporate.
   use: Default BYOA-compatible coding-agent adapter and reference implementation.
   ownership: OpenHands SDK is an adapter/reference only, never core authority; VibeFlow owns remote authority/recovery/verification semantics.
   upgrade_policy: Track the current 1.x reference line at the Phase-9 adapter mission; re-certify capabilities on upgrades.
   replacement_strategy: Any ACP-compatible agent behind the AgentBinding adapter interface.
-    application's enterprise/ directory is separately licensed source-available code that VibeFlow must not incorporate.
 - id: H-016
   capability: workspace_provider
   name: Daytona
@@ -210,11 +210,11 @@ entries:
     never incorporate or vendor Daytona source.
   source: https://github.com/daytonaio/daytona
   rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification. Certification (Phase 11) must
+    validate the operated Daytona service, since the open-source repository no longer receives updates.
   use: Primary BYOW workspace provider (sandbox compute behind an adapter).
   ownership: Daytona operates sandboxes as an external provider; VibeFlow retains WorkspaceBinding authority, capability certification and reconciliation.
   upgrade_policy: API-level integration only; re-certify the operated service per Phase 11 (OSS repository frozen June 2026).
   replacement_strategy: E2B or user BYOW behind the same WorkspaceProvider interface.
-    validate the operated Daytona service, since the open-source repository no longer receives updates.
 - id: H-017
   capability: workspace_provider
   name: E2B
@@ -329,11 +329,11 @@ entries:
   license: MIT
   source: https://github.com/sinclairzx81/typebox
   rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,
+    ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.
   use: JSON Schema construction and runtime validation for contracts.
   ownership: TypeBox owns schema building/validation mechanics; VibeFlow owns the contracts (JSON Schema first, generated types derived).
   upgrade_policy: Choose 1.x (ESM) or 0.x LTS at M-004, then stay on that stable line.
   replacement_strategy: Contracts are plain JSON Schema; any JSON-Schema-native validator can replace it.
-    ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.
 - id: H-026
   capability: web_e2e
   name: Playwright
@@ -395,11 +395,11 @@ entries:
   license: Apache-2.0
   source: https://github.com/aquasecurity/trivy
   rule: Container/dependency/misconfiguration scan. Verify release provenance/checksums when adopting CI binaries
+    (upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).
   use: Container/dependency/misconfiguration scanning in CI.
   ownership: Trivy owns scanning mechanics; VibeFlow owns security gates and evidence.
   upgrade_policy: Current stable (0.72.x+); verify release provenance/checksums at adoption.
   replacement_strategy: Alternative scanner behind the same CI gate.
-    (upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).
 - id: H-031
   capability: dependency_vulnerability
   name: OSV-Scanner

@@ -30,7 +30,19 @@
       "replacement_strategy"
     ],
     "license_policy_contract_closed": true,
-    "pack_hash_final": "OSS_HARVEST_REGISTRY.yaml sha256 740fcd523c83ce78d8706c692485f55241d9764a0f76fd5349464b78942cf9aa (baseline c72ce6096ec501997fb3e71584f1d314caa8c5c3a8dc8b79dfe51a1a5171355c)"
+    "pack_hash_final": "OSS_HARVEST_REGISTRY.yaml sha256 1a499f05f33e7774614b0450f277a6b94f1d4863d4fff8cc06550ecf1b85a6f0 (baseline c72ce6096ec501997fb3e71584f1d314caa8c5c3a8dc8b79dfe51a1a5171355c)",
+    "multiline_rule_restoration": {
+      "entries": [
+        "H-008",
+        "H-015",
+        "H-016",
+        "H-025",
+        "H-030"
+      ],
+      "restored_to": "rule",
+      "verified_absent_from": "replacement_strategy",
+      "regression_tests": "tests/contract/test_m002_validators.py :: RegistryMultilineRuleRegressionTests"
+    }
   },
   "verification_method": "Official upstream evidence only: official release pages/GitHub repository metadata, official specification sites, official raw LICENSE files, official package registries (npm/PyPI/pkg.go.dev) where package-level facts were needed. No packages were installed. No aggregator/blog was treated as authority while an official source was reachable.",
   "decision_vocabulary": [
@@ -594,8 +606,8 @@
     "no_m004_work": true,
     "no_third_party_source_copied": true
   },
-  "revision": 2,
-  "revision_note": "Independent review amendments: (1) CI integrity workflow now executes validate-master-contracts.py, validate-harvest-registry.py and tests/contract/test_m002_validators.py after pack hash verification, failing on non-zero exit; (2) LICENSE_POLICY.md <-> registry contract mismatch resolved by strengthening the registry \u2014 every H-001..H-035 entry now records use, ownership, upgrade_policy and replacement_strategy alongside version line and license classification; (3) official-source validation now requires the exact upstream identity per H-ID (exact github.com owner/repo or exact official domain) \u2014 generic github.com is not accepted; (4) evidence/PR updated; pack hash updated for the registry file only.",
+  "revision": 3,
+  "revision_note": "Independent review amendments: (1) CI integrity workflow now executes validate-master-contracts.py, validate-harvest-registry.py and tests/contract/test_m002_validators.py after pack hash verification, failing on non-zero exit; (2) LICENSE_POLICY.md <-> registry contract mismatch resolved by strengthening the registry \u2014 every H-001..H-035 entry now records use, ownership, upgrade_policy and replacement_strategy alongside version line and license classification; (3) official-source validation now requires the exact upstream identity per H-ID (exact github.com owner/repo or exact official domain) \u2014 generic github.com is not accepted; (4) evidence/PR updated; pack hash updated for the registry file only. Revision 3 (final-review blocker fix): revision-2 field insertion had split five pre-existing multiline rule values (H-008, H-015, H-016, H-025, H-030) \u2014 each continuation clause was re-folded into replacement_strategy by the parser. All five continuation lines were restored to their original rule values (before use:), clauses confirmed present in parsed rule and absent from replacement_strategy, and deterministic regression coverage added (RegistryMultilineRuleRegressionTests: real-registry intactness + moved-continuation detection) so future schema-field insertions cannot silently move multiline rule text. Registry pack hash updated (740fcd52... -> 1a499f05...).",
   "ci": {
     "workflow": ".github/workflows/master-build-system-integrity.yml",
     "steps_after_pack_hash_verification": [
@@ -617,6 +629,6 @@
     "sha256sum_c": "72/72 OK, exit 0",
     "validate_master_contracts": "RESULT: PASS, exit 0 (mission statuses DONE=1 REVIEW=1 LOCKED=149)",
     "validate_harvest_registry": "RESULT: PASS, exit 0 (35 entries; 5 review-required licenses)",
-    "unittests": "Ran 32 tests, OK, exit 0"
+    "unittests": "Ran 34 tests, OK, exit 0"
   }
 }

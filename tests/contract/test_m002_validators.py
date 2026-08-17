@@ -14,7 +14,9 @@ registry validator fail deterministically for:
     mission without DONE dependencies, multiple active missions, DONE mission
     after the active one, zero active missions, missing dependency, dependency
     cycle, forward dependency reference, DAG/register desync, stale
-    ACTIVE_MISSION pointer).
+    ACTIVE_MISSION pointer);
+  - multiline rule continuations staying inside the parsed rule value (final-review
+    blocker regression coverage for H-008/H-015/H-016/H-025/H-030).
 
 Each scenario runs against a throwaway temp copy of the repository; the real
 repository is never mutated.
@@ -250,6 +252,87 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
         result = run_script(HARVEST, box.root)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("BUILD decision requires explicit ADR justification", result.stdout)
+
+
+def load_registry_entries(root: Path) -> dict[str, dict]:
+    """Parse the registry with the repository's own stdlib YAML-subset loader."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "validate_master_contracts", root / "scripts" / "validate-master-contracts.py"
+    )
+    vmc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(vmc)
+    doc = vmc.load_yaml_file(root / "master-build-system" / "06_HARVEST" / "OSS_HARVEST_REGISTRY.yaml")
+    return {str(e.get("id")): e for e in (doc.get("entries") or [])}
+
+
+# Multiline rule: continuation clauses that MUST remain part of the parsed
+# `rule` value (final-review blocker: revision-2 field insertion had moved
+# them into replacement_strategy). Keys: H-ID -> (first-line anchor, clause).
+MULTILINE_RULE_CLAUSES = {
+    "H-008": (
+        "  rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation. Use the official @xterm/*\n",
+        "scoped npm packages (legacy xterm/xterm-* names are deprecated upstream).",
+    ),
+    "H-015": (
+        "  rule: Default BYOA-compatible adapter/reference, never core authority. MIT applies to the SDK repo; the OpenHands\n",
+        "application's enterprise/ directory is separately licensed source-available code that VibeFlow must not incorporate.",
+    ),
+    "H-016": (
+        "  rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification. Certification (Phase 11) must\n",
+        "validate the operated Daytona service, since the open-source repository no longer receives updates.",
+    ),
+    "H-025": (
+        "  rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,\n",
+        "ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.",
+    ),
+    "H-030": (
+        "  rule: Container/dependency/misconfiguration scan. Verify release provenance/checksums when adopting CI binaries\n",
+        "(upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).",
+    ),
+}
+
+
+def multiline_rules_intact(root: Path) -> list[str]:
+    """Return H-IDs whose continuation clause left the parsed rule value."""
+    entries = load_registry_entries(root)
+    problems = []
+    for hid, (_anchor_line, clause) in MULTILINE_RULE_CLAUSES.items():
+        rule = str((entries.get(hid) or {}).get("rule") or "")
+        replacement = str((entries.get(hid) or {}).get("replacement_strategy") or "")
+        if clause not in rule:
+            problems.append(f"{hid}: clause missing from rule")
+        if clause in replacement:
+            problems.append(f"{hid}: clause leaked into replacement_strategy")
+    return problems
+
+
+class RegistryMultilineRuleRegressionTests(TempDirMixin, unittest.TestCase):
+    def test_real_registry_multiline_rules_intact(self) -> None:
+        problems = multiline_rules_intact(REPO_ROOT)
+        self.assertEqual(problems, [])
+
+    def test_moved_continuation_is_detected(self) -> None:
+        """Simulate the final-review defect: a continuation moved after
+        replacement_strategy must be caught by the regression check."""
+        box = RepoSandbox(self.tmp)
+        registry = box.path("master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
+        text = registry.read_text(encoding="utf-8")
+        anchor, clause = MULTILINE_RULE_CLAUSES["H-008"]
+        cont_line = "    " + clause + "\n"
+        assert anchor in text and cont_line in text
+        # Move the continuation to the end of the entry (after replacement_strategy).
+        text = text.replace(cont_line, "", 1)
+        marker = "  replacement_strategy: Alternative terminal emulator behind the TerminalTransport interface.\n"
+        assert marker in text
+        text = text.replace(marker, marker + cont_line, 1)
+        registry.write_text(text, encoding="utf-8")
+        problems = multiline_rules_intact(box.root)
+        self.assertTrue(
+            any("H-008" in p for p in problems),
+            f"regression check failed to detect moved continuation: {problems}",
+        )
 
 
 class MissionProgressionTests(TempDirMixin, unittest.TestCase):

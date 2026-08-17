@@ -10,7 +10,7 @@
 | Starting main SHA | `ffbb9421417b871ae84883e24cd4d95ffead30cd` |
 | Branch | `arena/01a01122-vibeflow-greenfield` (Arena-generated; required) |
 | Verification date | 2026-08-17 |
-| Classification | `M-002 READY FOR INDEPENDENT REVIEW` (revision 2 — independent-review amendments applied) |
+| Classification | `M-002 READY FOR INDEPENDENT REVIEW` (revision 3 — independent-review amendments applied) |
 | M-001 status | `DONE` (canonical terminal state per `10_IMPLEMENTATION/STATUS_PROTOCOL.md`) |
 | M-002 status | `REVIEW` |
 | M-003+ status | `LOCKED`; not started |
@@ -23,6 +23,7 @@ Independent review required changes; all applied on the same branch/PR without m
 2. **LICENSE_POLICY ↔ registry contract closed by strengthening the registry:** every H-001..H-035 entry now records `use`, `ownership`, `upgrade_policy` and `replacement_strategy` alongside the existing `version` (approved line) and `license` (classification) — the full data set LICENSE_POLICY.md demands. All pre-existing fields, decisions and rules preserved verbatim.
 3. **Official-source validation hardened:** generic `github.com` is no longer accepted as provenance. Each H-ID validates against its exact upstream identity — exact `owner/repo` for GitHub sources (case-insensitive) or the exact official domain (www-variant tolerated). Deterministic tests prove a fake repository hosted on github.com (`attacker/TypeScript-mirror`) and a same-slug/wrong-owner repo (`vercel-mirror/turborepo`) both fail.
 4. Evidence, PR description and pack hashes updated; all commands re-run.
+5. **Revision 3 — final-review blocker fix:** the revision-2 field insertion had split five pre-existing multiline `rule:` values (H-008, H-015, H-016, H-025, H-030) so their continuation clauses re-folded into `replacement_strategy` when parsed. All five continuation lines were restored to immediately follow — and remain part of — their original `rule:` value (before `use:`); parsed `rule` values verified to contain the clauses and `replacement_strategy` values verified not to. Deterministic regression coverage added (`RegistryMultilineRuleRegressionTests`: real-registry intactness for all five + moved-continuation detection), so future schema-field insertions cannot silently move multiline rule text. Registry pack hash updated accordingly.
 
 ## Verdict
 
@@ -126,9 +127,9 @@ Every entry's ownership boundary was re-checked against the Master contracts: pr
 
 New `scripts/validate-harvest-registry.py` (no third-party dependencies) validates: exactly 35 unique sequential H-IDs; required fields; https official-source allowlist per entry; decision/integration vocabularies; license classification (green / explicit review-required / unresolved-fails); BUILD requires ADR; DO_NOT_INVENT coverage; PACK_SUMMARY count sync.
 
-Deterministic tests (`tests/contract/test_m002_validators.py`, stdlib unittest, 32 tests) prove failure for: duplicate H-ID; missing required field; invalid/missing/non-official source; **fake GitHub-repository provenance (generic github.com rejected; wrong-owner repo rejected)**; unsupported decision; unsupported integration; missing/unresolved license classification; **missing use/ownership/upgrade-policy/replacement-strategy**; entry-count drift; BUILD without ADR; unlocked M-003 during M-002; unlocked mission without DONE dependencies; two active missions; zero active missions; DONE after active; missing dependency; dependency cycle; forward dependency reference; duplicate mission ID; DAG/register status and order desync; stale ACTIVE_MISSION pointer — and prove validity of both the historical M-001 bootstrap state and a hypothetical future M-003 REVIEW state (generalization).
+Deterministic tests (`tests/contract/test_m002_validators.py`, stdlib unittest, 34 tests — including multiline-rule continuation regression coverage for H-008/H-015/H-016/H-025/H-030) prove failure for: duplicate H-ID; missing required field; invalid/missing/non-official source; **fake GitHub-repository provenance (generic github.com rejected; wrong-owner repo rejected)**; unsupported decision; unsupported integration; missing/unresolved license classification; **missing use/ownership/upgrade-policy/replacement-strategy**; entry-count drift; BUILD without ADR; unlocked M-003 during M-002; unlocked mission without DONE dependencies; two active missions; zero active missions; DONE after active; missing dependency; dependency cycle; forward dependency reference; duplicate mission ID; DAG/register status and order desync; stale ACTIVE_MISSION pointer — and prove validity of both the historical M-001 bootstrap state and a hypothetical future M-003 REVIEW state (generalization).
 
-## Commands and results (revision 2 re-run)
+## Commands and results (revision 3 re-run)
 
 ```text
 git diff --check                                      -> no output (clean), exit 0
@@ -139,7 +140,7 @@ python3 scripts/validate-master-contracts.py          -> RESULT: PASS, exit 0
   mission statuses: DONE=1 REVIEW=1 LOCKED=149
 python3 scripts/validate-harvest-registry.py          -> RESULT: PASS, exit 0
   entries: 35; review-required licenses: 5 (H-016, H-017, H-022, H-032, H-034)
-python3 tests/contract/test_m002_validators.py        -> Ran 32 tests ... OK, exit 0
+python3 tests/contract/test_m002_validators.py        -> Ran 34 tests ... OK, exit 0
 ```
 
 CI (`Master Build System Integrity` on PR #3) executes the same semantic validators/tests after pack hash verification and fails on non-zero exit; the `Repository Sanitation` workflow continues to run unchanged.
@@ -156,7 +157,7 @@ Legitimate M-002 pack modifications and the only hash lines updated in `master-b
 | `10_IMPLEMENTATION/MISSION_DAG.yaml` | M-001 → DONE, M-002 → REVIEW |
 | `10_IMPLEMENTATION/MISSION_REGISTER.csv` | same two status cells |
 
-Old→new digests are listed in the PR description. Revision 2 re-hashed only `06_HARVEST/OSS_HARVEST_REGISTRY.yaml` again after the field additions (baseline `c72ce609…` → rev-1 `5df339d6…` → final `740fcd52…`); `sha256sum -c` confirmed it was the only mismatch before updating. Hashes were updated only for these five files after `sha256sum -c` confirmed they were the only mismatches; the checksum file was not mass-regenerated and no mismatch was concealed. `REPO_SEED_MANIFEST.json` is a frozen seed snapshot (M-001 precedent) and was not touched.
+Old→new digests are listed in the PR description. Revision 2 re-hashed `06_HARVEST/OSS_HARVEST_REGISTRY.yaml` after the field additions and revision 3 re-hashed it again after the multiline-rule restoration (baseline `c72ce609…` → rev-1 `5df339d6…` → rev-2 `740fcd52…` → **rev-3 final `1a499f05…`**); in every round `sha256sum -c` confirmed it was the only mismatch before updating. Hashes were updated only for these five files after `sha256sum -c` confirmed they were the only mismatches; the checksum file was not mass-regenerated and no mismatch was concealed. `REPO_SEED_MANIFEST.json` is a frozen seed snapshot (M-001 precedent) and was not touched.
 
 ## Scope confirmations
 
