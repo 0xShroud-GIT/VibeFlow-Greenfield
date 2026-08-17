@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""M-001 no-dependency master-contract consistency validator.
+"""No-dependency master-contract consistency validator.
 
 Parses the ratified YAML/CSV/JSON contracts with a stdlib-only subset loader.
 Does not install packages and does not mutate architecture semantics.
+
+Mission progression is validated generically (any mission may become the active
+one as its dependencies are accepted) instead of hard-coding the M-001
+bootstrap state. Statuses follow 10_IMPLEMENTATION/STATUS_PROTOCOL.md:
+LOCKED -> READY -> IN_PROGRESS -> REVIEW -> DONE / BLOCKED.
 """
 
 from __future__ import annotations
@@ -19,6 +24,11 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MBS = REPO_ROOT / "master-build-system"
+
+MISSION_STATUS_VOCAB = {"LOCKED", "READY", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED"}
+# Unlocked but not yet accepted. Under normal serial progression exactly one
+# mission is in this set and every earlier mission is DONE.
+ACTIVE_MISSION_STATUSES = {"READY", "IN_PROGRESS", "REVIEW", "BLOCKED"}
 
 EXPECTED = {
     "vibeflow_capabilities": 405,
@@ -689,19 +699,89 @@ def check_missions(report: Report) -> None:
 
     statuses = Counter(str(item.get("status")) for item in missions)
     report.counts["mission_statuses"] = dict(statuses)
+
+    # --- Generic mission-progression validation (STATUS_PROTOCOL.md) ---
+    bad_status = [m for m in mission_ids if str(by_id[m].get("status")) not in MISSION_STATUS_VOCAB]
+    if bad_status:
+        report.err(f"Missions with status outside the status vocabulary: {bad_status}")
+
+    active_ids = [
+        mid for mid in mission_ids if str(by_id[mid].get("status")) in ACTIVE_MISSION_STATUSES
+    ]
+    if len(active_ids) != 1:
+        report.err(
+            f"Exactly one mission may be active/reviewable under serial progression; found {len(active_ids)}: {active_ids}"
+        )
+    active_id = active_ids[0] if len(active_ids) == 1 else None
+
+    done_ids = [mid for mid in mission_ids if str(by_id[mid].get("status")) == "DONE"]
+
+    # A mission may only be READY/IN_PROGRESS/REVIEW/BLOCKED when all its
+    # dependencies are DONE (accepted).
+    for mid in active_ids:
+        not_done = [dep for dep in graph.get(mid, []) if str(by_id[dep].get("status")) != "DONE"]
+        if not_done:
+            report.err(f"{mid} is unlocked but dependencies are not DONE: {not_done}")
+
+    # Accepted missions may precede the active mission, never follow it.
+    if active_id is not None:
+        active_index = mission_ids.index(active_id)
+        trailing_done = [mid for mid in done_ids if mission_ids.index(mid) > active_index]
+        if trailing_done:
+            report.err(f"DONE missions may not follow the active mission: {trailing_done}")
+
+    # Everything that is neither DONE nor the single active mission stays LOCKED.
     unlocked = [
-        str(item.get("mission_id"))
-        for item in missions
-        if str(item.get("status")) in {"READY", "IN_PROGRESS", "REVIEW", "DONE"}
-        and str(item.get("mission_id")) != "M-001"
+        mid
+        for mid in mission_ids
+        if mid != active_id
+        and mid not in done_ids
+        and str(by_id[mid].get("status")) != "LOCKED"
     ]
     if unlocked:
-        report.err(f"Later missions are not LOCKED: {unlocked}")
-    m001 = by_id.get("M-001") or {}
-    if str(m001.get("status")) not in {"READY", "REVIEW"}:
-        report.err(f"M-001 status must be READY or REVIEW, got {m001.get('status')}")
-    if str((by_id.get("M-002") or {}).get("status")) != "LOCKED":
-        report.err("M-002 must remain LOCKED")
+        report.err(f"Missions that must remain LOCKED are unlocked: {unlocked}")
+
+    # Future dependent missions remain LOCKED: every transitive dependent of a
+    # non-DONE mission must be LOCKED. This subsumes "M-003 stays LOCKED during
+    # M-002" and "M-004 stays LOCKED until M-003 is accepted" as instances.
+    dependents: dict[str, list[str]] = {mid: [] for mid in mission_ids}
+    for mid, deps in graph.items():
+        for dep in deps:
+            dependents.setdefault(dep, []).append(mid)
+
+    def transitive_dependents(node: str) -> set[str]:
+        out: set[str] = set()
+        stack = list(dependents.get(node, []))
+        while stack:
+            cur = stack.pop()
+            if cur in out:
+                continue
+            out.add(cur)
+            stack.extend(dependents.get(cur, []))
+        return out
+
+    for mid in mission_ids:
+        if str(by_id[mid].get("status")) != "DONE":
+            bad_dependents = [
+                d for d in transitive_dependents(mid) if str(by_id[d].get("status")) != "LOCKED"
+            ]
+            if bad_dependents:
+                report.err(
+                    f"Dependent missions of non-DONE {mid} must remain LOCKED: {sorted(bad_dependents)}"
+                )
+
+    # No mission may skip its dependency chain: dependencies must reference
+    # strictly earlier register/DAG entries (no forward references).
+    forward_refs = [
+        (mid, dep)
+        for mid in mission_ids
+        for dep in graph.get(mid, [])
+        if dep in mission_ids and mission_ids.index(dep) >= mission_ids.index(mid)
+    ]
+    if forward_refs:
+        report.err(f"Missions referencing same/later missions as dependencies: {forward_refs}")
+
+    # Bootstrap chain remains a structural invariant of this mission system.
     if "M-001" not in graph.get("M-002", []):
         report.err("M-002 must depend on M-001")
     if "M-002" not in graph.get("M-003", []):
@@ -712,6 +792,25 @@ def check_missions(report: Report) -> None:
     if "M-003" not in graph.get("M-004", []):
         report.err("M-004 must depend on M-003 (Phase 0 complete)")
 
+    # The active-mission pointer must agree with the DAG.
+    active_mission_file = REPO_ROOT / ".ai" / "ACTIVE_MISSION.md"
+    if active_mission_file.is_file():
+        am_text = active_mission_file.read_text(encoding="utf-8")
+        am_mission = re.search(r"\*\*Mission:\*\*\s*(M-\d{3})", am_text)
+        am_status = re.search(r"\*\*Status:\*\*\s*([A-Z_]+)", am_text)
+        if not am_mission or not am_status:
+            report.err(".ai/ACTIVE_MISSION.md must declare '**Mission:** M-NNN' and '**Status:** ...'")
+        elif active_id is not None:
+            if am_mission.group(1) != active_id:
+                report.err(
+                    f".ai/ACTIVE_MISSION.md names {am_mission.group(1)} but the active mission is {active_id}"
+                )
+            if am_status.group(1) != str(by_id[active_id].get("status")):
+                report.err(
+                    f".ai/ACTIVE_MISSION.md status {am_status.group(1)} != DAG status "
+                    f"{by_id[active_id].get('status')} for {active_id}"
+                )
+
     with (MBS / "10_IMPLEMENTATION" / "MISSION_REGISTER.csv").open(
         newline="", encoding="utf-8"
     ) as handle:
@@ -719,6 +818,14 @@ def check_missions(report: Report) -> None:
     reg_ids = [row["mission_id"] for row in register]
     if reg_ids != mission_ids:
         report.err("MISSION_REGISTER.csv mission_id order/set does not match MISSION_DAG.yaml")
+    else:
+        for row in register:
+            mid = row["mission_id"]
+            if row.get("status") != str(by_id[mid].get("status")):
+                report.err(
+                    f"MISSION_REGISTER.csv status {row.get('status')} != DAG status "
+                    f"{by_id[mid].get('status')} for {mid}"
+                )
 
     build_phases = load_yaml_file(MBS / "10_IMPLEMENTATION" / "BUILD_PHASES.yaml")
     bp = build_phases.get("phases") or []
@@ -846,7 +953,7 @@ def check_pack_summary(report: Report) -> None:
 
 
 def render(report: Report) -> str:
-    lines = ["M-001 master-contract validator", ""]
+    lines = ["VibeFlow master-contract validator", ""]
     lines.append("Counts:")
     for key in (
         "canonical_resources",
@@ -889,7 +996,18 @@ def render(report: Report) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate VibeFlow master contracts")
     parser.add_argument("--json-out", type=Path)
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=None,
+        help="Repository root to validate (defaults to the repository containing this script)",
+    )
     args = parser.parse_args(argv)
+
+    global REPO_ROOT, MBS
+    if args.root is not None:
+        REPO_ROOT = Path(args.root).resolve()
+        MBS = REPO_ROOT / "master-build-system"
 
     report = Report()
     try:
