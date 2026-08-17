@@ -345,45 +345,23 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_m001_bootstrap_state_still_passes(self) -> None:
-        """Generalization proof: the original M-001 state (M-001 READY only) is valid."""
+        """Historical proof: the original M-001 READY-only state remains valid."""
         box = RepoSandbox(self.tmp)
-        # Flip M-001 DONE -> READY and M-002 REVIEW -> LOCKED in DAG and register.
-        text = box.path(self.DAG).read_text(encoding="utf-8")
-        m1 = text.index("mission_id: M-001")
-        m2 = text.index("mission_id: M-002")
-        m3 = text.index("mission_id: M-003")
-        block1 = text[m1:m2].replace("  status: DONE", "  status: READY", 1)
-        block2 = text[m2:m3].replace("  status: REVIEW", "  status: LOCKED", 1)
-        text = text[:m1] + block1 + block2 + text[m3:]
-        box.path(self.DAG).write_text(text, encoding="utf-8")
-        import csv, io
-
-        rows = list(csv.DictReader(io.StringIO(box.path(self.REG).read_text(encoding="utf-8"))))
-        for r in rows:
-            if r["mission_id"] == "M-001":
-                r["status"] = "READY"
-            if r["mission_id"] == "M-002":
-                r["status"] = "LOCKED"
-        out = io.StringIO()
-        w = csv.DictWriter(out, fieldnames=rows[0].keys(), lineterminator="\n")
-        w.writeheader()
-        w.writerows(rows)
-        box.path(self.REG).write_text(out.getvalue(), encoding="utf-8")
-        box.path(self.ACTIVE).write_text(
-            "# Active Mission\n\n**Mission:** M-001 — Ratify master contracts\n\n**Status:** READY\n", encoding="utf-8"
-        )
+        self._set_serial_state(box, "M-001", "READY")
         result = run_script(MASTER, box.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_unlocked_m003_while_m002_review_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         self._set_status(box, "M-003", "READY")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("dependencies are not DONE", result.stdout)
+        self.assertIn("M-003 is unlocked but dependencies are not DONE", result.stdout)
 
     def test_m002_review_with_m001_not_done_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         self._set_status(box, "M-001", "REVIEW")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -391,14 +369,15 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_two_active_missions_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         self._set_status(box, "M-001", "READY")
-        # M-001 READY and M-002 REVIEW simultaneously -> two active missions.
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Exactly one mission may be active", result.stdout)
 
     def test_done_mission_after_active_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         self._set_status(box, "M-003", "DONE")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -406,6 +385,7 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_zero_active_missions_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         self._set_status(box, "M-002", "LOCKED")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -413,6 +393,7 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_missing_dependency_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         box.patch(self.DAG, "  depends_on: M-001\n  capability_selector: ALL", "  depends_on: M-999\n  capability_selector: ALL")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -420,18 +401,15 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_dependency_cycle_fails(self) -> None:
         box = RepoSandbox(self.tmp)
-        # M-002 depends on M-003 (which depends on M-002 through M-003's chain) -> cycle.
+        self._set_serial_state(box, "M-002", "REVIEW")
         box.patch(self.DAG, "  depends_on: M-001\n  capability_selector: ALL", "  depends_on: M-003\n  capability_selector: ALL")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
-        self.assertTrue(
-            "Mission DAG cycle" in result.stdout or "forward" in result.stdout,
-            result.stdout,
-        )
+        self.assertTrue("Mission DAG cycle" in result.stdout or "forward" in result.stdout, result.stdout)
 
     def test_forward_dependency_reference_fails(self) -> None:
         box = RepoSandbox(self.tmp)
-        # M-005 (later) is referenced by M-002 (earlier): forward reference without cycle.
+        self._set_serial_state(box, "M-002", "REVIEW")
         box.patch(self.DAG, "  depends_on: M-001\n  capability_selector: ALL", "  depends_on: M-005\n  capability_selector: ALL")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -439,11 +417,11 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_duplicate_mission_id_fails(self) -> None:
         box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-002", "REVIEW")
         text = box.path(self.DAG).read_text(encoding="utf-8")
         m2 = text.index("- mission_id: M-002")
         m3 = text.index("- mission_id: M-003")
-        block = text[m2:m3]
-        block = block.replace("mission_id: M-002", "mission_id: M-001", 1)
+        block = text[m2:m3].replace("mission_id: M-002", "mission_id: M-001", 1)
         box.path(self.DAG).write_text(text[:m3] + block + text[m3:], encoding="utf-8")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -451,20 +429,20 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_register_dag_status_desync_fails(self) -> None:
         box = RepoSandbox(self.tmp)
-        reg = box.path(self.REG).read_text(encoding="utf-8")
-        marker = "CI green,REVIEW"
-        assert marker in reg
-        box.path(self.REG).write_text(reg.replace(marker, "CI green,LOCKED", 1), encoding="utf-8")
+        self._set_serial_state(box, "M-002", "REVIEW")
+        self._set_status(box, "M-002", "LOCKED", update_register=False)
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("!= DAG status", result.stdout)
 
     def test_register_dag_order_desync_fails(self) -> None:
         box = RepoSandbox(self.tmp)
-        text = box.path(self.REG).read_text(encoding="utf-8")
-        text = text.replace("gates,LOCKED\nM-004,", "gates,LOCKED\nM-004,", 1)
-        # drop the M-004 row
-        lines = [ln for ln in text.splitlines(keepends=True) if not ln.startswith("M-004,")]
+        self._set_serial_state(box, "M-002", "REVIEW")
+        lines = [
+            line
+            for line in box.path(self.REG).read_text(encoding="utf-8").splitlines(keepends=True)
+            if not line.startswith("M-004,")
+        ]
         box.path(self.REG).write_text("".join(lines), encoding="utf-8")
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
@@ -472,46 +450,96 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
 
     def test_stale_active_mission_pointer_fails(self) -> None:
         box = RepoSandbox(self.tmp)
-        box.patch(self.ACTIVE, "**Mission:** M-002 — Ratify dependency/harvest registry", "**Mission:** M-003 — Ratify threat model and trust boundaries")
+        self._set_serial_state(box, "M-002", "REVIEW")
+        box.path(self.ACTIVE).write_text(
+            "# Active Mission\n\n**Mission:** M-003 — Ratify threat model and trust boundaries\n\n**Status:** REVIEW\n",
+            encoding="utf-8",
+        )
         result = run_script(MASTER, box.root)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("but the active mission is", result.stdout)
+        self.assertIn("but the active mission is M-002", result.stdout)
 
     def test_future_state_m003_review_passes(self) -> None:
         """Generalization proof: after M-002 acceptance, M-003 REVIEW is valid."""
         box = RepoSandbox(self.tmp)
-        self._set_status(box, "M-002", "DONE")
-        self._set_status(box, "M-003", "REVIEW")
-        box.path(self.ACTIVE).write_text(
-            "# Active Mission\n\n**Mission:** M-003 — Ratify threat model\n\n**Status:** REVIEW\n", encoding="utf-8"
-        )
+        self._set_serial_state(box, "M-003", "REVIEW")
         result = run_script(MASTER, box.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    # -- helpers ---------------------------------------------------------
-    def _set_status(self, box: RepoSandbox, mid: str, status: str) -> None:
+    def _set_serial_state(self, box: RepoSandbox, active_id: str, active_status: str) -> None:
+        """Build a complete serial state without inheriting the repository's current mission."""
+        import csv
+        import io
+        import re
+
+        active_num = int(active_id.split("-")[1])
+
+        def status_for(mid: str) -> str:
+            number = int(mid.split("-")[1])
+            if number < active_num:
+                return "DONE"
+            if number == active_num:
+                return active_status
+            return "LOCKED"
+
+        dag_path = box.path(self.DAG)
+        text = dag_path.read_text(encoding="utf-8")
+        pattern = re.compile(r"(?ms)^- mission_id: (M-\d{3})\n.*?(?=^- mission_id: |\Z)")
+
+        def replace_block(match: re.Match) -> str:
+            mid = match.group(1)
+            block, count = re.subn(
+                r"(?m)^  status: [A-Z_]+$",
+                f"  status: {status_for(mid)}",
+                match.group(0),
+                count=1,
+            )
+            assert count == 1, mid
+            return block
+
+        text, count = pattern.subn(replace_block, text)
+        assert count == 151, count
+        dag_path.write_text(text, encoding="utf-8")
+
+        with box.path(self.REG).open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == 151
+        for row in rows:
+            row["status"] = status_for(row["mission_id"])
+        out = io.StringIO()
+        writer = csv.DictWriter(out, fieldnames=rows[0].keys(), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+        box.path(self.REG).write_text(out.getvalue(), encoding="utf-8")
+        box.path(self.ACTIVE).write_text(
+            f"# Active Mission\n\n**Mission:** {active_id} — Synthetic historical test state\n\n**Status:** {active_status}\n",
+            encoding="utf-8",
+        )
+
+    def _set_status(self, box: RepoSandbox, mid: str, status: str, *, update_register: bool = True) -> None:
+        import csv
+        import io
+        import re
+
         text = box.path(self.DAG).read_text(encoding="utf-8")
         start = text.index(f"mission_id: {mid}")
         nxt = text.find("- mission_id:", start + 10)
         if nxt == -1:
             nxt = len(text)
-        import re
-
-        block, n = re.subn(r"  status: [A-Z_]+", f"  status: {status}", text[start:nxt], count=1)
-        assert n == 1
+        block, count = re.subn(r"  status: [A-Z_]+", f"  status: {status}", text[start:nxt], count=1)
+        assert count == 1
         box.path(self.DAG).write_text(text[:start] + block + text[nxt:], encoding="utf-8")
-
-        import csv, io
-
-        with box.path(self.REG).open(newline="", encoding="utf-8") as fh:
-            rows = list(csv.DictReader(fh))
-        for r in rows:
-            if r["mission_id"] == mid:
-                r["status"] = status
+        if not update_register:
+            return
+        with box.path(self.REG).open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        for row in rows:
+            if row["mission_id"] == mid:
+                row["status"] = status
         out = io.StringIO()
-        w = csv.DictWriter(out, fieldnames=rows[0].keys(), lineterminator="\n")
-        w.writeheader()
-        w.writerows(rows)
+        writer = csv.DictWriter(out, fieldnames=rows[0].keys(), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
         box.path(self.REG).write_text(out.getvalue(), encoding="utf-8")
 
 

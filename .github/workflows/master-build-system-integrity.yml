@@ -6,6 +6,7 @@ on:
       - 'master-build-system/**'
       - 'scripts/**'
       - 'tests/**'
+      - 'evidence/**'
       - '.ai/**'
       - '.github/workflows/master-build-system-integrity.yml'
   push:
@@ -14,6 +15,7 @@ on:
       - 'master-build-system/**'
       - 'scripts/**'
       - 'tests/**'
+      - 'evidence/**'
       - '.ai/**'
       - '.github/workflows/master-build-system-integrity.yml'
 
@@ -36,6 +38,12 @@ jobs:
       - name: Validate dependency/harvest registry
         shell: bash
         run: python3 scripts/validate-harvest-registry.py
+      - name: Validate threat model and trust boundaries
+        shell: bash
+        run: python3 scripts/validate-threat-model.py
       - name: Run M-002 contract validator tests
         shell: bash
         run: python3 tests/contract/test_m002_validators.py
+      - name: Run M-003 security contract tests
+        shell: bash
+        run: python3 tests/contract/test_m003_security_contracts.py
