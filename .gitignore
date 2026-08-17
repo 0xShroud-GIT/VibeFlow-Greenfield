@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build/cache
+.turbo/
+dist/
+build/
+coverage/
+.expo/
+.next/
+
+# environment/secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# editor/OS
+.DS_Store
+.idea/
+.vscode/
+
+# local evidence output
+/evidence/local/
+/tmp/

@@ -1,0 +1,14 @@
+{
+  "pack_version": "1.0",
+  "generated": "2026-08-17",
+  "vibeflow_capabilities": 405,
+  "replit_trace_rows": 390,
+  "canonical_resources": 35,
+  "invariants": 20,
+  "approved_harvest_entries": 35,
+  "phases": 33,
+  "missions": 151,
+  "frontend_surface_contracts": 13,
+  "event_types": 37,
+  "v1_gates": 15
+}

@@ -1,0 +1,84 @@
+rule: ADOPT → WRAP → BRIDGE → EXTEND → BUILD. BUILD requires an ADR proving the approved alternatives do not satisfy the requirement.
+entries:
+- problem: code editor
+  use:
+  - Monaco Editor
+  vibeflow_owns:
+  - project/revision binding
+  - permissions
+  - editor session metadata
+  - mobile bridge integration
+- problem: terminal emulator
+  use:
+  - xterm.js
+  vibeflow_owns:
+  - TerminalSession authority
+  - workspace binding
+  - transport
+  - policy
+  - evidence
+- problem: coding-agent client protocol
+  use:
+  - ACP stable profile
+  vibeflow_owns:
+  - remote semantics
+  - project binding
+  - grants
+  - recovery
+  - verification
+- problem: agent tool/data protocol
+  use:
+  - MCP 2026-07-28
+  vibeflow_owns:
+  - connection catalog
+  - grants
+  - policy
+  - approval
+  - audit
+- problem: agent-to-agent delegation protocol
+  use:
+  - A2A 1.0 when needed
+  vibeflow_owns:
+  - delegation authority and grant attenuation
+- problem: durable workflow engine
+  use:
+  - Temporal
+  vibeflow_owns:
+  - Task/Execution/Recovery domain model
+- problem: workspace compute fabric
+  use:
+  - Daytona
+  - E2B
+  - user BYOW
+  vibeflow_owns:
+  - WorkspaceBinding
+  - capability certification
+  - reconciliation
+- problem: telemetry transport
+  use:
+  - OpenTelemetry
+  vibeflow_owns:
+  - semantic correlation and redaction policy
+- problem: authentication primitives
+  use:
+  - Better Auth / approved identity provider
+  vibeflow_owns:
+  - product identity linking
+  - tenant/project authorization
+- problem: Git hosting
+  use:
+  - GitHub/GitLab/provider adapters
+  vibeflow_owns:
+  - RepositoryBinding
+  - reconciliation
+  - release evidence
+- problem: environment descriptor
+  use:
+  - Dev Containers specification
+  vibeflow_owns:
+  - policy around allowed environment features
+- problem: database
+  use:
+  - PostgreSQL
+  vibeflow_owns:
+  - schema and authority semantics

@@ -1,0 +1,21 @@
+version: '1.0'
+read_first:
+- AGENTS.md
+- 00_MASTER/MASTER_OF_MASTERS.md
+authorities:
+  product: 01_PRODUCT/PRODUCT_MASTER.md
+  frontend: 07_FRONTEND/FRONTEND_MASTER.md
+  backend: 03_BACKEND/BACKEND_MASTER.md
+  agent: 04_AI_AGENT/AI_AGENT_MASTER.md
+  security: 08_SECURITY/SECURITY_MASTER.md
+  verification: 11_VERIFICATION/VERIFICATION_MASTER.md
+machine_readable:
+  capabilities: 01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml
+  resources: 02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml
+  states: 03_BACKEND/STATE_MACHINES.yaml
+  events: 03_BACKEND/EVENT_CATALOG.yaml
+  frontend_backend: 09_CONTRACTS/FRONTEND_BACKEND_MATRIX.yaml
+  dependencies: 06_HARVEST/OSS_HARVEST_REGISTRY.yaml
+  missions: 10_IMPLEMENTATION/MISSION_DAG.yaml
+  acceptance: 11_VERIFICATION/V1_ACCEPTANCE.yaml
+context_rule: Load only files referenced by the current mission plus relevant invariants.

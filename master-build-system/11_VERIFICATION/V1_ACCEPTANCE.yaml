@@ -1,0 +1,47 @@
+version: '1.0'
+gates:
+- id: V1-001
+  gate: Capability closure
+  requirement: All P0 and V1-scoped P1 capability ledger rows COMPLETE with evidence.
+- id: V1-002
+  gate: Security
+  requirement: No unresolved P0/P1 security defect; isolation/secret/grant negative suites pass.
+- id: V1-003
+  gate: Agent
+  requirement: At least one Tier-1 coding agent certified end-to-end; provider finish cannot bypass verification.
+- id: V1-004
+  gate: Workspace
+  requirement: At least two workspace modes certified (e.g., Daytona + E2B/BYOW) with reconciliation/recovery tests.
+- id: V1-005
+  gate: Mobile
+  requirement: Create→run→approve→reconnect→verify critical journeys pass on Android and iOS.
+- id: V1-006
+  gate: IDE
+  requirement: Files/editor/terminal/preview/Git critical journeys pass.
+- id: V1-007
+  gate: Recovery
+  requirement: Crash-window, gateway restart, client disconnect and provider loss suites pass with honest classifications.
+- id: V1-008
+  gate: Verification
+  requirement: Independent build/test/security/diff evidence pipeline proves pass/fail and stale-candidate invalidation.
+- id: V1-009
+  gate: Connections
+  requirement: MCP/tool grant, approval, revocation and token isolation tests pass.
+- id: V1-010
+  gate: Release
+  requirement: Verified candidate→release→deploy→health→rollback provenance E2E passes.
+- id: V1-011
+  gate: Billing
+  requirement: Entitlement, receipt idempotency and provider usage/budget attribution reconcile.
+- id: V1-012
+  gate: Accessibility
+  requirement: Critical mobile/web flows meet defined WCAG/mobile accessibility gate.
+- id: V1-013
+  gate: Reliability
+  requirement: SLO/load/backup/restore/DR and migration tests pass.
+- id: V1-014
+  gate: Supply chain
+  requirement: SBOM/vulnerability/secret/static/container gates green; release provenance generated.
+- id: V1-015
+  gate: Evidence bundle
+  requirement: Signed/hashed V1 release evidence bundle generated and independently reviewable.

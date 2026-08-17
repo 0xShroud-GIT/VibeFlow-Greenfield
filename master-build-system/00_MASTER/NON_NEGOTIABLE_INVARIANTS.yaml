@@ -1,0 +1,115 @@
+schema_version: '1.0'
+invariants:
+- id: INV-001
+  rule: Agent completion is candidate completion, never VERIFIED.
+  severity: P0
+  enforcement:
+  - state machine
+  - verification service
+  - contract tests
+- id: INV-002
+  rule: Transport reconnect is not execution recovery.
+  severity: P0
+  enforcement:
+  - remote protocol
+  - recovery tests
+- id: INV-003
+  rule: Event replay is not authoritative workspace reconciliation.
+  severity: P0
+  enforcement:
+  - event model
+  - reconciliation tests
+- id: INV-004
+  rule: Repository is not workspace.
+  severity: P0
+  enforcement:
+  - resource model
+  - adapter boundaries
+- id: INV-005
+  rule: Object storage is not workspace.
+  severity: P0
+  enforcement:
+  - resource model
+  - storage adapters
+- id: INV-006
+  rule: Development workspace is not production runtime.
+  severity: P0
+  enforcement:
+  - DeploymentBinding/Release model
+- id: INV-007
+  rule: Agent is not AI model provider.
+  severity: P0
+  enforcement:
+  - AgentBinding and ModelBinding separation
+- id: INV-008
+  rule: Provider IDs and provider status are observations/references, not VibeFlow product authority.
+  severity: P0
+  enforcement:
+  - server binding validation
+- id: INV-009
+  rule: Raw BYOK/provider secrets never cross the native-web bridge or appear in client-readable project state.
+  severity: P0
+  enforcement:
+  - SecretRef broker
+  - bridge fuzz/security tests
+- id: INV-010
+  rule: Tool availability does not imply permission.
+  severity: P0
+  enforcement:
+  - ConnectionGrant
+  - Policy
+  - Approval
+- id: INV-011
+  rule: All privileged commands are tenant/project/resource-bound server-side; client-supplied IDs are never trusted alone.
+  severity: P0
+  enforcement:
+  - authorization middleware
+  - negative E2E
+- id: INV-012
+  rule: Provider-specific behavior lives behind adapters; core packages import no provider SDKs.
+  severity: P0
+  enforcement:
+  - dependency lint
+- id: INV-013
+  rule: Use an approved standard/SDK before inventing a protocol or subsystem.
+  severity: P1
+  enforcement:
+  - DO_NOT_INVENT registry
+  - architecture review
+- id: INV-014
+  rule: Every irreversible or high-risk action has policy and evidence semantics.
+  severity: P1
+  enforcement:
+  - policy engine
+  - audit/evidence
+- id: INV-015
+  rule: Every durable state transition is idempotent or carries a deduplication key.
+  severity: P0
+  enforcement:
+  - command contract tests
+- id: INV-016
+  rule: Every user-visible execution status has one canonical backend state mapping.
+  severity: P0
+  enforcement:
+  - frontend-backend contract graph
+- id: INV-017
+  rule: The phone and web workspace are control/inspection surfaces, not the authoritative execution owner.
+  severity: P0
+  enforcement:
+  - remote architecture
+  - disconnect tests
+- id: INV-018
+  rule: A dependency may not be added unless recorded in the harvest/dependency registry with license and ownership role.
+  severity: P1
+  enforcement:
+  - dependency CI
+- id: INV-019
+  rule: Replit research is capability evidence only; no Replit code/assets/branding/prompts are implementation inputs.
+  severity: P0
+  enforcement:
+  - clean-room policy
+- id: INV-020
+  rule: Global truth can be large; a coding-agent mission packet must be small, explicit, and bounded.
+  severity: P1
+  enforcement:
+  - context assembly rules

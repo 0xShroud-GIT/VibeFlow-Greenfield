@@ -1,0 +1,101 @@
+schema_version: '1.0'
+phases:
+- phase: 0
+  name: Architecture Constitution
+  scope: Freeze authority, resources, invariants, clean-room, approved stack and mission system.
+- phase: 1
+  name: Repository Foundation
+  scope: Monorepo, toolchain, CI, dependency policy, schema generation, local dev.
+- phase: 2
+  name: Identity & Tenant Authority
+  scope: Account, Organization, sessions, tenant authorization, audit baseline.
+- phase: 3
+  name: Project Authority
+  scope: Project, Artifact, imports, lifecycle and canonical graph.
+- phase: 4
+  name: Provider Bindings
+  scope: Agent/Model/Workspace/Repo/Data/Storage/Deployment bindings and capability discovery.
+- phase: 5
+  name: Connections & Grants
+  scope: Connections, SecretRef, grants, scopes, OAuth broker and approvals foundation.
+- phase: 6
+  name: Durable Task & Execution
+  scope: Task/Execution/Attempt state, Temporal workflows, idempotent commands, durable events.
+- phase: 7
+  name: Remote Layer
+  scope: Gateway, sequence/replay/resync, session grants, reconnect semantics.
+- phase: 8
+  name: Mobile Shell
+  scope: Expo app, auth, projects, task/action center, notifications, secure storage.
+- phase: 9
+  name: Agent Integration
+  scope: ACP profile, OpenHands adapter, capability negotiation, Plan/Build modes.
+- phase: 10
+  name: Model Integration
+  scope: ModelBinding, BYOK broker, Vercel AI SDK/direct provider adapters, usage attribution.
+- phase: 11
+  name: Workspace Integration
+  scope: WorkspaceProvider interface, Daytona/E2B/BYOW, lifecycle and capability certification.
+- phase: 12
+  name: Workspace Web IDE
+  scope: Files, Monaco, terminal, preview, logs, command palette, responsive mobile workspace.
+- phase: 13
+  name: Secure Native-Web Bridge
+  scope: Versioned bridge, origin/project binding, ACKs, keyboard/device state, OAuth/permission mediation.
+- phase: 14
+  name: Repository & Git
+  scope: RepositoryBinding, Git status/diff/history/commit/push/import and reconciliation.
+- phase: 15
+  name: Checkpoints
+  scope: CheckpointManifest DAG across repo/workspace/context/data references and recovery timeline.
+- phase: 16
+  name: Verification & Evidence
+  scope: Evidence store, build/test/security checks, candidate capture, independent completion verification.
+- phase: 17
+  name: Recovery
+  scope: Crash/reconnect/provider/workspace recovery state machine and honest lost classification.
+- phase: 18
+  name: MCP / Tools
+  scope: MCP 2026-07-28 client/server, connection-backed tool catalog, tool grants and approval policy.
+- phase: 19
+  name: Data & Storage
+  scope: DataBinding, ObjectStorageBinding, environment separation, migration/snapshot evidence.
+- phase: 20
+  name: Deployment & Release
+  scope: Release model, deployment adapters, previews vs prod, domains/access, rollback.
+- phase: 21
+  name: Observability & Incidents
+  scope: OpenTelemetry, logs/metrics/traces, redaction, health, incident→Task lineage.
+- phase: 22
+  name: Security Product
+  scope: Security center, egress/resource policy, dependency/supply-chain scans, audit UX.
+- phase: 23
+  name: Notifications & Automations
+  scope: Push/action-needed notifications, triggers, schedules, long-running automations.
+- phase: 24
+  name: Billing & Entitlements
+  scope: VibeFlow subscription, entitlements, provider-attributed usage/budgets, store reconciliation.
+- phase: 25
+  name: Collaboration
+  scope: Members, roles, comments/activity, shared projects, conflict/revision awareness.
+- phase: 26
+  name: Design / Canvas
+  scope: Artifact graph, canvas, visual editor, source/design mapping, imports.
+- phase: 27
+  name: Native App Development
+  scope: Mobile artifact recipes, device builds/tests, EAS/store release evidence.
+- phase: 28
+  name: External Ecosystem
+  scope: External ACP/MCP/A2A/AG-UI compatibility, public APIs, webhooks, project export/import.
+- phase: 29
+  name: Enterprise
+  scope: SAML/SCIM, org policy, SIEM/admin API, enterprise connection controls.
+- phase: 30
+  name: Accessibility / Localization / Growth
+  scope: WCAG, localization, feedback, onboarding, discovery surfaces.
+- phase: 31
+  name: Reliability & Performance
+  scope: Load, chaos, DR, backups, migration, provider failover, performance budgets.
+- phase: 32
+  name: Production Hardening & V1 Acceptance
+  scope: Full capability closure, security audit, provider certification, release gates and launch readiness.

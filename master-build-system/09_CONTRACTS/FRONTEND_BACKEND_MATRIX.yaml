@@ -1,0 +1,315 @@
+schema_version: '1.0'
+rule: Frontend may project state, but cannot define new authoritative states outside these resources/contracts.
+surfaces:
+- id: FE-001
+  surface: Home / Create
+  platform: mobile+web
+  resources:
+  - Account
+  - Organization
+  - Project
+  - Artifact
+  - Task
+  reads:
+  - recent projects
+  - recent tasks
+  - notifications
+  commands:
+  - project.create
+  - task.create
+  events:
+  - project.created
+  - task.created
+  - execution.status_changed
+  backend_modules:
+  - project
+  - execution
+  - notification
+- id: FE-002
+  surface: Project Overview
+  platform: mobile+web
+  resources:
+  - Project
+  - Artifact
+  - AgentBinding
+  - ModelBinding
+  - WorkspaceBinding
+  - RepositoryBinding
+  - DeploymentBinding
+  reads:
+  - project graph
+  - binding health
+  - latest execution/release
+  commands:
+  - binding.configure
+  - task.create
+  events:
+  - binding.updated
+  - provider.capability_changed
+  - execution.status_changed
+  backend_modules:
+  - project
+  - provider-registry
+  - execution
+- id: FE-003
+  surface: Agent / Task
+  platform: mobile+workspace-web
+  resources:
+  - Task
+  - Execution
+  - ExecutionAttempt
+  - Approval
+  - Evidence
+  - Verification
+  reads:
+  - task detail
+  - execution stream
+  - plan
+  - usage
+  - verification
+  commands:
+  - execution.start
+  - execution.cancel
+  - approval.decide
+  - execution.retry
+  events:
+  - execution.*
+  - approval.*
+  - verification.*
+  backend_modules:
+  - execution
+  - gateway
+  - policy
+  - verification
+- id: FE-004
+  surface: Workspace IDE
+  platform: workspace-web
+  resources:
+  - WorkspaceBinding
+  - WorkspaceRevision
+  - Artifact
+  - RepositoryBinding
+  reads:
+  - files
+  - editor buffers
+  - terminal sessions
+  - preview
+  - logs
+  commands:
+  - file.*
+  - terminal.*
+  - preview.*
+  events:
+  - workspace.*
+  - terminal.*
+  - preview.*
+  backend_modules:
+  - gateway
+  - workspace-adapter
+  - repository
+- id: FE-005
+  surface: Git / Diff / Recovery
+  platform: workspace-web+mobile-summary
+  resources:
+  - RepositoryBinding
+  - WorkspaceRevision
+  - CheckpointManifest
+  - RecoveryRecord
+  - Evidence
+  reads:
+  - status
+  - diff
+  - history
+  - checkpoint DAG
+  commands:
+  - checkpoint.create
+  - recovery.start
+  - repo.commit
+  - repo.push
+  events:
+  - checkpoint.*
+  - recovery.*
+  - repository.*
+  backend_modules:
+  - repository
+  - execution
+  - verification
+- id: FE-006
+  surface: Connections / Tools
+  platform: mobile+web
+  resources:
+  - Connection
+  - ConnectionGrant
+  - SecretRef
+  - Policy
+  - Approval
+  reads:
+  - connections
+  - grant scopes
+  - MCP catalog
+  commands:
+  - connection.link
+  - grant.create
+  - grant.revoke
+  - approval.decide
+  events:
+  - connection.*
+  - grant.*
+  - approval.*
+  backend_modules:
+  - connection
+  - policy
+  - gateway
+- id: FE-007
+  surface: Data / Storage
+  platform: workspace-web
+  resources:
+  - DataBinding
+  - ObjectStorageBinding
+  - SecretRef
+  reads:
+  - binding metadata
+  - environment mapping
+  commands:
+  - data.bind
+  - storage.bind
+  events:
+  - binding.updated
+  backend_modules:
+  - project
+  - provider-registry
+- id: FE-008
+  surface: Verification / Security
+  platform: mobile+workspace-web
+  resources:
+  - Verification
+  - VerificationCheck
+  - Evidence
+  - Policy
+  - AuditEvent
+  reads:
+  - verification status
+  - checks
+  - evidence
+  - policy results
+  commands:
+  - verification.run
+  - verification.retry
+  - approval.decide
+  events:
+  - verification.*
+  - security.finding
+  backend_modules:
+  - verification
+  - policy
+  - observability
+- id: FE-009
+  surface: Deployments / Releases
+  platform: mobile+workspace-web
+  resources:
+  - Release
+  - DeploymentBinding
+  - Evidence
+  - Verification
+  reads:
+  - release candidate
+  - deployment status
+  - health
+  commands:
+  - release.create
+  - deployment.start
+  - deployment.rollback
+  events:
+  - release.*
+  - deployment.*
+  backend_modules:
+  - release
+  - provider-registry
+  - verification
+- id: FE-010
+  surface: Notifications / Action Center
+  platform: mobile
+  resources:
+  - Notification
+  - Approval
+  - Task
+  - Execution
+  - RecoveryRecord
+  reads:
+  - actionable notifications
+  commands:
+  - notification.ack
+  - approval.decide
+  - execution.cancel
+  events:
+  - notification.*
+  backend_modules:
+  - notification
+  - execution
+  - policy
+- id: FE-011
+  surface: Billing / Usage
+  platform: mobile+web
+  resources:
+  - Entitlement
+  - UsageRecord
+  - Account
+  - Organization
+  reads:
+  - entitlements
+  - provider-attributed usage
+  - budgets
+  commands:
+  - subscription.manage
+  - budget.update
+  events:
+  - entitlement.updated
+  - usage.recorded
+  - budget.exceeded
+  backend_modules:
+  - billing
+  - policy
+- id: FE-012
+  surface: Organization / Enterprise
+  platform: web+mobile-summary
+  resources:
+  - Organization
+  - Account
+  - Policy
+  - AuditEvent
+  - Connection
+  reads:
+  - members
+  - roles
+  - org policy
+  - audit
+  commands:
+  - member.*
+  - policy.*
+  - connection.policy.*
+  events:
+  - organization.*
+  - policy.updated
+  backend_modules:
+  - identity
+  - policy
+  - audit
+- id: FE-013
+  surface: Canvas / Design / Artifacts
+  platform: workspace-web
+  resources:
+  - Artifact
+  - ArtifactRelation
+  - Project
+  reads:
+  - artifact graph
+  - design/source mapping
+  commands:
+  - artifact.create
+  - artifact.transform
+  - artifact.link
+  events:
+  - artifact.*
+  backend_modules:
+  - project
+  - execution

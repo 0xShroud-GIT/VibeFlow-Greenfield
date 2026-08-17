@@ -1,0 +1,1979 @@
+schema_version: '1.0'
+phases:
+- id: 0
+  name: Architecture Constitution
+  scope: Freeze authority, resources, invariants, clean-room, approved stack and mission system.
+  depends_on: []
+- id: 1
+  name: Repository Foundation
+  scope: Monorepo, toolchain, CI, dependency policy, schema generation, local dev.
+  depends_on:
+  - 0
+- id: 2
+  name: Identity & Tenant Authority
+  scope: Account, Organization, sessions, tenant authorization, audit baseline.
+  depends_on:
+  - 1
+- id: 3
+  name: Project Authority
+  scope: Project, Artifact, imports, lifecycle and canonical graph.
+  depends_on:
+  - 2
+- id: 4
+  name: Provider Bindings
+  scope: Agent/Model/Workspace/Repo/Data/Storage/Deployment bindings and capability discovery.
+  depends_on:
+  - 3
+- id: 5
+  name: Connections & Grants
+  scope: Connections, SecretRef, grants, scopes, OAuth broker and approvals foundation.
+  depends_on:
+  - 4
+- id: 6
+  name: Durable Task & Execution
+  scope: Task/Execution/Attempt state, Temporal workflows, idempotent commands, durable events.
+  depends_on:
+  - 5
+- id: 7
+  name: Remote Layer
+  scope: Gateway, sequence/replay/resync, session grants, reconnect semantics.
+  depends_on:
+  - 6
+- id: 8
+  name: Mobile Shell
+  scope: Expo app, auth, projects, task/action center, notifications, secure storage.
+  depends_on:
+  - 7
+- id: 9
+  name: Agent Integration
+  scope: ACP profile, OpenHands adapter, capability negotiation, Plan/Build modes.
+  depends_on:
+  - 8
+- id: 10
+  name: Model Integration
+  scope: ModelBinding, BYOK broker, Vercel AI SDK/direct provider adapters, usage attribution.
+  depends_on:
+  - 9
+- id: 11
+  name: Workspace Integration
+  scope: WorkspaceProvider interface, Daytona/E2B/BYOW, lifecycle and capability certification.
+  depends_on:
+  - 10
+- id: 12
+  name: Workspace Web IDE
+  scope: Files, Monaco, terminal, preview, logs, command palette, responsive mobile workspace.
+  depends_on:
+  - 11
+- id: 13
+  name: Secure Native-Web Bridge
+  scope: Versioned bridge, origin/project binding, ACKs, keyboard/device state, OAuth/permission mediation.
+  depends_on:
+  - 12
+- id: 14
+  name: Repository & Git
+  scope: RepositoryBinding, Git status/diff/history/commit/push/import and reconciliation.
+  depends_on:
+  - 13
+- id: 15
+  name: Checkpoints
+  scope: CheckpointManifest DAG across repo/workspace/context/data references and recovery timeline.
+  depends_on:
+  - 14
+- id: 16
+  name: Verification & Evidence
+  scope: Evidence store, build/test/security checks, candidate capture, independent completion verification.
+  depends_on:
+  - 15
+- id: 17
+  name: Recovery
+  scope: Crash/reconnect/provider/workspace recovery state machine and honest lost classification.
+  depends_on:
+  - 16
+- id: 18
+  name: MCP / Tools
+  scope: MCP 2026-07-28 client/server, connection-backed tool catalog, tool grants and approval policy.
+  depends_on:
+  - 17
+- id: 19
+  name: Data & Storage
+  scope: DataBinding, ObjectStorageBinding, environment separation, migration/snapshot evidence.
+  depends_on:
+  - 18
+- id: 20
+  name: Deployment & Release
+  scope: Release model, deployment adapters, previews vs prod, domains/access, rollback.
+  depends_on:
+  - 19
+- id: 21
+  name: Observability & Incidents
+  scope: OpenTelemetry, logs/metrics/traces, redaction, health, incident→Task lineage.
+  depends_on:
+  - 20
+- id: 22
+  name: Security Product
+  scope: Security center, egress/resource policy, dependency/supply-chain scans, audit UX.
+  depends_on:
+  - 21
+- id: 23
+  name: Notifications & Automations
+  scope: Push/action-needed notifications, triggers, schedules, long-running automations.
+  depends_on:
+  - 22
+- id: 24
+  name: Billing & Entitlements
+  scope: VibeFlow subscription, entitlements, provider-attributed usage/budgets, store reconciliation.
+  depends_on:
+  - 23
+- id: 25
+  name: Collaboration
+  scope: Members, roles, comments/activity, shared projects, conflict/revision awareness.
+  depends_on:
+  - 24
+- id: 26
+  name: Design / Canvas
+  scope: Artifact graph, canvas, visual editor, source/design mapping, imports.
+  depends_on:
+  - 25
+- id: 27
+  name: Native App Development
+  scope: Mobile artifact recipes, device builds/tests, EAS/store release evidence.
+  depends_on:
+  - 26
+- id: 28
+  name: External Ecosystem
+  scope: External ACP/MCP/A2A/AG-UI compatibility, public APIs, webhooks, project export/import.
+  depends_on:
+  - 27
+- id: 29
+  name: Enterprise
+  scope: SAML/SCIM, org policy, SIEM/admin API, enterprise connection controls.
+  depends_on:
+  - 28
+- id: 30
+  name: Accessibility / Localization / Growth
+  scope: WCAG, localization, feedback, onboarding, discovery surfaces.
+  depends_on:
+  - 29
+- id: 31
+  name: Reliability & Performance
+  scope: Load, chaos, DR, backups, migration, provider failover, performance budgets.
+  depends_on:
+  - 30
+- id: 32
+  name: Production Hardening & V1 Acceptance
+  scope: Full capability closure, security audit, provider certification, release gates and launch readiness.
+  depends_on:
+  - 31
+missions:
+- mission_id: M-001
+  phase: 0
+  phase_name: Architecture Constitution
+  title: Ratify master contracts
+  scope: Freeze authority, resources, invariants, clean-room, approved stack and mission system.
+  depends_on: ''
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: READY
+- mission_id: M-002
+  phase: 0
+  phase_name: Architecture Constitution
+  title: Ratify dependency/harvest registry
+  scope: 'Architecture Constitution: Ratify dependency/harvest registry.'
+  depends_on: M-001
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-003
+  phase: 0
+  phase_name: Architecture Constitution
+  title: Ratify threat model and trust boundaries
+  scope: 'Architecture Constitution: Ratify threat model and trust boundaries.'
+  depends_on: M-002
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-004
+  phase: 1
+  phase_name: Repository Foundation
+  title: Initialize monorepo and toolchain
+  scope: Monorepo, toolchain, CI, dependency policy, schema generation, local dev.
+  depends_on: M-003
+  capability_selector: REL,ENV
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-005
+  phase: 1
+  phase_name: Repository Foundation
+  title: Establish schema/codegen pipeline
+  scope: 'Repository Foundation: Establish schema/codegen pipeline.'
+  depends_on: M-004
+  capability_selector: REL,ENV
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-006
+  phase: 1
+  phase_name: Repository Foundation
+  title: Establish CI/security/dependency gates
+  scope: 'Repository Foundation: Establish CI/security/dependency gates.'
+  depends_on: M-005
+  capability_selector: REL,ENV
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-007
+  phase: 1
+  phase_name: Repository Foundation
+  title: Establish local dev environment
+  scope: 'Repository Foundation: Establish local dev environment.'
+  depends_on: M-006
+  capability_selector: REL,ENV
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-008
+  phase: 2
+  phase_name: Identity & Tenant Authority
+  title: Implement Account/Organization persistence
+  scope: Account, Organization, sessions, tenant authorization, audit baseline.
+  depends_on: M-007
+  capability_selector: IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-009
+  phase: 2
+  phase_name: Identity & Tenant Authority
+  title: Implement authentication/session flows
+  scope: 'Identity & Tenant Authority: Implement authentication/session flows.'
+  depends_on: M-008
+  capability_selector: IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-010
+  phase: 2
+  phase_name: Identity & Tenant Authority
+  title: Implement tenant/resource authorization
+  scope: 'Identity & Tenant Authority: Implement tenant/resource authorization.'
+  depends_on: M-009
+  capability_selector: IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-011
+  phase: 2
+  phase_name: Identity & Tenant Authority
+  title: Implement audit baseline
+  scope: 'Identity & Tenant Authority: Implement audit baseline.'
+  depends_on: M-010
+  capability_selector: IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-012
+  phase: 3
+  phase_name: Project Authority
+  title: Implement Project authority
+  scope: Project, Artifact, imports, lifecycle and canonical graph.
+  depends_on: M-011
+  capability_selector: PRJ
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-013
+  phase: 3
+  phase_name: Project Authority
+  title: Implement Artifact/ArtifactRelation
+  scope: 'Project Authority: Implement Artifact/ArtifactRelation.'
+  depends_on: M-012
+  capability_selector: PRJ
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-014
+  phase: 3
+  phase_name: Project Authority
+  title: Implement imports/templates lifecycle
+  scope: 'Project Authority: Implement imports/templates lifecycle.'
+  depends_on: M-013
+  capability_selector: PRJ
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-015
+  phase: 3
+  phase_name: Project Authority
+  title: Implement project lifecycle E2E
+  scope: 'Project Authority: Implement project lifecycle E2E.'
+  depends_on: M-014
+  capability_selector: PRJ
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-016
+  phase: 4
+  phase_name: Provider Bindings
+  title: Implement binding resource family
+  scope: Agent/Model/Workspace/Repo/Data/Storage/Deployment bindings and capability discovery.
+  depends_on: M-015
+  capability_selector: AGT,WKS,GIT,DAT,DEP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-017
+  phase: 4
+  phase_name: Provider Bindings
+  title: Implement provider capability discovery
+  scope: 'Provider Bindings: Implement provider capability discovery.'
+  depends_on: M-016
+  capability_selector: AGT,WKS,GIT,DAT,DEP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-018
+  phase: 4
+  phase_name: Provider Bindings
+  title: Implement provider registry and health
+  scope: 'Provider Bindings: Implement provider registry and health.'
+  depends_on: M-017
+  capability_selector: AGT,WKS,GIT,DAT,DEP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-019
+  phase: 4
+  phase_name: Provider Bindings
+  title: Implement binding certification fixtures
+  scope: 'Provider Bindings: Implement binding certification fixtures.'
+  depends_on: M-018
+  capability_selector: AGT,WKS,GIT,DAT,DEP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-020
+  phase: 5
+  phase_name: Connections & Grants
+  title: Implement Connection and SecretRef broker
+  scope: Connections, SecretRef, grants, scopes, OAuth broker and approvals foundation.
+  depends_on: M-019
+  capability_selector: CON,POL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-021
+  phase: 5
+  phase_name: Connections & Grants
+  title: Implement ConnectionGrant scopes
+  scope: 'Connections & Grants: Implement ConnectionGrant scopes.'
+  depends_on: M-020
+  capability_selector: CON,POL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-022
+  phase: 5
+  phase_name: Connections & Grants
+  title: Implement approval foundation
+  scope: 'Connections & Grants: Implement approval foundation.'
+  depends_on: M-021
+  capability_selector: CON,POL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-023
+  phase: 5
+  phase_name: Connections & Grants
+  title: Implement OAuth/token lifecycle
+  scope: 'Connections & Grants: Implement OAuth/token lifecycle.'
+  depends_on: M-022
+  capability_selector: CON,POL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-024
+  phase: 6
+  phase_name: Durable Task & Execution
+  title: Implement Task/Execution schemas
+  scope: Task/Execution/Attempt state, Temporal workflows, idempotent commands, durable events.
+  depends_on: M-023
+  capability_selector: AGT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-025
+  phase: 6
+  phase_name: Durable Task & Execution
+  title: Integrate Temporal workflow engine
+  scope: 'Durable Task & Execution: Integrate Temporal workflow engine.'
+  depends_on: M-024
+  capability_selector: AGT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-026
+  phase: 6
+  phase_name: Durable Task & Execution
+  title: Implement durable event/outbox/replay
+  scope: 'Durable Task & Execution: Implement durable event/outbox/replay.'
+  depends_on: M-025
+  capability_selector: AGT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-027
+  phase: 6
+  phase_name: Durable Task & Execution
+  title: Implement idempotent command layer
+  scope: 'Durable Task & Execution: Implement idempotent command layer.'
+  depends_on: M-026
+  capability_selector: AGT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-028
+  phase: 6
+  phase_name: Durable Task & Execution
+  title: Implement execution lifecycle E2E
+  scope: 'Durable Task & Execution: Implement execution lifecycle E2E.'
+  depends_on: M-027
+  capability_selector: AGT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-029
+  phase: 7
+  phase_name: Remote Layer
+  title: Implement remote gateway
+  scope: Gateway, sequence/replay/resync, session grants, reconnect semantics.
+  depends_on: M-028
+  capability_selector: BRG,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-030
+  phase: 7
+  phase_name: Remote Layer
+  title: Implement sequence/cursor/replay protocol
+  scope: 'Remote Layer: Implement sequence/cursor/replay protocol.'
+  depends_on: M-029
+  capability_selector: BRG,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-031
+  phase: 7
+  phase_name: Remote Layer
+  title: Implement resync/reconciliation handshake
+  scope: 'Remote Layer: Implement resync/reconciliation handshake.'
+  depends_on: M-030
+  capability_selector: BRG,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-032
+  phase: 7
+  phase_name: Remote Layer
+  title: Implement disconnect/reconnect test harness
+  scope: 'Remote Layer: Implement disconnect/reconnect test harness.'
+  depends_on: M-031
+  capability_selector: BRG,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-033
+  phase: 8
+  phase_name: Mobile Shell
+  title: Bootstrap Expo mobile app
+  scope: Expo app, auth, projects, task/action center, notifications, secure storage.
+  depends_on: M-032
+  capability_selector: MOB,EXP,UX
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-034
+  phase: 8
+  phase_name: Mobile Shell
+  title: Implement auth/projects navigation
+  scope: 'Mobile Shell: Implement auth/projects navigation.'
+  depends_on: M-033
+  capability_selector: MOB,EXP,UX
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-035
+  phase: 8
+  phase_name: Mobile Shell
+  title: Implement Task/Execution action center
+  scope: 'Mobile Shell: Implement Task/Execution action center.'
+  depends_on: M-034
+  capability_selector: MOB,EXP,UX
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-036
+  phase: 8
+  phase_name: Mobile Shell
+  title: Implement secure notification flows
+  scope: 'Mobile Shell: Implement secure notification flows.'
+  depends_on: M-035
+  capability_selector: MOB,EXP,UX
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-037
+  phase: 8
+  phase_name: Mobile Shell
+  title: Implement mobile offline/degraded UX
+  scope: 'Mobile Shell: Implement mobile offline/degraded UX.'
+  depends_on: M-036
+  capability_selector: MOB,EXP,UX
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-038
+  phase: 9
+  phase_name: Agent Integration
+  title: Implement ACP gateway/profile
+  scope: ACP profile, OpenHands adapter, capability negotiation, Plan/Build modes.
+  depends_on: M-037
+  capability_selector: AGT,AI
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-039
+  phase: 9
+  phase_name: Agent Integration
+  title: Implement OpenHands adapter
+  scope: 'Agent Integration: Implement OpenHands adapter.'
+  depends_on: M-038
+  capability_selector: AGT,AI
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-040
+  phase: 9
+  phase_name: Agent Integration
+  title: Implement Plan vs Build policy
+  scope: 'Agent Integration: Implement Plan vs Build policy.'
+  depends_on: M-039
+  capability_selector: AGT,AI
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-041
+  phase: 9
+  phase_name: Agent Integration
+  title: Implement agent capability negotiation
+  scope: 'Agent Integration: Implement agent capability negotiation.'
+  depends_on: M-040
+  capability_selector: AGT,AI
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-042
+  phase: 9
+  phase_name: Agent Integration
+  title: Implement BYOA certification tests
+  scope: 'Agent Integration: Implement BYOA certification tests.'
+  depends_on: M-041
+  capability_selector: AGT,AI
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-043
+  phase: 10
+  phase_name: Model Integration
+  title: Implement ModelBinding/BYOK
+  scope: ModelBinding, BYOK broker, Vercel AI SDK/direct provider adapters, usage attribution.
+  depends_on: M-042
+  capability_selector: AGT,BIL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-044
+  phase: 10
+  phase_name: Model Integration
+  title: Implement model provider adapter layer
+  scope: 'Model Integration: Implement model provider adapter layer.'
+  depends_on: M-043
+  capability_selector: AGT,BIL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-045
+  phase: 10
+  phase_name: Model Integration
+  title: Implement usage/cost attribution
+  scope: 'Model Integration: Implement usage/cost attribution.'
+  depends_on: M-044
+  capability_selector: AGT,BIL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-046
+  phase: 10
+  phase_name: Model Integration
+  title: Implement key redaction/security tests
+  scope: 'Model Integration: Implement key redaction/security tests.'
+  depends_on: M-045
+  capability_selector: AGT,BIL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-047
+  phase: 11
+  phase_name: Workspace Integration
+  title: Implement WorkspaceProvider contract
+  scope: WorkspaceProvider interface, Daytona/E2B/BYOW, lifecycle and capability certification.
+  depends_on: M-046
+  capability_selector: WKS,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-048
+  phase: 11
+  phase_name: Workspace Integration
+  title: Implement Daytona adapter
+  scope: 'Workspace Integration: Implement Daytona adapter.'
+  depends_on: M-047
+  capability_selector: WKS,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-049
+  phase: 11
+  phase_name: Workspace Integration
+  title: Implement E2B adapter
+  scope: 'Workspace Integration: Implement E2B adapter.'
+  depends_on: M-048
+  capability_selector: WKS,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-050
+  phase: 11
+  phase_name: Workspace Integration
+  title: Implement generic BYOW adapter
+  scope: 'Workspace Integration: Implement generic BYOW adapter.'
+  depends_on: M-049
+  capability_selector: WKS,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-051
+  phase: 11
+  phase_name: Workspace Integration
+  title: Implement workspace certification suite
+  scope: 'Workspace Integration: Implement workspace certification suite.'
+  depends_on: M-050
+  capability_selector: WKS,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-052
+  phase: 12
+  phase_name: Workspace Web IDE
+  title: Implement file tree/editor
+  scope: Files, Monaco, terminal, preview, logs, command palette, responsive mobile workspace.
+  depends_on: M-051
+  capability_selector: WKS,EXP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-053
+  phase: 12
+  phase_name: Workspace Web IDE
+  title: Implement terminal session UI
+  scope: 'Workspace Web IDE: Implement terminal session UI.'
+  depends_on: M-052
+  capability_selector: WKS,EXP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-054
+  phase: 12
+  phase_name: Workspace Web IDE
+  title: Implement preview/log surfaces
+  scope: 'Workspace Web IDE: Implement preview/log surfaces.'
+  depends_on: M-053
+  capability_selector: WKS,EXP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-055
+  phase: 12
+  phase_name: Workspace Web IDE
+  title: Implement workspace command/state UX
+  scope: 'Workspace Web IDE: Implement workspace command/state UX.'
+  depends_on: M-054
+  capability_selector: WKS,EXP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-056
+  phase: 12
+  phase_name: Workspace Web IDE
+  title: Implement IDE E2E
+  scope: 'Workspace Web IDE: Implement IDE E2E.'
+  depends_on: M-055
+  capability_selector: WKS,EXP
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-057
+  phase: 13
+  phase_name: Secure Native-Web Bridge
+  title: Implement bridge v1 contracts
+  scope: Versioned bridge, origin/project binding, ACKs, keyboard/device state, OAuth/permission mediation.
+  depends_on: M-056
+  capability_selector: BRG,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-058
+  phase: 13
+  phase_name: Secure Native-Web Bridge
+  title: Implement secure origin/project/session binding
+  scope: 'Secure Native-Web Bridge: Implement secure origin/project/session binding.'
+  depends_on: M-057
+  capability_selector: BRG,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-059
+  phase: 13
+  phase_name: Secure Native-Web Bridge
+  title: Implement keyboard/device/native actions
+  scope: 'Secure Native-Web Bridge: Implement keyboard/device/native actions.'
+  depends_on: M-058
+  capability_selector: BRG,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-060
+  phase: 13
+  phase_name: Secure Native-Web Bridge
+  title: Implement bridge ACK/error/perf semantics
+  scope: 'Secure Native-Web Bridge: Implement bridge ACK/error/perf semantics.'
+  depends_on: M-059
+  capability_selector: BRG,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-061
+  phase: 13
+  phase_name: Secure Native-Web Bridge
+  title: Fuzz and conformance test bridge
+  scope: 'Secure Native-Web Bridge: Fuzz and conformance test bridge.'
+  depends_on: M-060
+  capability_selector: BRG,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-062
+  phase: 14
+  phase_name: Repository & Git
+  title: Implement RepositoryProvider contract
+  scope: RepositoryBinding, Git status/diff/history/commit/push/import and reconciliation.
+  depends_on: M-061
+  capability_selector: GIT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-063
+  phase: 14
+  phase_name: Repository & Git
+  title: Implement GitHub adapter
+  scope: 'Repository & Git: Implement GitHub adapter.'
+  depends_on: M-062
+  capability_selector: GIT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-064
+  phase: 14
+  phase_name: Repository & Git
+  title: Implement status/diff/history UI
+  scope: 'Repository & Git: Implement status/diff/history UI.'
+  depends_on: M-063
+  capability_selector: GIT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-065
+  phase: 14
+  phase_name: Repository & Git
+  title: Implement commit/push/import flows
+  scope: 'Repository & Git: Implement commit/push/import flows.'
+  depends_on: M-064
+  capability_selector: GIT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-066
+  phase: 14
+  phase_name: Repository & Git
+  title: Implement repo/workspace reconciliation
+  scope: 'Repository & Git: Implement repo/workspace reconciliation.'
+  depends_on: M-065
+  capability_selector: GIT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-067
+  phase: 15
+  phase_name: Checkpoints
+  title: Implement CheckpointManifest
+  scope: CheckpointManifest DAG across repo/workspace/context/data references and recovery timeline.
+  depends_on: M-066
+  capability_selector: GIT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-068
+  phase: 15
+  phase_name: Checkpoints
+  title: Implement checkpoint capture pipeline
+  scope: 'Checkpoints: Implement checkpoint capture pipeline.'
+  depends_on: M-067
+  capability_selector: GIT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-069
+  phase: 15
+  phase_name: Checkpoints
+  title: Implement recovery timeline UX
+  scope: 'Checkpoints: Implement recovery timeline UX.'
+  depends_on: M-068
+  capability_selector: GIT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-070
+  phase: 15
+  phase_name: Checkpoints
+  title: Implement checkpoint restore planning
+  scope: 'Checkpoints: Implement checkpoint restore planning.'
+  depends_on: M-069
+  capability_selector: GIT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-071
+  phase: 15
+  phase_name: Checkpoints
+  title: Checkpoint consistency tests
+  scope: 'Checkpoints: Checkpoint consistency tests.'
+  depends_on: M-070
+  capability_selector: GIT,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-072
+  phase: 16
+  phase_name: Verification & Evidence
+  title: Implement Evidence store
+  scope: Evidence store, build/test/security checks, candidate capture, independent completion verification.
+  depends_on: M-071
+  capability_selector: VER,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-073
+  phase: 16
+  phase_name: Verification & Evidence
+  title: Implement Verification engine
+  scope: 'Verification & Evidence: Implement Verification engine.'
+  depends_on: M-072
+  capability_selector: VER,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-074
+  phase: 16
+  phase_name: Verification & Evidence
+  title: Implement build/test/security check adapters
+  scope: 'Verification & Evidence: Implement build/test/security check adapters.'
+  depends_on: M-073
+  capability_selector: VER,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-075
+  phase: 16
+  phase_name: Verification & Evidence
+  title: Implement verification UX
+  scope: 'Verification & Evidence: Implement verification UX.'
+  depends_on: M-074
+  capability_selector: VER,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-076
+  phase: 16
+  phase_name: Verification & Evidence
+  title: Independent completion E2E
+  scope: 'Verification & Evidence: Independent completion E2E.'
+  depends_on: M-075
+  capability_selector: VER,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-077
+  phase: 17
+  phase_name: Recovery
+  title: Implement RecoveryRecord workflow
+  scope: Crash/reconnect/provider/workspace recovery state machine and honest lost classification.
+  depends_on: M-076
+  capability_selector: GIT,TRU,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-078
+  phase: 17
+  phase_name: Recovery
+  title: Implement provider/workspace reattachment
+  scope: 'Recovery: Implement provider/workspace reattachment.'
+  depends_on: M-077
+  capability_selector: GIT,TRU,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-079
+  phase: 17
+  phase_name: Recovery
+  title: Implement revision reconciliation
+  scope: 'Recovery: Implement revision reconciliation.'
+  depends_on: M-078
+  capability_selector: GIT,TRU,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-080
+  phase: 17
+  phase_name: Recovery
+  title: Implement reverify-after-recovery
+  scope: 'Recovery: Implement reverify-after-recovery.'
+  depends_on: M-079
+  capability_selector: GIT,TRU,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-081
+  phase: 17
+  phase_name: Recovery
+  title: Crash-window chaos suite
+  scope: 'Recovery: Crash-window chaos suite.'
+  depends_on: M-080
+  capability_selector: GIT,TRU,AGT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-082
+  phase: 18
+  phase_name: MCP / Tools
+  title: Implement MCP modern client
+  scope: MCP 2026-07-28 client/server, connection-backed tool catalog, tool grants and approval policy.
+  depends_on: M-081
+  capability_selector: CON,ECO
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-083
+  phase: 18
+  phase_name: MCP / Tools
+  title: Implement MCP server for VibeFlow tools
+  scope: 'MCP / Tools: Implement MCP server for VibeFlow tools.'
+  depends_on: M-082
+  capability_selector: CON,ECO
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-084
+  phase: 18
+  phase_name: MCP / Tools
+  title: Implement tool catalog/grant binding
+  scope: 'MCP / Tools: Implement tool catalog/grant binding.'
+  depends_on: M-083
+  capability_selector: CON,ECO
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-085
+  phase: 18
+  phase_name: MCP / Tools
+  title: Implement approval-mediated tool calls
+  scope: 'MCP / Tools: Implement approval-mediated tool calls.'
+  depends_on: M-084
+  capability_selector: CON,ECO
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-086
+  phase: 18
+  phase_name: MCP / Tools
+  title: MCP conformance/security suite
+  scope: 'MCP / Tools: MCP conformance/security suite.'
+  depends_on: M-085
+  capability_selector: CON,ECO
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-087
+  phase: 19
+  phase_name: Data & Storage
+  title: Implement DataBinding
+  scope: DataBinding, ObjectStorageBinding, environment separation, migration/snapshot evidence.
+  depends_on: M-086
+  capability_selector: DAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-088
+  phase: 19
+  phase_name: Data & Storage
+  title: Implement ObjectStorageBinding
+  scope: 'Data & Storage: Implement ObjectStorageBinding.'
+  depends_on: M-087
+  capability_selector: DAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-089
+  phase: 19
+  phase_name: Data & Storage
+  title: Implement environment separation
+  scope: 'Data & Storage: Implement environment separation.'
+  depends_on: M-088
+  capability_selector: DAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-090
+  phase: 19
+  phase_name: Data & Storage
+  title: Implement data/storage UX
+  scope: 'Data & Storage: Implement data/storage UX.'
+  depends_on: M-089
+  capability_selector: DAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-091
+  phase: 19
+  phase_name: Data & Storage
+  title: Snapshot/migration evidence tests
+  scope: 'Data & Storage: Snapshot/migration evidence tests.'
+  depends_on: M-090
+  capability_selector: DAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-092
+  phase: 20
+  phase_name: Deployment & Release
+  title: Implement Release model
+  scope: Release model, deployment adapters, previews vs prod, domains/access, rollback.
+  depends_on: M-091
+  capability_selector: DEP,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-093
+  phase: 20
+  phase_name: Deployment & Release
+  title: Implement deployment provider contract
+  scope: 'Deployment & Release: Implement deployment provider contract.'
+  depends_on: M-092
+  capability_selector: DEP,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-094
+  phase: 20
+  phase_name: Deployment & Release
+  title: Implement first deployment adapter
+  scope: 'Deployment & Release: Implement first deployment adapter.'
+  depends_on: M-093
+  capability_selector: DEP,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-095
+  phase: 20
+  phase_name: Deployment & Release
+  title: Implement domains/access/rollback
+  scope: 'Deployment & Release: Implement domains/access/rollback.'
+  depends_on: M-094
+  capability_selector: DEP,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-096
+  phase: 20
+  phase_name: Deployment & Release
+  title: Release provenance E2E
+  scope: 'Deployment & Release: Release provenance E2E.'
+  depends_on: M-095
+  capability_selector: DEP,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-097
+  phase: 21
+  phase_name: Observability & Incidents
+  title: Instrument OpenTelemetry
+  scope: OpenTelemetry, logs/metrics/traces, redaction, health, incident→Task lineage.
+  depends_on: M-096
+  capability_selector: OBS
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-098
+  phase: 21
+  phase_name: Observability & Incidents
+  title: Implement log/trace redaction
+  scope: 'Observability & Incidents: Implement log/trace redaction.'
+  depends_on: M-097
+  capability_selector: OBS
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-099
+  phase: 21
+  phase_name: Observability & Incidents
+  title: Implement health/monitoring UX
+  scope: 'Observability & Incidents: Implement health/monitoring UX.'
+  depends_on: M-098
+  capability_selector: OBS
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-100
+  phase: 21
+  phase_name: Observability & Incidents
+  title: Implement incident-to-task loop
+  scope: 'Observability & Incidents: Implement incident-to-task loop.'
+  depends_on: M-099
+  capability_selector: OBS
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-101
+  phase: 21
+  phase_name: Observability & Incidents
+  title: Observability SLO tests
+  scope: 'Observability & Incidents: Observability SLO tests.'
+  depends_on: M-100
+  capability_selector: OBS
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-102
+  phase: 22
+  phase_name: Security Product
+  title: Implement security center
+  scope: Security center, egress/resource policy, dependency/supply-chain scans, audit UX.
+  depends_on: M-101
+  capability_selector: VER,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-103
+  phase: 22
+  phase_name: Security Product
+  title: Implement egress/resource policy
+  scope: 'Security Product: Implement egress/resource policy.'
+  depends_on: M-102
+  capability_selector: VER,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-104
+  phase: 22
+  phase_name: Security Product
+  title: Integrate dependency/container/static scans
+  scope: 'Security Product: Integrate dependency/container/static scans.'
+  depends_on: M-103
+  capability_selector: VER,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-105
+  phase: 22
+  phase_name: Security Product
+  title: Implement supply-chain attestations
+  scope: 'Security Product: Implement supply-chain attestations.'
+  depends_on: M-104
+  capability_selector: VER,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-106
+  phase: 22
+  phase_name: Security Product
+  title: Security regression suite
+  scope: 'Security Product: Security regression suite.'
+  depends_on: M-105
+  capability_selector: VER,REL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-107
+  phase: 23
+  phase_name: Notifications & Automations
+  title: Implement Notification authority
+  scope: Push/action-needed notifications, triggers, schedules, long-running automations.
+  depends_on: M-106
+  capability_selector: AUT,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-108
+  phase: 23
+  phase_name: Notifications & Automations
+  title: Implement push delivery adapters
+  scope: 'Notifications & Automations: Implement push delivery adapters.'
+  depends_on: M-107
+  capability_selector: AUT,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-109
+  phase: 23
+  phase_name: Notifications & Automations
+  title: Implement automations/triggers
+  scope: 'Notifications & Automations: Implement automations/triggers.'
+  depends_on: M-108
+  capability_selector: AUT,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-110
+  phase: 23
+  phase_name: Notifications & Automations
+  title: Implement long-running automation recovery
+  scope: 'Notifications & Automations: Implement long-running automation recovery.'
+  depends_on: M-109
+  capability_selector: AUT,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-111
+  phase: 23
+  phase_name: Notifications & Automations
+  title: Action center E2E
+  scope: 'Notifications & Automations: Action center E2E.'
+  depends_on: M-110
+  capability_selector: AUT,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-112
+  phase: 24
+  phase_name: Billing & Entitlements
+  title: Implement Entitlement model
+  scope: VibeFlow subscription, entitlements, provider-attributed usage/budgets, store reconciliation.
+  depends_on: M-111
+  capability_selector: BIL,SAA
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-113
+  phase: 24
+  phase_name: Billing & Entitlements
+  title: Implement VibeFlow subscription billing
+  scope: 'Billing & Entitlements: Implement VibeFlow subscription billing.'
+  depends_on: M-112
+  capability_selector: BIL,SAA
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-114
+  phase: 24
+  phase_name: Billing & Entitlements
+  title: Implement provider usage/budgets
+  scope: 'Billing & Entitlements: Implement provider usage/budgets.'
+  depends_on: M-113
+  capability_selector: BIL,SAA
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-115
+  phase: 24
+  phase_name: Billing & Entitlements
+  title: Implement store purchase reconciliation
+  scope: 'Billing & Entitlements: Implement store purchase reconciliation.'
+  depends_on: M-114
+  capability_selector: BIL,SAA
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-116
+  phase: 24
+  phase_name: Billing & Entitlements
+  title: Billing ledger E2E
+  scope: 'Billing & Entitlements: Billing ledger E2E.'
+  depends_on: M-115
+  capability_selector: BIL,SAA
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-117
+  phase: 25
+  phase_name: Collaboration
+  title: Implement project membership/roles
+  scope: Members, roles, comments/activity, shared projects, conflict/revision awareness.
+  depends_on: M-116
+  capability_selector: COL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-118
+  phase: 25
+  phase_name: Collaboration
+  title: Implement shared activity/comments
+  scope: 'Collaboration: Implement shared activity/comments.'
+  depends_on: M-117
+  capability_selector: COL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-119
+  phase: 25
+  phase_name: Collaboration
+  title: Implement collaboration revision awareness
+  scope: 'Collaboration: Implement collaboration revision awareness.'
+  depends_on: M-118
+  capability_selector: COL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-120
+  phase: 25
+  phase_name: Collaboration
+  title: Collaboration isolation E2E
+  scope: 'Collaboration: Collaboration isolation E2E.'
+  depends_on: M-119
+  capability_selector: COL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-121
+  phase: 26
+  phase_name: Design / Canvas
+  title: Implement artifact graph canvas
+  scope: Artifact graph, canvas, visual editor, source/design mapping, imports.
+  depends_on: M-120
+  capability_selector: DSN
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-122
+  phase: 26
+  phase_name: Design / Canvas
+  title: Implement visual editor mapping
+  scope: 'Design / Canvas: Implement visual editor mapping.'
+  depends_on: M-121
+  capability_selector: DSN
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-123
+  phase: 26
+  phase_name: Design / Canvas
+  title: Implement design import/export
+  scope: 'Design / Canvas: Implement design import/export.'
+  depends_on: M-122
+  capability_selector: DSN
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-124
+  phase: 26
+  phase_name: Design / Canvas
+  title: Implement design-to-build task flows
+  scope: 'Design / Canvas: Implement design-to-build task flows.'
+  depends_on: M-123
+  capability_selector: DSN
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-125
+  phase: 27
+  phase_name: Native App Development
+  title: Implement mobile artifact project type
+  scope: Mobile artifact recipes, device builds/tests, EAS/store release evidence.
+  depends_on: M-124
+  capability_selector: NAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-126
+  phase: 27
+  phase_name: Native App Development
+  title: Integrate device/build provider
+  scope: 'Native App Development: Integrate device/build provider.'
+  depends_on: M-125
+  capability_selector: NAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-127
+  phase: 27
+  phase_name: Native App Development
+  title: Implement guided mobile testing
+  scope: 'Native App Development: Implement guided mobile testing.'
+  depends_on: M-126
+  capability_selector: NAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-128
+  phase: 27
+  phase_name: Native App Development
+  title: Implement store release evidence
+  scope: 'Native App Development: Implement store release evidence.'
+  depends_on: M-127
+  capability_selector: NAT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-129
+  phase: 28
+  phase_name: External Ecosystem
+  title: Implement public API/auth scopes
+  scope: External ACP/MCP/A2A/AG-UI compatibility, public APIs, webhooks, project export/import.
+  depends_on: M-128
+  capability_selector: ECO,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-130
+  phase: 28
+  phase_name: External Ecosystem
+  title: Implement webhooks/CloudEvents
+  scope: 'External Ecosystem: Implement webhooks/CloudEvents.'
+  depends_on: M-129
+  capability_selector: ECO,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-131
+  phase: 28
+  phase_name: External Ecosystem
+  title: Implement external ACP/MCP clients
+  scope: 'External Ecosystem: Implement external ACP/MCP clients.'
+  depends_on: M-130
+  capability_selector: ECO,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-132
+  phase: 28
+  phase_name: External Ecosystem
+  title: Implement A2A delegation profile
+  scope: 'External Ecosystem: Implement A2A delegation profile.'
+  depends_on: M-131
+  capability_selector: ECO,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-133
+  phase: 28
+  phase_name: External Ecosystem
+  title: Implement project export/import
+  scope: 'External Ecosystem: Implement project export/import.'
+  depends_on: M-132
+  capability_selector: ECO,PORT
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-134
+  phase: 29
+  phase_name: Enterprise
+  title: Implement SAML/SCIM
+  scope: SAML/SCIM, org policy, SIEM/admin API, enterprise connection controls.
+  depends_on: M-133
+  capability_selector: COL,IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-135
+  phase: 29
+  phase_name: Enterprise
+  title: Implement enterprise policy controls
+  scope: 'Enterprise: Implement enterprise policy controls.'
+  depends_on: M-134
+  capability_selector: COL,IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-136
+  phase: 29
+  phase_name: Enterprise
+  title: Implement SIEM/admin API
+  scope: 'Enterprise: Implement SIEM/admin API.'
+  depends_on: M-135
+  capability_selector: COL,IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-137
+  phase: 29
+  phase_name: Enterprise
+  title: Enterprise isolation/compliance tests
+  scope: 'Enterprise: Enterprise isolation/compliance tests.'
+  depends_on: M-136
+  capability_selector: COL,IAM
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-138
+  phase: 30
+  phase_name: Accessibility / Localization / Growth
+  title: Accessibility audit/fixes
+  scope: WCAG, localization, feedback, onboarding, discovery surfaces.
+  depends_on: M-137
+  capability_selector: GRO,EXP,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-139
+  phase: 30
+  phase_name: Accessibility / Localization / Growth
+  title: Localization framework
+  scope: 'Accessibility / Localization / Growth: Localization framework.'
+  depends_on: M-138
+  capability_selector: GRO,EXP,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-140
+  phase: 30
+  phase_name: Accessibility / Localization / Growth
+  title: Onboarding/feedback/discovery
+  scope: 'Accessibility / Localization / Growth: Onboarding/feedback/discovery.'
+  depends_on: M-139
+  capability_selector: GRO,EXP,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-141
+  phase: 30
+  phase_name: Accessibility / Localization / Growth
+  title: Growth surfaces without authority leaks
+  scope: 'Accessibility / Localization / Growth: Growth surfaces without authority leaks.'
+  depends_on: M-140
+  capability_selector: GRO,EXP,MOB
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-142
+  phase: 31
+  phase_name: Reliability & Performance
+  title: Load/performance budgets
+  scope: Load, chaos, DR, backups, migration, provider failover, performance budgets.
+  depends_on: M-141
+  capability_selector: REL,OBS,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-143
+  phase: 31
+  phase_name: Reliability & Performance
+  title: Backup/restore/DR drills
+  scope: 'Reliability & Performance: Backup/restore/DR drills.'
+  depends_on: M-142
+  capability_selector: REL,OBS,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-144
+  phase: 31
+  phase_name: Reliability & Performance
+  title: Provider failover/migration
+  scope: 'Reliability & Performance: Provider failover/migration.'
+  depends_on: M-143
+  capability_selector: REL,OBS,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-145
+  phase: 31
+  phase_name: Reliability & Performance
+  title: Schema/protocol upgrade tests
+  scope: 'Reliability & Performance: Schema/protocol upgrade tests.'
+  depends_on: M-144
+  capability_selector: REL,OBS,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-146
+  phase: 31
+  phase_name: Reliability & Performance
+  title: Chaos and soak testing
+  scope: 'Reliability & Performance: Chaos and soak testing.'
+  depends_on: M-145
+  capability_selector: REL,OBS,TRU
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-147
+  phase: 32
+  phase_name: Production Hardening & V1 Acceptance
+  title: Close V1 capability ledger
+  scope: Full capability closure, security audit, provider certification, release gates and launch readiness.
+  depends_on: M-146
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-148
+  phase: 32
+  phase_name: Production Hardening & V1 Acceptance
+  title: Run full provider certification
+  scope: 'Production Hardening & V1 Acceptance: Run full provider certification.'
+  depends_on: M-147
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-149
+  phase: 32
+  phase_name: Production Hardening & V1 Acceptance
+  title: Run independent security/release audit
+  scope: 'Production Hardening & V1 Acceptance: Run independent security/release audit.'
+  depends_on: M-148
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-150
+  phase: 32
+  phase_name: Production Hardening & V1 Acceptance
+  title: Run V1 acceptance journeys
+  scope: 'Production Hardening & V1 Acceptance: Run V1 acceptance journeys.'
+  depends_on: M-149
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED
+- mission_id: M-151
+  phase: 32
+  phase_name: Production Hardening & V1 Acceptance
+  title: Create signed V1 evidence bundle
+  scope: 'Production Hardening & V1 Acceptance: Create signed V1 evidence bundle.'
+  depends_on: M-150
+  capability_selector: ALL
+  required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
+  agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
+  deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
+  exit_gate: all mission acceptance tests pass; no invariant violation; CI green
+  status: LOCKED

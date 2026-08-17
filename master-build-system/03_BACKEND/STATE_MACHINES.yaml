@@ -1,0 +1,101 @@
+schema_version: '1.0'
+machines:
+  Task:
+    states:
+    - DRAFT
+    - READY
+    - RUNNING
+    - BLOCKED
+    - CANDIDATE_COMPLETE
+    - VERIFIED
+    - FAILED
+    - CANCELLED
+    terminal:
+    - VERIFIED
+    - FAILED
+    - CANCELLED
+    rule: Task reaches VERIFIED only through successful Verification.
+  Execution:
+    states:
+    - QUEUED
+    - STARTING
+    - RUNNING
+    - WAITING_APPROVAL
+    - INTERRUPTED
+    - CANDIDATE_COMPLETE
+    - VERIFYING
+    - VERIFIED
+    - FAILED
+    - CANCELLED
+    - LOST
+    terminal:
+    - VERIFIED
+    - FAILED
+    - CANCELLED
+    - LOST
+    rule: Agent/provider may trigger CANDIDATE_COMPLETE; only verification authority may transition to VERIFIED.
+  Approval:
+    states:
+    - PENDING
+    - APPROVED
+    - DENIED
+    - EXPIRED
+    - CANCELLED
+    terminal:
+    - APPROVED
+    - DENIED
+    - EXPIRED
+    - CANCELLED
+    rule: Decision is durable and immutable after terminal state.
+  Connection:
+    states:
+    - UNLINKED
+    - LINKING
+    - ACTIVE
+    - DEGRADED
+    - REAUTH_REQUIRED
+    - REVOKED
+    terminal:
+    - REVOKED
+    rule: ACTIVE connection still requires ConnectionGrant for use.
+  Verification:
+    states:
+    - PENDING
+    - RUNNING
+    - PASSED
+    - FAILED
+    - INTERRUPTED
+    - STALE
+    terminal:
+    - PASSED
+    - FAILED
+    - STALE
+    rule: Any candidate revision change invalidates prior PASS unless check declares independence.
+  Release:
+    states:
+    - DRAFT
+    - READY
+    - DEPLOYING
+    - DEPLOYED
+    - DEGRADED
+    - ROLLED_BACK
+    - FAILED
+    terminal:
+    - ROLLED_BACK
+    - FAILED
+    rule: READY requires policy-defined verification evidence.
+  RecoveryRecord:
+    states:
+    - STARTED
+    - REPLAYING_EVENTS
+    - RECONCILING_WORKSPACE
+    - REATTACHING_PROVIDER
+    - REVERIFYING
+    - RECOVERED
+    - BLOCKED
+    - EXECUTION_LOST
+    terminal:
+    - RECOVERED
+    - BLOCKED
+    - EXECUTION_LOST
+    rule: Never conflate event replay with workspace/execution recovery.

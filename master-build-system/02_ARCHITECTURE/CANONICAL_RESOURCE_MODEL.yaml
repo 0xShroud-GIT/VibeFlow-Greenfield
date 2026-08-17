@@ -1,0 +1,177 @@
+schema_version: '1.0'
+resources:
+- resource: Account
+  authority: VibeFlow
+  purpose: User product identity; never equivalent to provider account.
+  durability: durable
+  notes: provider identities are linked references
+- resource: Organization
+  authority: VibeFlow
+  purpose: Tenant/workspace for members, roles, policy and billing scope.
+  durability: durable
+  notes: supports personal org as degenerate case
+- resource: Project
+  authority: VibeFlow
+  purpose: Stable product-level container for intent, artifacts and bindings.
+  durability: durable
+  notes: never identified solely by repository/workspace ID
+- resource: Artifact
+  authority: VibeFlow metadata; blob/provider owns bytes
+  purpose: 'Typed output: code app, design, image, slide, mobile app, report, etc.'
+  durability: durable metadata
+  notes: content may live in repo/object store/provider
+- resource: ArtifactRelation
+  authority: VibeFlow
+  purpose: Lineage/variant/derived-from/contains relation between artifacts.
+  durability: durable
+  notes: enables Canvas/design-to-build later
+- resource: AgentBinding
+  authority: VibeFlow binding; agent provider owns runtime
+  purpose: Connects Project to a coding/general agent and negotiated capabilities.
+  durability: durable
+  notes: BYOA
+- resource: ModelBinding
+  authority: VibeFlow binding; model provider owns inference
+  purpose: Provider/model credential policy and execution profile.
+  durability: durable
+  notes: BYOK/provider choice
+- resource: WorkspaceBinding
+  authority: VibeFlow binding; workspace provider owns workspace
+  purpose: Connects Project/Execution to authorized remote workspace.
+  durability: durable
+  notes: BYOW
+- resource: RepositoryBinding
+  authority: VibeFlow binding; Git host owns repository
+  purpose: Associates project/artifact with repository/ref and permissions.
+  durability: durable
+  notes: repo != workspace
+- resource: DeploymentBinding
+  authority: VibeFlow binding; cloud/provider owns runtime
+  purpose: Maps a release to deployment provider/account/environment.
+  durability: durable
+  notes: prod != dev workspace
+- resource: DataBinding
+  authority: VibeFlow binding; DB provider owns app data
+  purpose: Maps environment-scoped database/data service.
+  durability: durable
+  notes: dev/prod separated
+- resource: ObjectStorageBinding
+  authority: VibeFlow binding; storage provider owns objects
+  purpose: Maps artifact/app object storage.
+  durability: durable
+  notes: storage != workspace
+- resource: Connection
+  authority: VibeFlow metadata; provider owns external account
+  purpose: Represents linked service identity/token broker relationship.
+  durability: durable
+  notes: no raw token in resource
+- resource: ConnectionGrant
+  authority: VibeFlow
+  purpose: Scoped authorization granting agent/project/task use of a Connection.
+  durability: durable
+  notes: least privilege; revocable
+- resource: SecretRef
+  authority: VibeFlow vault reference
+  purpose: Opaque reference to secret material stored in KMS-backed broker.
+  durability: durable reference
+  notes: raw secret never travels through mobile-web bridge
+- resource: Policy
+  authority: VibeFlow
+  purpose: Rules for tool use, spend, network, approvals, verification and release.
+  durability: versioned durable
+  notes: policy revision recorded with execution
+- resource: Approval
+  authority: VibeFlow
+  purpose: Human/automated authorization decision for privileged action.
+  durability: immutable/durable
+  notes: pending approvals survive reconnect/restart
+- resource: Task
+  authority: VibeFlow
+  purpose: User intent/work item with success criteria and dependencies.
+  durability: durable
+  notes: not equivalent to socket/session
+- resource: Execution
+  authority: VibeFlow
+  purpose: One authoritative run of a Task against explicit bindings/revision.
+  durability: durable
+  notes: phone is not execution owner
+- resource: ExecutionAttempt
+  authority: VibeFlow
+  purpose: Recovery/retry/provider attempt preserving history.
+  durability: append-only
+  notes: never overwrite failed/lost attempt evidence
+- resource: Event
+  authority: VibeFlow
+  purpose: Sequenced normalized lifecycle/activity record.
+  durability: append-only
+  notes: supports replay/resync
+- resource: EventCursor
+  authority: VibeFlow
+  purpose: Per-session/client acknowledgement/replay cursor.
+  durability: durable/ephemeral hybrid
+  notes: transport recovery != execution recovery
+- resource: WorkspaceRevision
+  authority: VibeFlow observation; workspace/repo own bytes
+  purpose: 'Observed authoritative candidate state: hashes/ref/status.'
+  durability: durable evidence
+  notes: must reconcile before verification
+- resource: CheckpointManifest
+  authority: VibeFlow
+  purpose: 'Cross-resource checkpoint DAG: repo/workspace/data/AI/context references.'
+  durability: immutable
+  notes: does not pretend atomicity unless proved
+- resource: RecoveryRecord
+  authority: VibeFlow
+  purpose: Recovery attempt/outcome/blocker across execution/provider/workspace/verification.
+  durability: append-only
+  notes: execution_lost is valid honest terminal classification
+- resource: Evidence
+  authority: VibeFlow
+  purpose: 'Typed immutable evidence item: command result, diff, scan, screenshot, build, deployment health.'
+  durability: immutable
+  notes: source/provider + hash + timestamp
+- resource: Verification
+  authority: VibeFlow
+  purpose: Evaluation of candidate against explicit checks/evidence/policy.
+  durability: durable
+  notes: Agent Finish never equals Verified
+- resource: VerificationCheck
+  authority: VibeFlow
+  purpose: Individual check attempt/result with evidence references.
+  durability: append-only
+  notes: interrupted check cannot be treated as pass
+- resource: Release
+  authority: VibeFlow
+  purpose: Approved artifact/candidate promoted toward production.
+  durability: immutable/versioned
+  notes: links exact evidence and deployment
+- resource: ProviderCapability
+  authority: VibeFlow cache; provider advertises capability
+  purpose: Normalized capability/version/limits/auth description.
+  durability: refreshable
+  notes: negotiated; never assume parity
+- resource: Entitlement
+  authority: VibeFlow
+  purpose: What VibeFlow product features/account limits user may access.
+  durability: durable
+  notes: distinct from provider subscription
+- resource: UsageRecord
+  authority: VibeFlow ledger of observed/provider-reported usage
+  purpose: Cost/usage fact attributed to provider/resource/execution.
+  durability: append-only
+  notes: do not hide all provider costs in opaque credit
+- resource: Notification
+  authority: VibeFlow
+  purpose: Delivery intent/status for action-needed and execution changes.
+  durability: durable
+  notes: push is projection of durable state
+- resource: AuditEvent
+  authority: VibeFlow
+  purpose: Security/admin/resource-authority audit trail.
+  durability: append-only
+  notes: separate from user activity feed
+- resource: SupportCase
+  authority: VibeFlow/Helpdesk binding
+  purpose: Support workflow with explicitly redacted evidence attachments.
+  durability: durable metadata
+  notes: no silent secret/log exfiltration

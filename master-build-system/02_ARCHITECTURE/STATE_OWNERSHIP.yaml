@@ -1,0 +1,176 @@
+rules:
+- resource: Account
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: provider identities are linked references
+- resource: Organization
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: supports personal org as degenerate case
+- resource: Project
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: never identified solely by repository/workspace ID
+- resource: Artifact
+  authoritative_owner: VibeFlow metadata; blob/provider owns bytes
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: content may live in repo/object store/provider
+- resource: ArtifactRelation
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: enables Canvas/design-to-build later
+- resource: AgentBinding
+  authoritative_owner: VibeFlow binding; agent provider owns runtime
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: BYOA
+- resource: ModelBinding
+  authoritative_owner: VibeFlow binding; model provider owns inference
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: BYOK/provider choice
+- resource: WorkspaceBinding
+  authoritative_owner: VibeFlow binding; workspace provider owns workspace
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: BYOW
+- resource: RepositoryBinding
+  authoritative_owner: VibeFlow binding; Git host owns repository
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: repo != workspace
+- resource: DeploymentBinding
+  authoritative_owner: VibeFlow binding; cloud/provider owns runtime
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: prod != dev workspace
+- resource: DataBinding
+  authoritative_owner: VibeFlow binding; DB provider owns app data
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: dev/prod separated
+- resource: ObjectStorageBinding
+  authoritative_owner: VibeFlow binding; storage provider owns objects
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: storage != workspace
+- resource: Connection
+  authoritative_owner: VibeFlow metadata; provider owns external account
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: no raw token in resource
+- resource: ConnectionGrant
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: least privilege; revocable
+- resource: SecretRef
+  authoritative_owner: VibeFlow vault reference
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: raw secret never travels through mobile-web bridge
+- resource: Policy
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: policy revision recorded with execution
+- resource: Approval
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: pending approvals survive reconnect/restart
+- resource: Task
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: not equivalent to socket/session
+- resource: Execution
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: phone is not execution owner
+- resource: ExecutionAttempt
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: never overwrite failed/lost attempt evidence
+- resource: Event
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: supports replay/resync
+- resource: EventCursor
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: transport recovery != execution recovery
+- resource: WorkspaceRevision
+  authoritative_owner: VibeFlow observation; workspace/repo own bytes
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: must reconcile before verification
+- resource: CheckpointManifest
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: does not pretend atomicity unless proved
+- resource: RecoveryRecord
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: execution_lost is valid honest terminal classification
+- resource: Evidence
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: source/provider + hash + timestamp
+- resource: Verification
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: Agent Finish never equals Verified
+- resource: VerificationCheck
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: interrupted check cannot be treated as pass
+- resource: Release
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: links exact evidence and deployment
+- resource: ProviderCapability
+  authoritative_owner: VibeFlow cache; provider advertises capability
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: negotiated; never assume parity
+- resource: Entitlement
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: distinct from provider subscription
+- resource: UsageRecord
+  authoritative_owner: VibeFlow ledger of observed/provider-reported usage
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: do not hide all provider costs in opaque credit
+- resource: Notification
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: push is projection of durable state
+- resource: AuditEvent
+  authoritative_owner: VibeFlow
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: separate from user activity feed
+- resource: SupportCase
+  authoritative_owner: VibeFlow/Helpdesk binding
+  client_cache_allowed: true
+  external_provider_is_reference_only: true
+  notes: no silent secret/log exfiltration

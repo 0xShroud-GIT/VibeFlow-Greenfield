@@ -1,0 +1,24 @@
+name: Master Build System Integrity
+
+on:
+  pull_request:
+    paths:
+      - 'master-build-system/**'
+  push:
+    branches: [main]
+    paths:
+      - 'master-build-system/**'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify authoritative pack hashes
+        shell: bash
+        run: |
+          cd master-build-system
+          sha256sum -c SHA256SUMS.txt

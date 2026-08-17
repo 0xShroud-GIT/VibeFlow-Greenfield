@@ -1,0 +1,22 @@
+id,source,location,use
+PKG-XAPK,User-supplied Replit 2.193.0 XAPK,/mnt/data/Replit_+Vibe+Code+with+AI+Fast_2.193.0_APKPure.xapk,Primary shipped-client evidence
+HBC-OFFICIAL,P1sec hermes-dec 0.1.7 official parser/disassembler/decompiler,/mnt/data/hermes-dec-0.1.7.zip,"Hermes v96 structures, disassembly, pseudo-JS"
+HBC-GRAPH,Full Hermes cross-reference graph,/mnt/data/replit_max/evidence_pack/hermes,"1,345,549 instructions; string/function edges; regexes"
+APK-DEX,Android APK/DEX/native direct analysis,/mnt/data/replit_max/evidence_pack/android,"Manifest, config, 9 DEX, custom Dalvik methods, native libs"
+SEMANTIC,Semantic client evidence indexes,/mnt/data/replit_max/evidence_pack/semantic,GraphQL/path/URL/bridge/subsystem vocab
+DOC-PLAN,Plan vs Build Mode,https://docs.replit.com/learn/plan-vs-build-mode,Current official product docs
+DOC-PROJ,Project Editor,https://docs.replit.com/learn/projects-and-artifacts/project-editor,Current official product docs
+DOC-CANVAS,Canvas,https://docs.replit.com/learn/design/canvas,Current official product docs
+DOC-VISUAL,Visual Editor,https://docs.replit.com/learn/design/visual-editor,Current official product docs
+DOC-MCP,Connect via MCP,https://docs.replit.com/build/connect-via-mcp,Current official product docs
+DOC-REPLIT-MCP,Replit MCP Server,https://docs.replit.com/platforms/mcp-server,Current official product docs
+DOC-CHECKPOINT,Checkpoints and Rollbacks,https://docs.replit.com/references/version-control/checkpoints-and-rollbacks,Current official product docs
+DOC-VCS,Version Control,https://docs.replit.com/learn/projects-and-artifacts/version-control,Current official product docs
+DOC-DEPLOY,Replit Deployments,https://docs.replit.com/learn/projects-and-artifacts/replit-deployments,Current official product docs
+DOC-STORAGE,App Storage,https://docs.replit.com/references/data-and-storage/object-storage,Current official product docs
+DOC-SEC,Workspace Security Center / Security updates,https://docs.replit.com/updates/2026/05/08/changelog,Current official product evidence
+STD-ACP,Agent Client Protocol,https://github.com/agentclientprotocol/agent-client-protocol,Editor/coding-agent interoperability candidate
+STD-MCP,Model Context Protocol 2026-07-28,https://github.com/modelcontextprotocol/modelcontextprotocol/tree/main/docs/specification/2026-07-28,Tool/context interoperability candidate
+STD-A2A,Agent2Agent 1.0,https://github.com/a2aproject/A2A,Agent-to-agent interoperability candidate
+STD-AGUI,AG-UI,https://github.com/ag-ui-protocol/ag-ui,Optional agent-user event compatibility
+STD-OTEL,OpenTelemetry Semantic Conventions,https://opentelemetry.io/docs/specs/semconv/,Trace/metric/log correlation foundation

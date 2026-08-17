@@ -1,0 +1,372 @@
+schema_version: '1.0'
+events:
+- id: EVT-001
+  name: project.created
+  resource: Project
+  producer: project
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-002
+  name: project.updated
+  resource: Project
+  producer: project
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-003
+  name: binding.created
+  resource: '*Binding'
+  producer: project
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-004
+  name: binding.updated
+  resource: '*Binding'
+  producer: project
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-005
+  name: task.created
+  resource: Task
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-006
+  name: execution.queued
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-007
+  name: execution.started
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-008
+  name: execution.output
+  resource: Execution
+  producer: gateway
+  envelope: VibeFlowEventV1
+  durable: false
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-009
+  name: execution.waiting_for_approval
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-010
+  name: execution.interrupted
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-011
+  name: execution.candidate_complete
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-012
+  name: execution.failed
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-013
+  name: execution.cancelled
+  resource: Execution
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-014
+  name: approval.requested
+  resource: Approval
+  producer: policy
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-015
+  name: approval.decided
+  resource: Approval
+  producer: policy
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-016
+  name: verification.started
+  resource: Verification
+  producer: verification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-017
+  name: verification.check_started
+  resource: VerificationCheck
+  producer: verification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-018
+  name: verification.check_passed
+  resource: VerificationCheck
+  producer: verification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-019
+  name: verification.check_failed
+  resource: VerificationCheck
+  producer: verification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-020
+  name: verification.completed
+  resource: Verification
+  producer: verification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-021
+  name: workspace.reconciled
+  resource: WorkspaceRevision
+  producer: workspace
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-022
+  name: checkpoint.created
+  resource: CheckpointManifest
+  producer: repository
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-023
+  name: recovery.started
+  resource: RecoveryRecord
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-024
+  name: recovery.completed
+  resource: RecoveryRecord
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-025
+  name: recovery.blocked
+  resource: RecoveryRecord
+  producer: execution
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-026
+  name: connection.linked
+  resource: Connection
+  producer: connection
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-027
+  name: grant.created
+  resource: ConnectionGrant
+  producer: connection
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-028
+  name: grant.revoked
+  resource: ConnectionGrant
+  producer: connection
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-029
+  name: provider.capability_changed
+  resource: ProviderCapability
+  producer: provider-registry
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-030
+  name: release.created
+  resource: Release
+  producer: release
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-031
+  name: deployment.started
+  resource: Release
+  producer: release
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-032
+  name: deployment.completed
+  resource: Release
+  producer: release
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-033
+  name: deployment.failed
+  resource: Release
+  producer: release
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-034
+  name: deployment.rolled_back
+  resource: Release
+  producer: release
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-035
+  name: usage.recorded
+  resource: UsageRecord
+  producer: billing
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-036
+  name: notification.created
+  resource: Notification
+  producer: notification
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally
+- id: EVT-037
+  name: audit.recorded
+  resource: AuditEvent
+  producer: audit
+  envelope: VibeFlowEventV1
+  durable: true
+  ordering: per resource sequence
+  idempotency: event_id unique; producer transition idempotent
+  pii: minimal; no raw secrets
+  external_projection: CloudEvents profile where emitted externally

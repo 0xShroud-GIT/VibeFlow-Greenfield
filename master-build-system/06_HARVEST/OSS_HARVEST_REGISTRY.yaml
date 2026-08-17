@@ -1,0 +1,319 @@
+as_of: '2026-08-17'
+policy: Exact package versions are pinned in the repository lockfile during Mission 001; this registry records approved choices
+  and version lines.
+entries:
+- id: H-001
+  capability: runtime
+  name: Node.js
+  version: 24.18.x LTS
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://nodejs.org/en/about/previous-releases
+  rule: Use LTS, not Current, for control-plane production.
+- id: H-002
+  capability: language
+  name: TypeScript
+  version: 6.0.3
+  decision: ADOPT
+  integration: DEPEND
+  license: Apache-2.0
+  source: https://github.com/microsoft/TypeScript
+  rule: Strict mode. Avoid type-any escape hatches in contracts.
+- id: H-003
+  capability: package_manager
+  name: pnpm
+  version: 11.4.x
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/pnpm/pnpm
+  rule: Single workspace lockfile.
+- id: H-004
+  capability: monorepo_build
+  name: Turborepo
+  version: 2.10.x stable
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/vercel/turborepo
+  rule: Build/test caching only; architecture does not depend on Turborepo.
+- id: H-005
+  capability: mobile
+  name: Expo
+  version: SDK 56 stable
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://expo.dev/changelog
+  rule: Expo Router and EAS where useful; custom native modules only for real gaps.
+- id: H-006
+  capability: mobile_runtime
+  name: React Native
+  version: 0.85.x stable line
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/facebook/react-native
+  rule: Follow Expo-compatible RN version.
+- id: H-007
+  capability: web_editor
+  name: Monaco Editor
+  version: 0.56.x
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/microsoft/monaco-editor
+  rule: VibeFlow owns project/revision/session integration, not text editor internals.
+- id: H-008
+  capability: web_terminal
+  name: xterm.js
+  version: 6.0.x
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/xtermjs/xterm.js
+  rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation.
+- id: H-009
+  capability: api_server
+  name: Fastify
+  version: 5.10.x
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/fastify/fastify
+  rule: Start as modular control-plane service; avoid early microservices.
+- id: H-010
+  capability: database
+  name: PostgreSQL
+  version: 18.x
+  decision: ADOPT
+  integration: SERVICE
+  license: PostgreSQL
+  source: https://www.postgresql.org/docs/18/
+  rule: Authoritative control-plane database.
+- id: H-011
+  capability: orm_migrations
+  name: Drizzle ORM + Kit
+  version: 0.45.2 stable
+  decision: ADOPT
+  integration: DEPEND
+  license: Apache-2.0
+  source: https://github.com/drizzle-team/drizzle-orm
+  rule: Use SQL migrations committed to repo; do not use RC line without explicit upgrade mission.
+- id: H-012
+  capability: authentication
+  name: Better Auth
+  version: 1.6.x stable
+  decision: ADOPT
+  integration: WRAP
+  license: MIT
+  source: https://github.com/better-auth/better-auth
+  rule: Wrap behind Identity module; enterprise SAML/SCIM may later use dedicated provider.
+- id: H-013
+  capability: authorization
+  name: OpenFGA
+  version: 1.18.x
+  decision: ADOPT_LATER
+  integration: SERVICE
+  license: Apache-2.0
+  source: https://github.com/openfga/openfga
+  rule: Use when relationship authorization complexity exceeds local policy tables; do not introduce in Phase 1 by default.
+- id: H-014
+  capability: durable_workflows
+  name: Temporal TypeScript SDK
+  version: 1.21.x
+  decision: ADOPT
+  integration: DEPEND_SERVICE
+  license: MIT
+  source: https://github.com/temporalio/sdk-typescript
+  rule: Temporal supplies durable workflow mechanics; VibeFlow owns Task/Execution domain semantics.
+- id: H-015
+  capability: coding_agent
+  name: OpenHands Software Agent SDK
+  version: 1.24.x reference pin
+  decision: ADOPT_AS_DEFAULT_ADAPTER
+  integration: SERVICE_ADAPTER
+  license: MIT
+  source: https://github.com/OpenHands/software-agent-sdk
+  rule: Default BYOA-compatible adapter/reference, never core authority.
+- id: H-016
+  capability: workspace_provider
+  name: Daytona
+  version: 0.190.x reference pin
+  decision: ADOPT_AS_PROVIDER
+  integration: SERVICE_ADAPTER
+  license: See upstream current license
+  source: https://github.com/daytonaio/daytona
+  rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification.
+- id: H-017
+  capability: workspace_provider
+  name: E2B
+  version: 2.36.x SDK reference pin
+  decision: ADOPT_AS_PROVIDER
+  integration: SERVICE_ADAPTER
+  license: Apache-2.0
+  source: https://github.com/e2b-dev/E2B
+  rule: Secondary workspace/sandbox adapter; never assume equivalent persistence semantics.
+- id: H-018
+  capability: agent_client_protocol
+  name: Agent Client Protocol (ACP)
+  version: Schema 1.20.x stable; v2 experimental only behind flag
+  decision: ADOPT
+  integration: PROTOCOL
+  license: Apache-2.0
+  source: https://github.com/agentclientprotocol/agent-client-protocol
+  rule: Client↔coding-agent interoperability. VibeFlow remote/recovery/authority semantics remain separate.
+- id: H-019
+  capability: tool_context_protocol
+  name: Model Context Protocol (MCP)
+  version: '2026-07-28'
+  decision: ADOPT
+  integration: PROTOCOL_SDK
+  license: See official spec/SDK
+  source: https://modelcontextprotocol.io/specification/2026-07-28
+  rule: Agent↔tools/data. Use official TypeScript SDK v2 stable line.
+- id: H-020
+  capability: agent_to_agent
+  name: Agent2Agent (A2A)
+  version: 1.0.1 spec / JS SDK 1.0.x
+  decision: ADOPT_WHEN_DELEGATION
+  integration: PROTOCOL_SDK
+  license: Apache-2.0
+  source: https://github.com/a2aproject/A2A
+  rule: Do not use for ordinary child processes or internal service RPC.
+- id: H-021
+  capability: agent_ui_events
+  name: AG-UI
+  version: current stable profile at implementation
+  decision: OPTIONAL_BRIDGE
+  integration: PROTOCOL
+  license: See upstream
+  source: https://docs.ag-ui.com/
+  rule: Compatibility layer only; VibeFlow UI state remains canonical.
+- id: H-022
+  capability: model_provider_abstraction
+  name: Vercel AI SDK
+  version: current stable 2026 line, exact pin at bootstrap
+  decision: ADOPT
+  integration: WRAP
+  license: Apache-2.0/MIT by package; verify
+  source: https://github.com/vercel/ai
+  rule: Use for VibeFlow-owned model calls; coding agents may own their own model runtime.
+- id: H-023
+  capability: environment_definition
+  name: Development Containers Specification
+  version: current stable spec
+  decision: ADOPT
+  integration: PROTOCOL
+  license: See spec
+  source: https://containers.dev/
+  rule: Environment description, not workspace authority.
+- id: H-024
+  capability: observability
+  name: OpenTelemetry JS
+  version: 2.10.x
+  decision: ADOPT
+  integration: DEPEND
+  license: Apache-2.0
+  source: https://github.com/open-telemetry/opentelemetry-js
+  rule: Trace IDs correlate Task/Execution/Provider/Verification; redact secrets.
+- id: H-025
+  capability: schema_validation
+  name: TypeBox or JSON Schema-native validator
+  version: pin current stable during bootstrap
+  decision: ADOPT
+  integration: DEPEND
+  license: MIT
+  source: https://github.com/sinclairzx81/typebox
+  rule: Contracts are JSON Schema first; generated TypeScript types are derived.
+- id: H-026
+  capability: web_e2e
+  name: Playwright
+  version: pin current stable during bootstrap
+  decision: ADOPT
+  integration: DEPEND_DEV
+  license: Apache-2.0
+  source: https://github.com/microsoft/playwright
+  rule: Workspace web and control-plane browser E2E.
+- id: H-027
+  capability: mobile_e2e
+  name: Maestro
+  version: pin current stable during bootstrap
+  decision: ADOPT
+  integration: TOOL
+  license: Apache-2.0
+  source: https://github.com/mobile-dev-inc/Maestro
+  rule: Black-box Android/iOS critical journeys.
+- id: H-028
+  capability: unit_test
+  name: Vitest
+  version: pin current stable during bootstrap
+  decision: ADOPT
+  integration: DEPEND_DEV
+  license: MIT
+  source: https://github.com/vitest-dev/vitest
+  rule: Default TypeScript unit/contract runner.
+- id: H-029
+  capability: secret_scan
+  name: Gitleaks
+  version: pin current stable
+  decision: ADOPT
+  integration: CI_TOOL
+  license: MIT
+  source: https://github.com/gitleaks/gitleaks
+  rule: Required CI/pre-commit secret scanning.
+- id: H-030
+  capability: container_scan
+  name: Trivy
+  version: pin current stable
+  decision: ADOPT
+  integration: CI_TOOL
+  license: Apache-2.0
+  source: https://github.com/aquasecurity/trivy
+  rule: Container/dependency/misconfiguration scan.
+- id: H-031
+  capability: dependency_vulnerability
+  name: OSV-Scanner
+  version: pin current stable
+  decision: ADOPT
+  integration: CI_TOOL
+  license: Apache-2.0
+  source: https://github.com/google/osv-scanner
+  rule: Dependency vulnerability gate.
+- id: H-032
+  capability: static_security
+  name: Semgrep Community Edition
+  version: pin current stable
+  decision: ADOPT
+  integration: CI_TOOL
+  license: LGPL/engine; rules vary — review
+  source: https://github.com/semgrep/semgrep
+  rule: Use under license policy; do not vendor restricted rulesets.
+- id: H-033
+  capability: git_host
+  name: GitHub API / Octokit
+  version: pin current stable
+  decision: ADOPT
+  integration: ADAPTER
+  license: MIT
+  source: https://github.com/octokit/octokit.js
+  rule: RepositoryBinding adapter; GitHub never becomes Project authority.
+- id: H-034
+  capability: object_storage
+  name: S3-compatible SDK
+  version: provider SDK stable
+  decision: ADOPT
+  integration: ADAPTER
+  license: varies
+  source: https://github.com/aws/aws-sdk-js-v3
+  rule: Evidence/artifact blob bytes may use S3/R2; metadata remains VibeFlow.
+- id: H-035
+  capability: event_envelope
+  name: CloudEvents
+  version: 1.0.x
+  decision: ADOPT_PROFILE
+  integration: STANDARD
+  license: Apache-2.0
+  source: https://github.com/cloudevents/spec
+  rule: Use as external/webhook envelope; internal event schema remains VibeFlow-defined.
