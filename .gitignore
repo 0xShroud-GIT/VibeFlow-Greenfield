@@ -7,6 +7,16 @@ node_modules/
 .yarn/install-state.gz
 .yarn/build-state.yml
 
+# Python environments/caches
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.pyc
+.coverage
+
 # build/cache
 .turbo/
 dist/
@@ -19,6 +29,16 @@ coverage/
 .parcel-cache/
 .vite/
 storybook-static/
+.gradle/
+.cxx/
+DerivedData/
+Pods/
+
+# packaged build artifacts
+*.apk
+*.aab
+*.ipa
+*.xcarchive
 
 # environment/secrets
 .env
