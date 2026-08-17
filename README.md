@@ -15,4 +15,4 @@ Human or AI contributor:
 
 ## Current state
 
-Greenfield repository seed only. Product implementation has not started. The active constitution mission is `M-001` (ratify master contracts). Do not start `M-002` or later until independent review unlocks it.
+Greenfield repository seed only. Product implementation has not started. The active constitution mission is `M-002` (ratify dependency/harvest registry); `M-001` is `DONE` after independent review acceptance. Do not start `M-003` or later until independent review unlocks it.

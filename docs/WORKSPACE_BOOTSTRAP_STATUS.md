@@ -2,7 +2,7 @@
 
 - Repository seed: READY
 - Product implementation: NOT STARTED
-- Active mission: M-001 — Ratify master contracts (REVIEW)
+- Active mission: M-002 — Ratify dependency/harvest registry (REVIEW); M-001 DONE (accepted)
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases

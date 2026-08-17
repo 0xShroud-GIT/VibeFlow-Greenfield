@@ -1,6 +1,7 @@
 as_of: '2026-08-17'
-policy: Exact package versions are pinned in the repository lockfile during Mission 001; this registry records approved choices
-  and version lines.
+policy: This registry records ratified technology choices, version lines and license classifications. Exact installable package
+  versions are pinned in the repository lockfile starting with Mission 004 (monorepo/toolchain foundation); no lockfile existed
+  during Missions 001-002 and no earlier lockfile pinning is claimed.
 entries:
 - id: H-001
   capability: runtime
@@ -73,7 +74,8 @@ entries:
   integration: DEPEND
   license: MIT
   source: https://github.com/xtermjs/xterm.js
-  rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation.
+  rule: VibeFlow owns TerminalSession authority and transport, not terminal emulation. Use the official @xterm/*
+    scoped npm packages (legacy xterm/xterm-* names are deprecated upstream).
 - id: H-009
   capability: api_server
   name: Fastify
@@ -131,28 +133,32 @@ entries:
 - id: H-015
   capability: coding_agent
   name: OpenHands Software Agent SDK
-  version: 1.24.x reference pin
+  version: 1.x current stable reference line (v1.42.1 verified 2026-08-17; supersedes the 1.24.x research anchor)
   decision: ADOPT_AS_DEFAULT_ADAPTER
   integration: SERVICE_ADAPTER
   license: MIT
   source: https://github.com/OpenHands/software-agent-sdk
-  rule: Default BYOA-compatible adapter/reference, never core authority.
+  rule: Default BYOA-compatible adapter/reference, never core authority. MIT applies to the SDK repo; the OpenHands
+    application's enterprise/ directory is separately licensed source-available code that VibeFlow must not incorporate.
 - id: H-016
   capability: workspace_provider
   name: Daytona
-  version: 0.190.x reference pin
+  version: 0.190.x reference pin (final open-source line; upstream OSS repository frozen June 2026)
   decision: ADOPT_AS_PROVIDER
   integration: SERVICE_ADAPTER
-  license: See upstream current license
+  license: AGPL-3.0 (verified at v0.190.0) — REVIEW REQUIRED; network copyleft. External provider/API use only;
+    never incorporate or vendor Daytona source.
   source: https://github.com/daytonaio/daytona
-  rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification.
+  rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification. Certification (Phase 11) must
+    validate the operated Daytona service, since the open-source repository no longer receives updates.
 - id: H-017
   capability: workspace_provider
   name: E2B
-  version: 2.36.x SDK reference pin
+  version: 2.36.x SDK reference pin (npm package is `e2b`; @e2b/sdk is renamed/deprecated); latest 2.39.0
+    verified 2026-08-17
   decision: ADOPT_AS_PROVIDER
   integration: SERVICE_ADAPTER
-  license: Apache-2.0
+  license: Apache-2.0 (repository; JS SDK npm packages declare MIT — confirm package-level at pin)
   source: https://github.com/e2b-dev/E2B
   rule: Secondary workspace/sandbox adapter; never assume equivalent persistence semantics.
 - id: H-018
@@ -170,7 +176,7 @@ entries:
   version: '2026-07-28'
   decision: ADOPT
   integration: PROTOCOL_SDK
-  license: See official spec/SDK
+  license: Apache-2.0 (spec; upstream MIT-to-Apache-2.0 transition), CC-BY-4.0 (non-spec docs), MIT (TS SDK)
   source: https://modelcontextprotocol.io/specification/2026-07-28
   rule: Agent↔tools/data. Use official TypeScript SDK v2 stable line.
 - id: H-020
@@ -188,13 +194,13 @@ entries:
   version: current stable profile at implementation
   decision: OPTIONAL_BRIDGE
   integration: PROTOCOL
-  license: See upstream
+  license: MIT (verified ag-ui-protocol/ag-ui)
   source: https://docs.ag-ui.com/
   rule: Compatibility layer only; VibeFlow UI state remains canonical.
 - id: H-022
   capability: model_provider_abstraction
   name: Vercel AI SDK
-  version: current stable 2026 line, exact pin at bootstrap
+  version: 7.0.x stable line (verified 2026-08-17), exact pin at M-004
   decision: ADOPT
   integration: WRAP
   license: Apache-2.0/MIT by package; verify
@@ -206,7 +212,7 @@ entries:
   version: current stable spec
   decision: ADOPT
   integration: PROTOCOL
-  license: See spec
+  license: CC-BY-4.0 (spec text; attribution when reproducing) / MIT (code, LICENSE-CODE)
   source: https://containers.dev/
   rule: Environment description, not workspace authority.
 - id: H-024
@@ -226,7 +232,8 @@ entries:
   integration: DEPEND
   license: MIT
   source: https://github.com/sinclairzx81/typebox
-  rule: Contracts are JSON Schema first; generated TypeScript types are derived.
+  rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,
+    ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.
 - id: H-026
   capability: web_e2e
   name: Playwright
@@ -271,7 +278,8 @@ entries:
   integration: CI_TOOL
   license: Apache-2.0
   source: https://github.com/aquasecurity/trivy
-  rule: Container/dependency/misconfiguration scan.
+  rule: Container/dependency/misconfiguration scan. Verify release provenance/checksums when adopting CI binaries
+    (upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).
 - id: H-031
   capability: dependency_vulnerability
   name: OSV-Scanner
@@ -305,7 +313,7 @@ entries:
   version: provider SDK stable
   decision: ADOPT
   integration: ADAPTER
-  license: varies
+  license: Apache-2.0 (aws-sdk-js-v3 verified); other S3-compatible provider SDK licenses vary — review at adapter selection
   source: https://github.com/aws/aws-sdk-js-v3
   rule: Evidence/artifact blob bytes may use S3/R2; metadata remains VibeFlow.
 - id: H-035
