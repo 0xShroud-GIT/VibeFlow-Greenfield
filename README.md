@@ -15,4 +15,4 @@ Human or AI contributor:
 
 ## Current state
 
-Greenfield repository seed only. Product implementation has not started. The first permitted engineering mission is `M-000` / `MISSION_000_BOOTSTRAP.md`.
+Greenfield repository seed only. Product implementation has not started. The active constitution mission is `M-001` (ratify master contracts). Do not start `M-002` or later until independent review unlocks it.

@@ -2,4 +2,5 @@
 
 Repository maintenance and validation scripts.
 
-Do not implement functionality here until the active mission authorizes it.
+- `repo-sanitize.sh` — tracked-path and high-confidence secret sanitation.
+- `validate-master-contracts.py` — no-dependency M-001 master-contract consistency validator.

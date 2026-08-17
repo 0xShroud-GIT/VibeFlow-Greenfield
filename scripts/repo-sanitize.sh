@@ -47,8 +47,16 @@ done < <(git ls-files -z)
 
 secret_regex='-----BEGIN( [A-Z0-9]+)? PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|sk-(proj-)?[A-Za-z0-9_-]{24,}'
 
-if git grep -IEn "$secret_regex" -- . ':!scripts/repo-sanitize.sh'; then
+# -e is required: a pattern starting with --- is otherwise parsed as a git option.
+set +e
+git grep -IEn -e "$secret_regex" -- . ':!scripts/repo-sanitize.sh'
+secret_rc=$?
+set -e
+if (( secret_rc == 0 )); then
   printf 'SANITATION ERROR: possible high-confidence credential material detected.\n' >&2
+  fail=1
+elif (( secret_rc != 1 )); then
+  printf 'SANITATION ERROR: secret scan failed to execute (git grep exit %s).\n' "$secret_rc" >&2
   fail=1
 fi
 
