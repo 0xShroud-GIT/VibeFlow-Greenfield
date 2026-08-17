@@ -1,15 +1,18 @@
 # Active Mission
 
-**Mission:** M-003 — Ratify threat model and trust boundaries
+**Mission:** M-004 — Initialize monorepo and toolchain
 
 **Status:** REVIEW
 
-**Phase:** 0 — Architecture Constitution
+**Phase:** 1 — Repository Foundation
 
 Authoritative mission row:
-`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-003)
+`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-004)
 
 M-001 and M-002 were accepted and merged and are `DONE` (canonical terminal mission state per `10_IMPLEMENTATION/STATUS_PROTOCOL.md`).
+M-003 was accepted and merged and is `DONE`.
+
+M-004 is the active mission. M-005..M-151 remain LOCKED per mission DAG.
 
 Read before coding:
 - `AGENTS.md`
@@ -17,13 +20,13 @@ Read before coding:
 - `master-build-system/00_MASTER/NON_NEGOTIABLE_INVARIANTS.yaml`
 - `master-build-system/00_MASTER/SOURCE_OF_TRUTH_INDEX.yaml`
 - `master-build-system/00_MASTER/CLEAN_ROOM_POLICY.md`
-- `master-build-system/02_ARCHITECTURE/TRUST_BOUNDARIES.md`
-- `master-build-system/08_SECURITY/SECURITY_MASTER.md`
-- `master-build-system/08_SECURITY/THREAT_MODEL.md`
-- `master-build-system/08_SECURITY/SECRET_HANDLING.md`
-- `master-build-system/08_SECURITY/WORKSPACE_ISOLATION.md`
-- `.ai/CONTEXT_POLICY.md`
+- `master-build-system/12_REPO_SEED/REPO_SEED_TREE.md`
+- `master-build-system/12_REPO_SEED/GITHUB_SETUP.md`
+- `master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml`
+- `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml`
 
-Do not execute M-004 or any later mission.
-M-003 may be marked REVIEW, never DONE, until independent acceptance.
-Do not mark M-004 READY.
+Do not execute M-005 or any later mission.
+M-004 may be marked REVIEW, never DONE, until independent acceptance.
+
+Final branch mission state must be:
+M-001 DONE · M-002 DONE · M-003 DONE · M-004 REVIEW · M-005+ LOCKED
