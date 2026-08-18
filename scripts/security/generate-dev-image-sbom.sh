@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # Generate an ephemeral CycloneDX SBOM for the exact M-007 dev container image
-# plus its content SHA-256. CI normally supplies DEV_IMAGE_INPUT as the same
-# docker-save archive consumed by the vulnerability scan.
+# plus its content SHA-256. The checksum-verified binary is installed by
+# scripts/security/install-ci-tool.py trivy. CI normally supplies DEV_IMAGE_INPUT
+# as the same docker-save archive consumed by the vulnerability scan.
 
 if [[ $# -ne 1 ]]; then
   printf 'usage: %s OUTPUT.cdx.json\n' "$0" >&2
