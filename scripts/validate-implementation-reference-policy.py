@@ -83,7 +83,7 @@ EXPECTED_SOURCES: dict[str, dict[str, Any]] = {
 POINTERS = {
     "AGENTS.md": "master-build-system/04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
     "master-build-system/AGENTS.md": "04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
-    "master-build-system/04_AI_AGENT/AI_AGENT_MASTER.md": "04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
+    "master-build-system/04_AI_AGENT/AI_AGENT_MASTER.md": "IMPLEMENTATION_REFERENCE_POLICY.yaml",
     "master-build-system/11_VERIFICATION/VERIFICATION_MASTER.md": "04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
     ".ai/INDEX.yaml": "implementation_references: master-build-system/04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
     "master-build-system/.ai/INDEX.yaml": "implementation_references: 04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml",
