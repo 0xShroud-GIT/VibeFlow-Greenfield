@@ -7,7 +7,7 @@
   "sources": [
     {
       "path": "master-build-system/00_MASTER/SOURCE_OF_TRUTH_INDEX.yaml",
-      "sha256": "967cda17f559e0ccfb3e59ea01add1a76440fe93e9a499fc3e35b31e9090da68"
+      "sha256": "6f094e5a0213e0ea7c0cc4c1a2ade00e52d43a08eba741e8fdd483e06b11aba8"
     },
     {
       "path": "master-build-system/02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
