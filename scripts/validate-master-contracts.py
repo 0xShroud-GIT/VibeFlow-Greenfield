@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MBS = REPO_ROOT / "master-build-system"
 
 MISSION_STATUS_VOCAB = {"LOCKED", "READY", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED"}
+CAPABILITY_STATUS_VOCAB = {"NOT_STARTED", "IN_PROGRESS", "IMPLEMENTED", "VERIFIED", "COMPLETE"}
 # Unlocked but not yet accepted. Under normal serial progression exactly one
 # mission is in this set and every earlier mission is DONE.
 ACTIVE_MISSION_STATUSES = {"READY", "IN_PROGRESS", "REVIEW", "BLOCKED"}
@@ -97,6 +98,12 @@ def parse_scalar(raw: str) -> Any:
         return True
     if text in {"false", "False", "FALSE"}:
         return False
+    # Explicit empty collections are used by policy documents that start with
+    # an empty deny-by-default allowlist and later grow into nested entries.
+    if text == "[]":
+        return []
+    if text == "{}":
+        return {}
     if (text.startswith("'") and text.endswith("'")) or (
         text.startswith('"') and text.endswith('"')
     ):
@@ -567,7 +574,10 @@ def check_frontend(report: Report, canonical: set[str], event_names: set[str], p
 def check_capabilities(report: Report) -> None:
     csv_path = MBS / "01_PRODUCT" / "VIBEFLOW_CAPABILITY_LEDGER.csv"
     yaml_path = MBS / "01_PRODUCT" / "VIBEFLOW_CAPABILITY_LEDGER.yaml"
-    yaml_ids = re.findall(r"^- vf_id: (\S+)", yaml_path.read_text(encoding="utf-8"), re.M)
+    yaml_doc = load_yaml_file(yaml_path)
+    yaml_rows = yaml_doc.get("capabilities") or []
+    yaml_ids = [str(item.get("vf_id")) for item in yaml_rows]
+    yaml_statuses = {str(item.get("vf_id")): str(item.get("status")) for item in yaml_rows}
     rows = []
     with csv_path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
@@ -591,8 +601,14 @@ def check_capabilities(report: Report) -> None:
                 report.err(f"{row.get('vf_id')} missing required field {field}")
         if (row.get("origin") or "").startswith("REPLIT") and not (row.get("source_r2v_ids") or "").strip():
             report.err(f"{row['vf_id']} REPLIT-derived but missing source_r2v_ids")
-        if row.get("status") != "NOT_STARTED":
-            report.err(f"{row['vf_id']} status is {row.get('status')}, expected NOT_STARTED")
+        status = row.get("status") or ""
+        if status not in CAPABILITY_STATUS_VOCAB:
+            report.err(f"{row['vf_id']} status {status!r} is outside the capability status vocabulary")
+        if yaml_statuses.get(row["vf_id"]) != status:
+            report.err(
+                f"{row['vf_id']} status disagrees between ledger CSV ({status!r}) and YAML "
+                f"({yaml_statuses.get(row['vf_id'])!r})"
+            )
 
     report.counts["capability_origins"] = dict(origins)
     report.counts["capability_statuses"] = dict(statuses)
@@ -632,7 +648,8 @@ def check_capabilities(report: Report) -> None:
         "PASS"
         if len(rows) == EXPECTED["vibeflow_capabilities"]
         and not duplicates(ids)
-        and statuses.get("NOT_STARTED") == len(rows)
+        and not (set(statuses) - CAPABILITY_STATUS_VOCAB)
+        and all(yaml_statuses.get(row["vf_id"]) == row.get("status") for row in rows)
         and not missing
         else "FAIL",
     )

@@ -15,7 +15,9 @@ Human or AI contributor:
 
 ## Current state
 
-Repository foundation established; product implementation has not started. The active mission is `M-005` (establish schema/codegen pipeline), in `REVIEW`. `M-001`, `M-002`, `M-003` and `M-004` are `DONE` after acceptance and merge. `M-006` and later remain `LOCKED`; do not start them until M-005 is independently accepted.
+Repository foundation established; product implementation has not started. The active mission is `M-006` (establish CI/security/dependency gates), in `REVIEW`. `M-001` through `M-005` are `DONE` after independent acceptance and merge. `M-007` and later remain `LOCKED`.
+
+M-006 adds machine-enforced harvest-to-package reconciliation, deny-by-default install/build-script approvals, immutable scanner and GitHub Action pins, local Semgrep rules, full-history secret scanning, dependency/repository vulnerability gates, and an ephemeral CycloneDX repository SBOM. Branch protection remains pending external reviewer application and is not represented as complete by workflow files.
 
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` is authoritative for mission status; this section is a pointer to it.
 

@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "mission": "M-006",
+  "mission_status": "REVIEW",
+  "starting_main_sha": "76f2f2ae908cd728e337b64fe538cbd07a158945",
+  "verified_branch_start_sha": "76f2f2ae908cd728e337b64fe538cbd07a158945",
+  "branch": "arena/01a01281-vibeflow-greenfield",
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "mission_states": {
+    "M-001..M-005": "DONE",
+    "M-006": "REVIEW",
+    "M-007..M-151": "LOCKED"
+  },
+  "dependency_registry_mappings": {
+    "typescript": "H-002",
+    "turbo": "H-004",
+    "typebox": "H-025",
+    "vitest": "H-028"
+  },
+  "allow_builds_policy": {
+    "default": "deny",
+    "current_approvals": [],
+    "approval_requirements": [
+      "ratified npm coordinate",
+      "matching harvest_id",
+      "explicit pnpm_matcher",
+      "one exact package version matching direct manifests and pnpm-lock.yaml",
+      "explicit boolean true",
+      "non-empty rationale"
+    ],
+    "dangerouslyAllowAllBuilds": "permanently forbidden",
+    "stale_version_behavior": "dependency or resolved lockfile version drift invalidates approval"
+  },
+  "security_tools": {
+    "gitleaks": {
+      "harvest_id": "H-029",
+      "version": "8.30.1",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    },
+    "trivy": {
+      "harvest_id": "H-030",
+      "version": "0.74.0",
+      "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+      "sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
+      "checksum_manifest_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt",
+      "checksum_manifest_sha256": "bc701c3c3ee8b9acbea2c23257e41381e3854888f51281616a6ba5dc96963821",
+      "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz.sigstore.json",
+      "sigstore_bundle_sha256": "da49092f6909bbbe943255ac8ec4c4cee503a05576c5dd20dc2fd9fc49c07779",
+      "sigstore_subject_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+    },
+    "osv-scanner": {
+      "harvest_id": "H-031",
+      "version": "2.4.0",
+      "sha256": "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
+    },
+    "semgrep": {
+      "harvest_id": "H-032",
+      "version": "1.172.0",
+      "container_digest": "sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b"
+    }
+  },
+  "github_actions": {
+    "actions/checkout@v7.0.1": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "actions/setup-node@v7.0.0": "820762786026740c76f36085b0efc47a31fe5020",
+    "actions/upload-artifact@v7.0.1": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+  },
+  "scan_commands": {
+    "gitleaks": "scripts/security/run-gitleaks.sh",
+    "osv": "scripts/security/run-osv-scanner.sh",
+    "trivy": "scripts/security/run-trivy.sh",
+    "semgrep_rules": "scripts/security/test-semgrep-rules.sh",
+    "semgrep_repository": "scripts/security/run-semgrep.sh",
+    "sbom": "scripts/security/generate-sbom.sh $RUNNER_TEMP/vibeflow-repository.cdx.json"
+  },
+  "actual_results_before_first_ci_push": {
+    "node_24_19_0_pnpm_11_4_0_frozen_install": "PASS",
+    "pnpm_check": "PASS",
+    "semgrep_rule_fixtures": {
+      "result": "PASS",
+      "positive_rule_ids": 6,
+      "negative_findings": 0,
+      "candidate_commit": "55a380b",
+      "scope": "historical pre-generalization fixture wrapper"
+    },
+    "semgrep_repository": {
+      "result": "PASS",
+      "candidate_commit": "55a380b",
+      "rules": 6,
+      "applicable_targets": 17,
+      "findings": 0
+    },
+    "gitleaks": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "osv_scanner": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "trivy": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "sbom": "NOT_GENERATED_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "expected_ci_results_claimed_as_actual": false,
+    "github_security_workflow": "NOT_RUN_WORKFLOW_PERMISSION_BLOCKER",
+    "gitleaks_fixture_smoke": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "generalized_semgrep_fixture_wrapper": "NOT_REEXECUTED_EXACT_DISTRIBUTION_UNAVAILABLE_AFTER_ARENA_RESET"
+  },
+  "sbom": {
+    "format": "CycloneDX JSON",
+    "ci_artifact_name": "vibeflow-repository-cyclonedx",
+    "retention_days": 7,
+    "source_of_truth": false,
+    "historical_first_run": {
+      "generation_result": "PASS",
+      "inventory_completeness": "FAIL_INCOMPLETE",
+      "artifact_name": "vibeflow-repository-cyclonedx",
+      "artifact_id": 9309810695,
+      "artifact_size_bytes": 1039,
+      "artifact_api_digest": "sha256:e63e363ab577a2d9762615f6ad5a791ccc0924e3d393c5c4289bf88f3a3f3bbb",
+      "component_count": 2,
+      "components": [
+        "pnpm-lock.yaml application",
+        "typebox@1.3.6"
+      ],
+      "omission_reason": "Trivy default suppressed development/test dependencies"
+    },
+    "corrected_scope": "all pnpm production, development, build and test dependency scopes via --include-dev-deps",
+    "corrected_artifact_status": "PENDING_NEW_CI_NOT_CLAIMED",
+    "corrected_content_sha256": null,
+    "historical_second_run": {
+      "trivy_version": "0.72.0",
+      "head_sha": "de1ae3db6b75eae48049500dae4c3a2aa74b8fa8",
+      "workflow_run_id": 32097433942,
+      "generation_result": "PASS",
+      "include_dev_deps": true,
+      "artifact_id": 9310411340,
+      "artifact_size_bytes": 3927,
+      "artifact_api_digest": "sha256:8024a0a638ceded874cfd53a469c66bab4d67145a18d47d1fe5604153191af91",
+      "component_count": "NOT_INDEPENDENTLY_INSPECTED_BY_ARENA"
+    }
+  },
+  "container_image_scan": {
+    "status": "N/A",
+    "reason": "No product container image exists in M-006."
+  },
+  "test_counts": {
+    "M-002": 44,
+    "M-003": 18,
+    "M-004": 82,
+    "M-005_retained": 92,
+    "M-006": 41,
+    "total": 277
+  },
+  "capability_transitions": {
+    "VF-REL-002": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-003": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-004": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-005": [
+      "NOT_STARTED",
+      "IN_PROGRESS"
+    ]
+  },
+  "environment_rows_changed": false,
+  "master_file_sha256": {
+    "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv": "5c4324f418afb6b7d069e103007d05e79b5bdb9c0e21ad5253cd9b37c7c92a79",
+    "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml": "a1907508cc5ecd40d779cfac843f47868a1f1fd307684a7f26aa640fdab3d40b",
+    "06_HARVEST/OSS_HARVEST_REGISTRY.yaml": "1f2e283dd4fc6dc5ac30204dee90d73e5d7a0bc36509615659ef2c5547b75765",
+    "10_IMPLEMENTATION/MISSION_DAG.yaml": "afd8e637ec0f96c8aedc748bf196dbf8d1b3977fb28ebd9f0bbbd8655491ac2a",
+    "10_IMPLEMENTATION/MISSION_REGISTER.csv": "8970ef31164ba8dbfd47d102e44fe151a6c44dcc493af7d35787d15b537e66f6",
+    "SHA256SUMS.txt": "aa57f13a00ede4d6be53daf6c13c947e4527b0f788a8b72e9fe6bca4eab5600e"
+  },
+  "authoritative_pack_hashes": {
+    "entries": 72,
+    "result": "PASS"
+  },
+  "branch_protection": {
+    "status": "PENDING_EXTERNAL_REVIEWER_APPLICATION",
+    "workflow_files_claim_protection": false,
+    "required_checks": [
+      "Master Build System Integrity / verify",
+      "Repository Foundation / foundation",
+      "Repository Sanitation / sanitize",
+      "Security & Dependency Gates / security-gate"
+    ],
+    "actions_sha_pinning_setting_available": "UNKNOWN_GITHUB_APP_HTTP_403"
+  },
+  "adr": {
+    "required": false,
+    "status": "NOT_REQUIRED",
+    "reason": "No architecture decision outside the ratified M-006 policy was discovered."
+  },
+  "workflow_permission_blocker": {
+    "blocked": true,
+    "candidate_commit": "55a380b",
+    "push_attempts_with_workflows": 1,
+    "github_error": "GitHub App may not create or update .github/workflows/** without workflows permission",
+    "oauth_or_device_workaround_attempted": false,
+    "workflow_changes_reverted_for_push": true,
+    "exact_intended_diff": "evidence/missions/M-006/INTENDED_WORKFLOWS.patch",
+    "intended_workflows_active_on_pushed_head": false,
+    "checks_that_cannot_be_green_until_applied": [
+      "validate-m006-security-gates.py",
+      "test_m006_security_gates.py real-repository case",
+      "pnpm run check",
+      "Gitleaks CI",
+      "OSV-Scanner CI",
+      "Trivy CI",
+      "Semgrep CI",
+      "CycloneDX SBOM CI",
+      "security-gate"
+    ],
+    "intended_diff_sha256": "fb415f076d49ae02c824b6432e0805f863eb5a476031aa3d28034f202ef54a15",
+    "current_status": "RESOLVED_BY_REVIEWER_WORKFLOW_COMMIT",
+    "resolved_by_commit": "4c1a237b8a767a93860e301f43d3451cb27d9f04",
+    "historical_record_preserved": true
+  },
+  "policy_progression": {
+    "active_snapshot": {
+      "capabilities": "exact M-006 REL transitions; all ENV NOT_STARTED",
+      "workflows": "exact four M-006 baseline workflows and exact baseline requirements",
+      "scanners": "exact H-029..H-032 versions and immutable identities",
+      "actions": "exact three M-006 Action versions and SHAs",
+      "semgrep": "exact six local rules and four fixture files"
+    },
+    "durable": {
+      "capabilities": "M-006 REL baseline cannot regress; successor-selected ENV/REL rows may progress",
+      "workflows": "baseline remains permanent; additional workflows require exact workflow-policy registration",
+      "scanners": "retained scanner keys validated from CI_TOOL harvest entries and immutable lock identities",
+      "actions": "every external Action must match a provenance/rationale/full-SHA lock entry",
+      "semgrep": "local config, rule IDs, severities, and fixture paths are semgrep_policy lock driven"
+    }
+  },
+  "security_lock_schema_version": 2,
+  "gitleaks_fixture_smoke": {
+    "script": "scripts/security/test-gitleaks.sh",
+    "binary": "exact checksum-installed gitleaks lock version",
+    "positive": "runtime-generated synthetic token must be detected with exit 1 and absent from redacted logs",
+    "negative": "safe synthetic repository must exit 0",
+    "local_result": "NOT_EXECUTED_EXACT_BINARY_DOWNLOAD_BLOCKED_BY_ARENA_RELEASE_ASSET_TLS",
+    "pass_claimed": false
+  },
+  "durable_regression_evidence": {
+    "M-007_ENV_progression": "M-006 DONE, M-007 REVIEW, VF-ENV-001 IN_PROGRESS passes CSV/YAML and retained gate",
+    "capability_regression": "accepted REL baseline regression fails",
+    "workflow_expansion": "registered workflow/action passes; unregistered workflow fails",
+    "scanner_upgrade": "matching harvest and immutable tool lock upgrade passes durable mode",
+    "semgrep_rule_expansion": "matching local config/rule/fixture lock expansion passes durable mode",
+    "stale_build_approval": "typebox 1.3.6 approval fails when direct dependency drifts to 1.3.7"
+  },
+  "first_real_ci": {
+    "head_sha": "4c1a237b8a767a93860e301f43d3451cb27d9f04",
+    "security_workflow_run_id": 32095582384,
+    "required_jobs_result": "PASS",
+    "osv_lockfile_packages_scanned": 77,
+    "trivy_dependency_scope": "INCOMPLETE_DEFAULT_SUPPRESSED_DEVELOPMENT_AND_TEST_DEPENDENCIES",
+    "trivy_full_repository_dependency_scope_pass_claimed": false,
+    "sbom": {
+      "generation_result": "PASS",
+      "inventory_completeness": "FAIL_INCOMPLETE",
+      "artifact_name": "vibeflow-repository-cyclonedx",
+      "artifact_id": 9309810695,
+      "artifact_size_bytes": 1039,
+      "artifact_api_digest": "sha256:e63e363ab577a2d9762615f6ad5a791ccc0924e3d393c5c4289bf88f3a3f3bbb",
+      "component_count": 2,
+      "components": [
+        "pnpm-lock.yaml application",
+        "typebox@1.3.6"
+      ],
+      "omission_reason": "Trivy default suppressed development/test dependencies"
+    }
+  },
+  "trivy_scope_correction": {
+    "scripts/security/run-trivy.sh": "--include-dev-deps required in vulnerability command",
+    "scripts/security/generate-sbom.sh": "--include-dev-deps required in CycloneDX command",
+    "static_validation": "each wrapper is validated independently",
+    "mutation_tests": 2,
+    "corrected_scanner_result_claimed": false
+  },
+  "historical_trivy_0_72_0": {
+    "tool_identity": {
+      "harvest_id": "H-030",
+      "version": "0.72.0",
+      "sha256": "bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea",
+      "checksum_manifest_sha256": "ebe9d19a774b950e240b1017a038e9b5a002ea068e02023369ff6d241c10c580",
+      "sigstore_bundle_sha256": "fccbe7d4877af44f27e205528626dfeb3ff6efac57c22061f1fccb59e8a80007"
+    },
+    "runs": [
+      {
+        "head_sha": "4c1a237b8a767a93860e301f43d3451cb27d9f04",
+        "workflow_run_id": 32095582384,
+        "security_gate": "PASS",
+        "sbom_artifact_id": 9309810695,
+        "sbom_artifact_api_digest": "sha256:e63e363ab577a2d9762615f6ad5a791ccc0924e3d393c5c4289bf88f3a3f3bbb",
+        "sbom_components": 2,
+        "inventory_completeness": "FAIL_INCOMPLETE_DEV_TEST_SUPPRESSED"
+      },
+      {
+        "head_sha": "de1ae3db6b75eae48049500dae4c3a2aa74b8fa8",
+        "workflow_run_id": 32097433942,
+        "provenance_installer": "PASS",
+        "trivy_vulnerability_job": "PASS",
+        "sbom_job": "PASS",
+        "security_gate": "PASS",
+        "include_dev_deps": true,
+        "sbom_artifact_id": 9310411340,
+        "sbom_artifact_api_digest": "sha256:8024a0a638ceded874cfd53a469c66bab4d67145a18d47d1fe5604153191af91",
+        "component_count": "NOT_INDEPENDENTLY_INSPECTED_BY_ARENA"
+      }
+    ],
+    "history_rewritten": false
+  },
+  "current_trivy_repin": {
+    "from": "0.72.0",
+    "to": "0.74.0",
+    "sigstore_subject_matches_archive": true,
+    "actual_exact_head_ci": "PENDING_NOT_CLAIMED_IN_THIS_EVIDENCE_REVISION",
+    "provenance_installer_result": "PENDING",
+    "trivy_scan_result": "PENDING",
+    "cyclonedx_77_package_result": "PENDING",
+    "aggregate_security_gate_result": "PENDING"
+  }
+}

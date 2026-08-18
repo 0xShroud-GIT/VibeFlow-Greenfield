@@ -1,0 +1,118 @@
+name: Security & Dependency Gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node 24.19.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.19.0
+          package-manager-cache: false
+      - name: Enable exact pnpm
+        shell: bash
+        run: corepack enable
+      - name: Validate static security and dependency policy
+        shell: bash
+        run: pnpm run security:validate
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-verified Gitleaks
+        shell: bash
+        run: python3 scripts/security/install-ci-tool.py gitleaks
+      - name: Test exact Gitleaks binary with positive and negative fixtures
+        shell: bash
+        run: scripts/security/test-gitleaks.sh
+      - name: Scan full repository history with redaction
+        shell: bash
+        run: scripts/security/run-gitleaks.sh
+
+  vulnerabilities:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install checksum-verified vulnerability scanners
+        shell: bash
+        run: |
+          python3 scripts/security/install-ci-tool.py osv-scanner
+          python3 scripts/security/install-ci-tool.py trivy
+      - name: Scan resolved lockfile state with OSV-Scanner
+        shell: bash
+        run: scripts/security/run-osv-scanner.sh
+      - name: Scan repository vulnerabilities and misconfigurations with Trivy
+        shell: bash
+        run: scripts/security/run-trivy.sh
+
+  sast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test repository-owned Semgrep rules
+        shell: bash
+        run: scripts/security/test-semgrep-rules.sh
+      - name: Run digest-pinned Semgrep CE with local rules
+        shell: bash
+        run: scripts/security/run-semgrep.sh
+
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install checksum-verified Trivy
+        shell: bash
+        run: python3 scripts/security/install-ci-tool.py trivy
+      - name: Generate ephemeral CycloneDX repository SBOM
+        shell: bash
+        run: scripts/security/generate-sbom.sh "$RUNNER_TEMP/vibeflow-repository.cdx.json"
+      - name: Upload ephemeral CycloneDX evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vibeflow-repository-cyclonedx
+          path: |
+            ${{ runner.temp }}/vibeflow-repository.cdx.json
+            ${{ runner.temp }}/vibeflow-repository.cdx.json.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  security-gate:
+    if: always()
+    needs: [dependency-policy, secrets, vulnerabilities, sast, sbom]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every security gate to succeed
+        shell: bash
+        run: |
+          test "${{ needs.dependency-policy.result }}" = "success"
+          test "${{ needs.secrets.result }}" = "success"
+          test "${{ needs.vulnerabilities.result }}" = "success"
+          test "${{ needs.sast.result }}" = "success"
+          test "${{ needs.sbom.result }}" = "success"

@@ -112,6 +112,16 @@ UNRESOLVED_LICENSE_MARKERS = (
     "unknown",
 )
 
+PACKAGE_COORDINATE_FIELDS = (
+    "ecosystem",
+    "name",
+    "harvest_id",
+    "approved_usage",
+)
+SUPPORTED_PACKAGE_ECOSYSTEMS = {"npm"}
+SUPPORTED_PACKAGE_USAGE = {"development", "production", "both"}
+NPM_PACKAGE_RE = re.compile(r"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$")
+
 # Exact official upstream identities verified during M-002 (evidence:
 # evidence/missions/M-002/DEPENDENCY_HARVEST_RATIFICATION.md).
 #
@@ -228,6 +238,7 @@ def validate(root: Path) -> dict:
     warnings: list[str] = []
     counts: dict[str, int] = {}
     review_required: list[str] = []
+    package_coordinates: dict[tuple[str, str], dict[str, str]] = {}
 
     registry_path = mbs / "06_HARVEST" / "OSS_HARVEST_REGISTRY.yaml"
     if not registry_path.is_file():
@@ -287,6 +298,137 @@ def validate(root: Path) -> dict:
             if not ok:
                 errors.append(f"{hid}: source '{source}' rejected official-identity check ({why})")
 
+        # Package coordinates are attached to their ratified harvest entry, not
+        # maintained in a second technology registry. A list supports multiple
+        # installable packages for one harvested technology.
+        coordinates = entry.get("package_coordinates") or []
+        if not isinstance(coordinates, list):
+            errors.append(f"{hid}: package_coordinates must be a list")
+            coordinates = []
+        for index, coordinate in enumerate(coordinates):
+            label = f"{hid}: package_coordinates[{index}]"
+            if not isinstance(coordinate, dict):
+                errors.append(f"{label} must be a mapping")
+                continue
+            for field in PACKAGE_COORDINATE_FIELDS:
+                if not str(coordinate.get(field) or "").strip():
+                    errors.append(f"{label} missing required field '{field}'")
+
+            ecosystem = str(coordinate.get("ecosystem") or "").strip().lower()
+            package = str(coordinate.get("name") or "").strip()
+            coordinate_hid = str(coordinate.get("harvest_id") or "").strip()
+            usage = str(coordinate.get("approved_usage") or "").strip()
+            key = (ecosystem, package.lower())
+
+            if ecosystem not in SUPPORTED_PACKAGE_ECOSYSTEMS:
+                errors.append(f"{label} has unsupported ecosystem {ecosystem!r}")
+            if ecosystem == "npm" and not NPM_PACKAGE_RE.fullmatch(package):
+                errors.append(f"{label} has malformed npm package name {package!r}")
+            if coordinate_hid not in EXPECTED_IDS:
+                errors.append(f"{label} maps to unknown harvest ID {coordinate_hid!r}")
+            elif coordinate_hid != hid:
+                errors.append(
+                    f"{label} harvest_id {coordinate_hid!r} must match containing entry {hid}"
+                )
+            if usage not in SUPPORTED_PACKAGE_USAGE:
+                errors.append(f"{label} has unsupported approved_usage {usage!r}")
+            if usage in {"production", "both"} and license_class == "REVIEW_REQUIRED":
+                errors.append(
+                    f"{label} cannot approve production use for review-required license {entry.get('license')!r}"
+                )
+            if key in package_coordinates:
+                previous = package_coordinates[key]
+                errors.append(
+                    f"Duplicate package coordinate {ecosystem}:{package} in {previous['harvest_id']} and {hid}"
+                )
+            elif ecosystem and package:
+                package_coordinates[key] = {
+                    "ecosystem": ecosystem,
+                    "name": package,
+                    "harvest_id": coordinate_hid,
+                    "approved_usage": usage,
+                    "license_class": license_class,
+                }
+
+    # Install/build scripts are deny-by-default. Each exception must map back to
+    # an approved package coordinate and carry a human-reviewable rationale.
+    build_policy = doc.get("install_build_script_policy")
+    approvals: list[dict[str, str]] = []
+    if not isinstance(build_policy, dict):
+        errors.append("install_build_script_policy must be a mapping")
+    else:
+        if build_policy.get("default") != "deny":
+            errors.append("install_build_script_policy.default must be 'deny'")
+        raw_approvals = build_policy.get("approvals")
+        if not isinstance(raw_approvals, list):
+            errors.append("install_build_script_policy.approvals must be a list")
+            raw_approvals = []
+        seen_approvals: set[tuple[str, str]] = set()
+        for index, approval in enumerate(raw_approvals):
+            label = f"install_build_script_policy.approvals[{index}]"
+            if not isinstance(approval, dict):
+                errors.append(f"{label} must be a mapping")
+                continue
+            required = (
+                "ecosystem",
+                "package",
+                "harvest_id",
+                "pnpm_matcher",
+                "version",
+                "approved",
+                "rationale",
+            )
+            for field in required:
+                value = approval.get(field)
+                if value is None or (isinstance(value, str) and not value.strip()):
+                    errors.append(f"{label} missing required field '{field}'")
+            ecosystem = str(approval.get("ecosystem") or "").strip().lower()
+            package = str(approval.get("package") or "").strip()
+            approval_hid = str(approval.get("harvest_id") or "").strip()
+            pnpm_matcher = str(approval.get("pnpm_matcher") or "").strip()
+            version = str(approval.get("version") or "").strip()
+            key = (ecosystem, package.lower())
+            approval_key = (ecosystem, pnpm_matcher.lower())
+            if approval.get("approved") is not True:
+                errors.append(f"{label}.approved must be the boolean true")
+            if approval_hid not in EXPECTED_IDS:
+                errors.append(f"{label} maps to unknown harvest ID {approval_hid!r}")
+            coordinate = package_coordinates.get(key)
+            if coordinate is None:
+                errors.append(f"{label} references unregistered package coordinate {ecosystem}:{package}")
+            elif coordinate["harvest_id"] != approval_hid:
+                errors.append(
+                    f"{label} harvest_id {approval_hid!r} disagrees with coordinate mapping {coordinate['harvest_id']!r}"
+                )
+            if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version):
+                errors.append(
+                    f"{label}.version must be one exact package version, got {version!r}"
+                )
+            valid_matchers = {package, f"{package}@{version}"}
+            if pnpm_matcher not in valid_matchers:
+                errors.append(
+                    f"{label}.pnpm_matcher must be the exact package or package@version "
+                    f"selector {sorted(valid_matchers)!r}, got {pnpm_matcher!r}"
+                )
+            if approval_key in seen_approvals:
+                errors.append(
+                    f"Duplicate install/build-script approval for {ecosystem}:{pnpm_matcher}"
+                )
+            seen_approvals.add(approval_key)
+            approvals.append(
+                {
+                    "ecosystem": ecosystem,
+                    "package": package,
+                    "harvest_id": approval_hid,
+                    "pnpm_matcher": pnpm_matcher,
+                    "version": version,
+                    "rationale": str(approval.get("rationale") or "").strip(),
+                }
+            )
+
+    counts["package_coordinates"] = len(package_coordinates)
+    counts["install_build_script_approvals"] = len(approvals)
+
     # Registry must stay synchronized with the pack summary.
     try:
         summary = json.loads((mbs / "PACK_SUMMARY.json").read_text(encoding="utf-8"))
@@ -325,6 +467,8 @@ def validate(root: Path) -> dict:
         "warnings": warnings,
         "counts": counts,
         "review_required": review_required,
+        "package_coordinates": sorted(package_coordinates.values(), key=lambda item: (item["ecosystem"], item["name"])),
+        "install_build_script_approvals": approvals,
         "entries": [
             {
                 "id": str(e.get("id")),
@@ -357,6 +501,8 @@ def main(argv: list[str] | None = None) -> int:
     lines = ["M-002 dependency/harvest registry validator", ""]
     lines.append(f"  entries: {result['counts'].get('entries')}")
     lines.append(f"  review-required licenses: {result['counts'].get('review_required_licenses')} {result.get('review_required', [])}")
+    lines.append(f"  package coordinates: {result['counts'].get('package_coordinates')}")
+    lines.append(f"  install/build-script approvals: {result['counts'].get('install_build_script_approvals')}")
     if result["errors"]:
         lines.append("")
         lines.append("Errors:")

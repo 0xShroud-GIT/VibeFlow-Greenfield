@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "mission": "M-005",
+  "evidence_mode": "append-only-reconciliation",
+  "reviewed_head": "7530df9bf18ddaa81d782ef8a0cbeb9ee817aedb",
+  "merge_sha": "76f2f2ae908cd728e337b64fe538cbd07a158945",
+  "accepted": true,
+  "merged": true,
+  "mission_status": "DONE",
+  "acceptance_test_counts": {
+    "m004": 82,
+    "m005": 87
+  },
+  "superseded_historical_statements": {
+    "earlier_test_counts": [47, 61],
+    "snapshot_permanence": true,
+    "superseded_by": "later review-response and generalized-validator evidence",
+    "prior_evidence_rewritten": false
+  },
+  "post_merge_finding": {
+    "finding": "retained M-005 validator unconditionally rejected allowBuilds after M-005 acceptance",
+    "corrected_by": "M-006",
+    "active_m005_policy": "allowBuilds forbidden",
+    "durable_policy": "explicit per-package allowBuilds requires matching harvest coordinate, approval and rationale",
+    "dangerouslyAllowAllBuilds": "permanently forbidden"
+  }
+}

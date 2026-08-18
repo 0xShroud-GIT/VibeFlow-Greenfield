@@ -1,0 +1,164 @@
+{
+  "schema_version": 2,
+  "platform": "linux-amd64",
+  "tools": {
+    "gitleaks": {
+      "harvest_id": "H-029",
+      "version": "8.30.1",
+      "official_upstream_source": "https://github.com/gitleaks/gitleaks",
+      "distribution_coordinate": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+      "immutable_sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "archive_member": "gitleaks"
+    },
+    "trivy": {
+      "harvest_id": "H-030",
+      "version": "0.74.0",
+      "official_upstream_source": "https://github.com/aquasecurity/trivy",
+      "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+      "immutable_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
+      "archive_member": "trivy",
+      "official_checksum_manifest": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt",
+      "checksum_manifest_sha256": "bc701c3c3ee8b9acbea2c23257e41381e3854888f51281616a6ba5dc96963821",
+      "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz.sigstore.json",
+      "sigstore_bundle_sha256": "da49092f6909bbbe943255ac8ec4c4cee503a05576c5dd20dc2fd9fc49c07779"
+    },
+    "osv-scanner": {
+      "harvest_id": "H-031",
+      "version": "2.4.0",
+      "official_upstream_source": "https://github.com/google/osv-scanner",
+      "distribution_coordinate": "https://github.com/google/osv-scanner/releases/download/v2.4.0/osv-scanner_linux_amd64",
+      "immutable_sha256": "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
+    },
+    "semgrep": {
+      "harvest_id": "H-032",
+      "version": "1.172.0",
+      "official_upstream_source": "https://github.com/semgrep/semgrep",
+      "distribution_coordinate": "docker.io/semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b",
+      "immutable_container_digest": "sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b"
+    }
+  },
+  "github_actions": {
+    "actions/checkout": {
+      "version": "7.0.1",
+      "commit_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "official_upstream_source": "https://github.com/actions/checkout",
+      "rationale": "Required GitHub-owned source checkout for M-006 baseline workflows."
+    },
+    "actions/setup-node": {
+      "version": "7.0.0",
+      "commit_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "official_upstream_source": "https://github.com/actions/setup-node",
+      "rationale": "Required GitHub-owned Node setup for foundation and dependency policy."
+    },
+    "actions/upload-artifact": {
+      "version": "7.0.1",
+      "commit_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "official_upstream_source": "https://github.com/actions/upload-artifact",
+      "rationale": "Required GitHub-owned upload for ephemeral CycloneDX CI evidence."
+    }
+  },
+  "semgrep_policy": {
+    "config": "security/semgrep.yml",
+    "gated_severity": "ERROR",
+    "rules": [
+      {
+        "id": "vibeflow.python.dynamic-eval",
+        "severity": "ERROR"
+      },
+      {
+        "id": "vibeflow.python.dynamic-exec",
+        "severity": "ERROR"
+      },
+      {
+        "id": "vibeflow.python.os-system",
+        "severity": "ERROR"
+      },
+      {
+        "id": "vibeflow.python.subprocess-shell-true",
+        "severity": "ERROR"
+      },
+      {
+        "id": "vibeflow.javascript.dynamic-eval",
+        "severity": "ERROR"
+      },
+      {
+        "id": "vibeflow.javascript.child-process-exec",
+        "severity": "ERROR"
+      }
+    ],
+    "positive_fixtures": [
+      "tests/security/fixtures/semgrep/positive/dangerous.py",
+      "tests/security/fixtures/semgrep/positive/dangerous.ts"
+    ],
+    "negative_fixtures": [
+      "tests/security/fixtures/semgrep/negative/safe.py",
+      "tests/security/fixtures/semgrep/negative/safe.ts"
+    ]
+  },
+  "workflow_policy": {
+    "baseline_workflows": {
+      ".github/workflows/master-build-system-integrity.yml": {
+        "name": "Master Build System Integrity",
+        "required_jobs": [
+          "verify"
+        ],
+        "permissions": {
+          "contents": "read"
+        },
+        "allowed_secrets": [],
+        "allow_repository_write": false,
+        "allow_continue_on_error": false,
+        "allow_package_manager_cache": false,
+        "rationale": "Permanent master contract and retained mission conformance gate."
+      },
+      ".github/workflows/repo-sanitation.yml": {
+        "name": "Repository Sanitation",
+        "required_jobs": [
+          "sanitize"
+        ],
+        "permissions": {
+          "contents": "read"
+        },
+        "allowed_secrets": [],
+        "allow_repository_write": false,
+        "allow_continue_on_error": false,
+        "allow_package_manager_cache": false,
+        "rationale": "Permanent tracked-file and high-confidence secret hygiene gate."
+      },
+      ".github/workflows/repository-foundation.yml": {
+        "name": "Repository Foundation",
+        "required_jobs": [
+          "foundation"
+        ],
+        "permissions": {
+          "contents": "read"
+        },
+        "allowed_secrets": [],
+        "allow_repository_write": false,
+        "allow_continue_on_error": false,
+        "allow_package_manager_cache": false,
+        "rationale": "Permanent Node, pnpm, lockfile and ordered root-check gate."
+      },
+      ".github/workflows/security-and-dependency-gates.yml": {
+        "name": "Security & Dependency Gates",
+        "required_jobs": [
+          "dependency-policy",
+          "secrets",
+          "vulnerabilities",
+          "sast",
+          "sbom",
+          "security-gate"
+        ],
+        "permissions": {
+          "contents": "read"
+        },
+        "allowed_secrets": [],
+        "allow_repository_write": false,
+        "allow_continue_on_error": false,
+        "allow_package_manager_cache": false,
+        "rationale": "Permanent M-006 dependency, scanner, SAST, SBOM and aggregate gate."
+      }
+    },
+    "additional_workflows": {}
+  }
+}

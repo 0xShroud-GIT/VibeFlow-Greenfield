@@ -88,7 +88,6 @@ REQUIRED_MBS_STEPS = (
     "python3 scripts/validate-m005-contract-codegen.py",
     "python3 tests/contract/test_m005_contract_codegen.py",
 )
-REQUIRED_MBS_TRIGGER_PATHS = ("apps/**", "services/**", "workers/**", "adapters/**")
 
 # Domain semantics M-005 is explicitly forbidden from inventing (section 12).
 FORBIDDEN_INVENTED_TOKENS = (
@@ -471,10 +470,96 @@ class Validator:
                         f"pnpm-workspace.yaml {key} must remain {value!r}, got "
                         f"{settings.get(key)!r}",
                     )
-            if settings.get("dangerouslyAllowAllBuilds") == "true":
-                self.err("H", "dangerouslyAllowAllBuilds must not be enabled")
-            if "allowBuilds:" in workspace:
-                self.err("H", "unexpected allowBuilds approvals in pnpm-workspace.yaml")
+            # Blanket script execution is forbidden forever, even if someone
+            # attempts to add the key with a false value as camouflage.
+            if "dangerouslyAllowAllBuilds" in settings:
+                self.err("H", "dangerouslyAllowAllBuilds is permanently forbidden")
+
+            try:
+                workspace_doc = self.yaml.load_yaml_file(self.root / "pnpm-workspace.yaml")
+            except Exception as exc:  # noqa: BLE001 — deterministic policy failure
+                self.err("H", f"cannot parse pnpm-workspace.yaml build policy: {exc}")
+                workspace_doc = {}
+            allow_present = "allowBuilds" in workspace_doc
+            allow_builds = workspace_doc.get("allowBuilds") if allow_present else {}
+            if self.m005_active and allow_present:
+                self.err("H", "M-005 active snapshot forbids allowBuilds")
+            elif self.m005_accepted and allow_present:
+                if not isinstance(allow_builds, dict) or not allow_builds:
+                    self.err("H", "durable allowBuilds must be a non-empty per-package mapping")
+                else:
+                    registry = self.load_yaml(
+                        "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml", "H"
+                    )
+                    approved: dict[str, dict[str, str]] = {}
+                    coordinates: dict[str, str] = {}
+                    direct_versions: dict[str, set[str]] = {}
+                    manifest_paths = [self.root / "package.json"] + sorted(
+                        path
+                        for path in self.root.rglob("package.json")
+                        if "node_modules" not in path.parts and path != self.root / "package.json"
+                    )
+                    for manifest_path in manifest_paths:
+                        try:
+                            package_doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            continue
+                        for field in (
+                            "dependencies",
+                            "devDependencies",
+                            "peerDependencies",
+                            "optionalDependencies",
+                        ):
+                            for name, spec in (package_doc.get(field) or {}).items():
+                                direct_versions.setdefault(str(name), set()).add(str(spec))
+                    if isinstance(registry, dict):
+                        for entry in registry.get("entries") or []:
+                            hid = str(entry.get("id") or "")
+                            for coordinate in entry.get("package_coordinates") or []:
+                                if coordinate.get("ecosystem") == "npm":
+                                    coordinates[str(coordinate.get("name") or "")] = hid
+                        policy = registry.get("install_build_script_policy") or {}
+                        for approval in policy.get("approvals") or []:
+                            if (
+                                approval.get("ecosystem") == "npm"
+                                and approval.get("approved") is True
+                                and str(approval.get("rationale") or "").strip()
+                            ):
+                                matcher = str(approval.get("pnpm_matcher") or "")
+                                approved[matcher] = {
+                                    "package": str(approval.get("package") or ""),
+                                    "harvest_id": str(approval.get("harvest_id") or ""),
+                                    "version": str(approval.get("version") or ""),
+                                }
+                    for matcher, value in allow_builds.items():
+                        approval = approved.get(str(matcher))
+                        if value is not True:
+                            self.err(
+                                "H",
+                                f"allowBuilds[{matcher!r}] must be the explicit boolean true, got {value!r}",
+                            )
+                        elif approval is None:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} lacks matching harvest-side approval, exact version and rationale",
+                            )
+                        elif approval["package"] not in coordinates:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} has no harvest package coordinate",
+                            )
+                        elif approval["harvest_id"] != coordinates[approval["package"]]:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} harvest approval disagrees with its coordinate",
+                            )
+                        elif direct_versions.get(approval["package"], set()) != {approval["version"]}:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} has stale approval version "
+                                f"{approval['version']!r}; direct version(s) are "
+                                f"{sorted(direct_versions.get(approval['package'], set()))}",
+                            )
 
     # -- I/J/K/L: routing, generator, inventory ----------------------------
 
@@ -840,18 +925,10 @@ class Validator:
                 if previous not in workflow:
                     self.err("X", f"{MBS_WORKFLOW} lost an existing required step: {previous}")
 
-            sections = workflow.split("push:")
-            pr_section = sections[0]
-            push_section = sections[1] if len(sections) > 1 else ""
-            for trigger in REQUIRED_MBS_TRIGGER_PATHS:
-                quoted = f"'{trigger}'"
-                if quoted not in pr_section:
-                    self.err(
-                        "Y",
-                        f"{MBS_WORKFLOW} pull_request triggers must include {trigger}",
-                    )
-                if quoted not in push_section:
-                    self.err("Y", f"{MBS_WORKFLOW} main push triggers must include {trigger}")
+            # M-006 intentionally removes path filters so this required check
+            # cannot disappear from a PR merely because GitHub skipped it. The
+            # retained M-005 gate therefore protects required steps, not the
+            # obsolete historical path-filter implementation.
 
         # Z. No unauthorized implementation in the product trees while M-005 is
         # the active mission. Later missions (M-008 onwards) legitimately add

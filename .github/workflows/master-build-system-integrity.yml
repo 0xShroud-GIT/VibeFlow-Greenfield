@@ -2,48 +2,8 @@ name: Master Build System Integrity
 
 on:
   pull_request:
-    paths:
-      - 'master-build-system/**'
-      - 'scripts/**'
-      - 'tests/**'
-      - 'evidence/**'
-      - '.ai/**'
-      - '.github/workflows/master-build-system-integrity.yml'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - '.nvmrc'
-      - '.npmrc'
-      - 'tsconfig.base.json'
-      - 'turbo.json'
-      - 'packages/**'
-      - 'apps/**'
-      - 'services/**'
-      - 'workers/**'
-      - 'adapters/**'
-      - '.github/workflows/repository-foundation.yml'
   push:
     branches: [main]
-    paths:
-      - 'master-build-system/**'
-      - 'scripts/**'
-      - 'tests/**'
-      - 'evidence/**'
-      - '.ai/**'
-      - '.github/workflows/master-build-system-integrity.yml'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - 'pnpm-lock.yaml'
-      - '.nvmrc'
-      - '.npmrc'
-      - 'tsconfig.base.json'
-      - 'turbo.json'
-      - 'packages/**'
-      - 'apps/**'
-      - 'services/**'
-      - 'workers/**'
-      - 'adapters/**'
-      - '.github/workflows/repository-foundation.yml'
 
 permissions:
   contents: read
@@ -51,8 +11,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Verify authoritative pack hashes
         shell: bash
         run: |
@@ -85,3 +48,9 @@ jobs:
       - name: Run M-005 contract codegen mutation tests
         shell: bash
         run: python3 tests/contract/test_m005_contract_codegen.py
+      - name: Validate M-006 security gates
+        shell: bash
+        run: python3 scripts/validate-m006-security-gates.py
+      - name: Run M-006 security gate mutation tests
+        shell: bash
+        run: python3 tests/contract/test_m006_security_gates.py

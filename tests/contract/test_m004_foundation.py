@@ -121,6 +121,7 @@ class M004FoundationTests(unittest.TestCase):
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "LOCKED")
+        box.set_mission_status("M-006", "LOCKED")
         return box
 
     def test_00_real_repository_passes(self) -> None:
@@ -304,6 +305,7 @@ class M004MissionProgressionTests(unittest.TestCase):
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "LOCKED")
+        box.set_mission_status("M-006", "LOCKED")
         self.assert_accepted(box)
 
     def test_m004_done_with_m005_review_passes(self) -> None:
@@ -337,6 +339,7 @@ class M004MissionProgressionTests(unittest.TestCase):
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "LOCKED")
         box.set_mission_status("M-005", "LOCKED")
+        box.set_mission_status("M-006", "LOCKED")
         self.assert_rejected(box, "U: DAG M-004 must be REVIEW")
 
     def test_m004_regression_to_in_progress_after_acceptance_fails(self) -> None:
@@ -391,6 +394,7 @@ class M004DurableVsSnapshotTests(unittest.TestCase):
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "LOCKED")
+        box.set_mission_status("M-006", "LOCKED")
         return box
 
     def future(self, active: str = "M-008") -> Sandbox:

@@ -14,7 +14,8 @@
     "foundation:validate": "python3 scripts/validate-m004-foundation.py",
     "contracts:generate": "python3 scripts/generate-contracts.py",
     "contracts:check": "python3 scripts/generate-contracts.py --check",
-    "check": "python3 scripts/validate-m004-foundation.py && pnpm run contracts:check && pnpm run typecheck && pnpm run test && pnpm run build"
+    "check": "python3 scripts/validate-m004-foundation.py && pnpm run contracts:check && pnpm run security:validate && pnpm run typecheck && pnpm run test && pnpm run build",
+    "security:validate": "python3 scripts/validate-m006-security-gates.py"
   },
   "devDependencies": {
     "turbo": "2.10.6",

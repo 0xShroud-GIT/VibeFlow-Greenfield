@@ -1,8 +1,10 @@
 # tests/contract
 
-Provider and system contract tests.
+Deterministic provider/system contract and validator mutation suites.
 
-- `validate-master-contracts.sh` — wrapper for `scripts/validate-master-contracts.py` (no-dependency master-contract consistency check, generalized mission-progression validation since M-002).
-- `validate-harvest-registry.sh` — wrapper for `scripts/validate-harvest-registry.py` (M-002 dependency/harvest registry check).
-- `test_m002_validators.py` — deterministic stdlib unittest suite proving the M-002 registry/mission validators reject malformed provenance, policy-contract drift, multiline-rule corruption, and invalid mission progression.
-- `test_m003_security_contracts.py` — 18 deterministic stdlib mutation tests proving the M-003 security validator rejects missing/duplicate threats, invalid asset/boundary refs, uncovered boundaries, invariant-crosswalk loss, secret/workspace-policy weakening, provider-authority weakening, and fail-open security drift.
+- `test_m002_validators.py` — harvest provenance, license, package-coordinate/build-approval schema, and generalized mission progression.
+- `test_m003_security_contracts.py` — threat model, trust boundaries, cross-references, authority markers and fail-closed policy.
+- `test_m004_foundation.py` — retained monorepo/toolchain, exact dependency specs, workspace, pnpm and mission progression.
+- `test_m005_contract_codegen.py` — retained deterministic schema/codegen derivation plus active/durable build-approval progression.
+- `test_m006_security_gates.py` — dependency/version/build-approval reconciliation, baseline plus registered-future workflow/Action hardening, harvest-driven scanner upgrades, lock-driven Semgrep expansion, aggregate fail-closed behaviour, and active/durable capability progression including a real M-007 ENV fixture.
+- `validate-master-contracts.sh` / `validate-harvest-registry.sh` — shell entry points for the stdlib validators.
