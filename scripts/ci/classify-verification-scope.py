@@ -107,7 +107,7 @@ def _native_or_platform(path: str) -> bool:
 def _integrity_sensitive(path: str) -> bool:
     if path in ROUTINE_PROGRESSION:
         return False
-    if path.startswith(".github/workflows/"):
+    if path.startswith(".github/workflows/") or path.startswith(".devcontainer/"):
         return True
     if path in {"AGENTS.md", ".ai/INDEX.yaml", ".ai/CONTEXT_POLICY.md"}:
         return True
