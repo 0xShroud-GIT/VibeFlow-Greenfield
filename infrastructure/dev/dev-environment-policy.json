@@ -5,20 +5,18 @@
   "adopted_descriptor_harvest_id": "H-023",
   "purpose": "Immutable provenance and security policy lock for the M-007 repository development environment. This is a provenance/policy lock, not a second environment-description protocol; devcontainer.json remains the single portable environment description.",
   "base_image": {
-    "semantic_reference": "docker.io/library/node:24.19.0-trixie-slim",
-    "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+    "semantic_reference": "docker.io/library/node:24.19.0-bookworm-slim",
+    "digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
     "media_type": "application/vnd.oci.image.index.v1+json",
     "architectures": {
-      "amd64": "sha256:f2925910482dc53394bc0034c5f4abffcd01de400794c050ca343fe0d733b486",
-      "arm64": "sha256:8525258f39fa3365fcf9a9d01e85458c7280ad00bd30c5e67655311262257e9e",
-      "ppc64le": "sha256:441ec0d60b515c37dfc74c89357b1e8744639aeeb9038f44a5d2396fda4169b2",
-      "s390x": "sha256:0e799be321515b3930d0288944b1960ecf476a2d35888508d191f79ae1bf4c0d"
+      "amd64": "sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
+      "arm64": "sha256:c133efe216ffb6e785ed9a8be55a29fcb86775e8008ae0a9f0ed6af4f175bb03"
     },
     "upstream_source": "https://github.com/nodejs/docker-node",
     "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
     "registry_published": "2026-08-05",
     "node_version": "24.19.0",
-    "os": "Debian trixie-slim (13), snapshot 2026-08-01",
+    "os": "Debian bookworm-slim (12), snapshot 2026-08-01",
     "dockerfile": false,
     "dockerfile_authority_reason": "Round-5 review (4964882866) correction: the frozen M-007 Dockerfile trigger ('Add one only if the official digest-pinned image cannot meet the required runtime using its existing contents') is not met by a security-only removal Dockerfile. Probe uses the official slim image directly with only the already-pinned Python Feature plus the official digest-pinned Git Feature (git is a packet-required environment element, provided here through the ratified Dev Containers Feature mechanism).",
     "contains": [
@@ -101,7 +99,7 @@
       }
     ],
     "initialize_command": {
-      "command": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d chown $(id -u):$(id -g) /data",
+      "command": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 chown $(id -u):$(id -g) /data",
       "purpose": "Host-side (initializeCommand) one-shot: chowns the canonical vibeflow-node-modules volume root to the host user so the non-root container user (uid-aligned to the host by devcontainers/ci / VS Code) can write node_modules. Uses the same digest-pinned slim base, runs as root only inside that throwaway chown container, mounts no host paths into the dev container, and never touches the host checkout's node_modules."
     }
   },
