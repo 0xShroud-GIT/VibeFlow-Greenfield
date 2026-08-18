@@ -39,25 +39,7 @@ jobs:
       - name: Install checksum-verified Gitleaks
         shell: bash
         run: python3 scripts/security/install-ci-tool.py gitleaks
-      - name: Classify security tooling self-test depth
-        id: toolscope
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          test_tooling=true
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
-            if changed="$(git diff --name-only "$BASE_SHA"...HEAD)"; then
-              test_tooling=false
-              if printf '%s\n' "$changed" | grep -Eq '^(security/|scripts/security/|\.github/workflows/security-and-dependency-gates\.yml$)'; then
-                test_tooling=true
-              fi
-            fi
-          fi
-          echo "test_tooling=$test_tooling" >> "$GITHUB_OUTPUT"
       - name: Test exact Gitleaks binary with positive and negative fixtures
-        if: ${{ steps.toolscope.outputs.test_tooling == 'true' }}
         shell: bash
         run: scripts/security/test-gitleaks.sh
       - name: Scan full repository history with redaction
@@ -140,27 +122,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: Classify security tooling self-test depth
-        id: toolscope
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          test_tooling=true
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
-            if changed="$(git diff --name-only "$BASE_SHA"...HEAD)"; then
-              test_tooling=false
-              if printf '%s\n' "$changed" | grep -Eq '^(security/|scripts/security/|\.github/workflows/security-and-dependency-gates\.yml$)'; then
-                test_tooling=true
-              fi
-            fi
-          fi
-          echo "test_tooling=$test_tooling" >> "$GITHUB_OUTPUT"
       - name: Test repository-owned Semgrep rules
-        if: ${{ steps.toolscope.outputs.test_tooling == 'true' }}
         shell: bash
         run: scripts/security/test-semgrep-rules.sh
       - name: Run digest-pinned Semgrep CE with local rules
