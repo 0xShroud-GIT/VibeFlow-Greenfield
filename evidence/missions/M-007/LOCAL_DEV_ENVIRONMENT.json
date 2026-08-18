@@ -374,6 +374,38 @@
           "result": "PASS"
         }
       },
+      "exact_head_ci_9b2b02c": {
+        "dev_image_sbom_artifact": {
+          "archive_digest": "sha256:1b8346b1cf2891fe12615ec44494722bbbb555691a1085d27f615d1a4ac92d23",
+          "bytes": 805235,
+          "id": 9338179146,
+          "name": "vibeflow-dev-image-cyclonedx"
+        },
+        "foundation": {
+          "id": 32173471066,
+          "result": "PASS"
+        },
+        "sanitize": {
+          "id": 32173471100,
+          "result": "PASS"
+        },
+        "security": {
+          "id": 32173471062,
+          "jobs": {
+            "dependency-policy": "PASS",
+            "sast": "PASS",
+            "sbom": "PASS",
+            "secrets": "PASS",
+            "security-gate": "FAIL (fail-closed)",
+            "vulnerabilities": "FAIL at dev-image scan"
+          },
+          "result": "FAIL-closed on dev-image Trivy findings"
+        },
+        "verify": {
+          "id": 32173471127,
+          "result": "PASS"
+        }
+      },
       "expected_trivy": {
         "debian_residual": [
           "libaprutil1 CVE-2026-34191 HIGH (trixie-security only fix)",
@@ -383,6 +415,13 @@
         "stop_and_report": "expected per packet 4.3/8: only owner amendment (change Node, mutable apt, unratified tooling, or weaken policy) could pass the unchanged gate",
         "why_not_clearable": "Trivy os-pkg detection reads dpkg status; filesystem removal cannot clear; apt purge/upgrade is mutable apt (forbidden); no newer official Node 24.19.0 variant (no forky); slim/alpine lack git"
       },
+      "proven_trivy_result": {
+        "debian": "35 HIGH, 0 CRITICAL \u2014 all in unused buildpack-deps dev/build packages (linux-libc-dev 18 kernel CVEs, libheif 5, libpq CVE-2026-6473, libaprutil1 CVE-2026-34191, imagemagick/mercurial/subversion)",
+        "image": "vibeflow-dev:latest (debian 13.6) built from node:24.19.0-trixie@sha256:66bb8d36...75c1",
+        "misconfig": "0 (USER node resolves DS-0002)",
+        "node_pkg": "0 (npm/yarn removal proven; corepack clean)",
+        "why_not_clearable": "Trivy os-pkg detection reads dpkg status; filesystem removal cannot clear; apt purge/upgrade is mutable apt (forbidden by packet); slim/alpine lack git; forky not published for Node 24"
+      },
       "reviewed_head": "21108b354abbfa0257bd02a8bf9a3356adc3febe",
       "selected_design": {
         "base": "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
@@ -391,6 +430,7 @@
         "npm_not_required": "bootstrap/runtime-smoke/check/validators invoke only node, corepack, pnpm, python3, git; npm CLI never invoked; corepack shims independent of npm",
         "remediation": "deterministic rm -rf of /usr/local/lib/node_modules/npm, /usr/local/bin/npm, /usr/local/bin/npx, /opt/yarn-v1.22.22, /usr/local/bin/yarn, /usr/local/bin/yarnpkg; corepack retained"
       },
+      "stop_and_report": "CI-proven: no M-007-permitted image selection or deterministic remediation can pass the unchanged HIGH/CRITICAL gate without changing Node 24.19.0, mutable apt/apk operations, new unratified tooling, or weakening Trivy policy. Owner decision required.",
       "workflow_handoff": {
         "change": "replace 3 x 'docker pull docker.io/library/node@sha256:934240a1...' with 'docker pull docker.io/library/node:24.19.0-trixie@sha256:66bb8d36...'",
         "patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch",

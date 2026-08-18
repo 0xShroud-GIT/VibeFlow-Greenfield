@@ -407,7 +407,71 @@ fixes.
   apt/apk package operations, (c) new unratified tooling, or (d) weakening
   Trivy policy — each requiring owner amendment of mission authority.
 
-### Round-4 CI evidence (head `65faf04`) and the DS-0002 correction
+### Round-4 CI evidence (heads `65faf04` and `9b2b02c`) — proven results
+
+- Head `65faf04`: verify/sanitize/foundation PASS; security run `32171671047`
+  failed only because the repository filesystem scan flagged
+  `.devcontainer/Dockerfile` DS-0002 (HIGH, missing non-root USER).
+- Head `9b2b02c` (with `USER node`): verify `32173471127` PASS, sanitize
+  `32173471100` PASS, foundation `32173471066` PASS (trixie Dockerfile build +
+  bootstrap + `pnpm run check` + runtime smoke), security `32173471062`:
+  `sbom` PASS (dev-image CycloneDX artifact `9338179146`, 805,235 bytes,
+  archive digest `sha256:1b8346b1…2d23`), `secrets`/`dependency-policy`/
+  `sast` PASS, repository filesystem scan **PASS** (DS-0002 resolved), and
+  the dev-image Trivy scan ran with the proven result below; aggregate
+  `security-gate` failed closed.
+
+### Proven Trivy result on the remediated trixie image (head `9b2b02c`)
+
+`vibeflow-dev:latest (debian 13.6)` scan (`--scanners vuln,misconfig
+--severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`):
+
+| Target | Before (bookworm) | After (trixie + npm/yarn removal + USER node) |
+| --- | --- | --- |
+| node-pkg (npm-bundled) | 7 (6 HIGH + 1 CRITICAL: brace-expansion, ip-address, tar, undici) | **0** — deterministic npm/yarn removal proven effective; only `corepack/package.json` scanned, clean |
+| misconfig (Dockerfile) | n/a | **0** — `USER node` resolves DS-0002 |
+| debian | 5 HIGH | **35 HIGH, 0 CRITICAL** |
+
+The residual 35 Debian HIGHs are all in **unused buildpack-deps dev/build
+packages** that VibeFlow does not require at runtime: `linux-libc-dev`
+6.12.100-1 (18 kernel-header CVEs, e.g. CVE-2026-64564, CVE-2026-68143),
+`libheif-plugin-dav1d` 1.19.8-1 (5 CVEs, pulled by imagemagick),
+`libpq-dev`/`libpq5` 17.10 (CVE-2026-6473), `libaprutil1` 1.6.3-3
+(CVE-2026-34191), plus imagemagick/mercurial/subversion-related packages.
+Every CVE has a fixed version only in the trixie-security pocket, which
+official Debian docker snapshots do not include, and none can be cleared by
+filesystem removal because Trivy's os-pkg detection reads the dpkg status
+database.
+
+### Stop-and-report: no M-007-permitted remediation can pass the gate (CI-proven)
+
+Per packet §4.3/§8 and the round-4 instructions ("only stop after an evidence
+matrix proves no permitted image selection or deterministic remediation can
+pass"), the CI-proven matrix is:
+
+1. **bookworm (previous)** — tested, FAIL: 5 Debian HIGH + 7 node-pkg.
+2. **bookworm-slim / trixie-slim / alpine** — resolve to clean minimal bases
+   but contain **no git**; git is an M-007 environment requirement and cannot
+   be added without a mutable apt/apk install (forbidden) or an unratified
+   Dev Container Feature (forbidden).
+3. **trixie (selected)** — built and scanned: npm/yarn removal clears all
+   node-pkg findings (proven), `USER node` clears DS-0002 (proven), but 35
+   Debian HIGHs remain in unused buildpack-deps dev packages; dpkg-status
+   detection means filesystem removal cannot clear them; `apt-get
+   purge`/`upgrade` is a mutable apt operation forbidden by the packet
+   ("no mutable apt/apk upgrade/install"; "no package installation/upgrade
+   in the Dockerfile").
+4. **forky (Debian 14)** — not published for Node 24 by docker-node
+   (verified repo layout), so no newer official Node 24.19.0 variant exists.
+
+Therefore the gate cannot pass without one of: (a) changing Node 24.19.0,
+(b) mutable apt/apk package operations, (c) new unratified tooling, or
+(d) weakening the Trivy policy — each requiring owner amendment of mission
+authority. Arena stops here and requests the owner decision. No threshold was
+weakened; the npm/yarn removal and `USER node` hardening remain the
+remediation delivered this round.
+
+### Round-4 workflow handoff (exact patch)
 
 - `verify` PASS (run `32171671074`), `sanitize` PASS (run `32171671104`),
   `foundation` PASS (run `32171671050`): the trixie-based devcontainer
