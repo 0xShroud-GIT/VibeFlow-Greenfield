@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '23 3 * * *'
 
 permissions:
   contents: read
@@ -110,9 +112,11 @@ jobs:
           REASONS: ${{ steps.scope.outputs.reasons }}
           SCAN_RESULT: ${{ steps.devscan.outcome }}
           SBOM_RESULT: ${{ steps.devsbom.outcome }}
+          CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TESTED_REVISION_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           export EVIDENCE_PATH="$RUNNER_TEMP/vibeflow-dev-image-verification.json"
-          export CANDIDATE_SHA="$GITHUB_SHA"
           if [ "$REQUIRED" = "true" ]; then
             test "$SCAN_RESULT" = "success"
             test "$SBOM_RESULT" = "success"
@@ -132,7 +136,9 @@ jobs:
           python3 - <<'PY'
           import json, os
           payload = {
-              "candidate_sha": os.environ["CANDIDATE_SHA"],
+              "candidate_head_sha": os.environ["CANDIDATE_HEAD_SHA"],
+              "tested_revision_sha": os.environ["TESTED_REVISION_SHA"],
+              "event_name": os.environ["EVENT_NAME"],
               "applicable": os.environ.get("REQUIRED") == "true",
               "executed": os.environ.get("EXECUTED") == "true",
               "classification_reasons": os.environ.get("REASONS", ""),
@@ -150,7 +156,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vibeflow-dev-image-cyclonedx-${{ github.sha }}
+          name: vibeflow-dev-image-cyclonedx-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/vibeflow-dev-image-verification.json
             ${{ runner.temp }}/vibeflow-dev-image.id
