@@ -28,7 +28,7 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
             if changed="$(git diff --name-only "$BASE_SHA"...HEAD)"; then
               full=false
-              if printf '%s\n' "$changed" | grep -Eq '^(\.ai/|AGENTS\.md$|master-build-system/|scripts/validate-|tests/contract/|security/|infrastructure/dev/|\.devcontainer/|\.github/workflows/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig(\..*)?\.json$)'; then
+              if printf '%s\n' "$changed" | grep -Eq '^(\.ai/|AGENTS\.md$|master-build-system/(\.ai/|00_MASTER/|04_AI_AGENT/|06_HARVEST/|08_SECURITY/|11_VERIFICATION/|AGENTS\.md$|10_IMPLEMENTATION/(STATUS_PROTOCOL\.md$|MISSION_PACKET_TEMPLATE\.md$|CONTEXT_ASSEMBLY_RULES\.md$))|scripts/validate-|tests/contract/|security/|infrastructure/dev/|\.devcontainer/|\.github/workflows/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig(\..*)?\.json$)'; then
                 full=true
               fi
             fi
