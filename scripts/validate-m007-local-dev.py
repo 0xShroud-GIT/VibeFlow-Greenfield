@@ -565,6 +565,7 @@ class Validator:
         self.counts: dict[str, int] = {}
         self.mode = mode
         self.m007_status = ""
+        self.active_later_mission: str | None = None
 
     # ---------- helpers ----------
     def err(self, area: str, message: str) -> None:
@@ -615,6 +616,8 @@ class Validator:
             ]
             if len(active_later) != 1:
                 self.err("mission", f"accepted M-007 requires one active later mission, got {active_later}")
+            elif len(active_later) == 1:
+                self.active_later_mission = active_later[0]
 
         expected_active = M007 if self.mode == "active" else (
             active_later[0] if self.mode == "durable" and len(active_later) == 1 else None
@@ -659,15 +662,32 @@ class Validator:
             if digest != BASE_IMAGE["digest"]:
                 self.err("devcontainer", f"image digest disagrees with the accepted M-007 snapshot {BASE_IMAGE['digest']}")
 
-        # --- users: non-root ---
-        for field in ("remoteUser", "containerUser"):
-            user = config.get(field)
-            if user is None:
-                continue
-            if str(user).strip() in {"root", "0", ""}:
-                self.err("devcontainer", f"{field} must be a non-root user, got {user!r}")
-            if self.mode == "active" and str(user).strip() != "node":
-                self.err("devcontainer", f"active M-007 requires {field} 'node', got {user!r}")
+        # --- users: non-root, exact in the active M-007 snapshot ---
+        if self.mode == "active":
+            for field in ("remoteUser", "containerUser"):
+                if config.get(field) != "node":
+                    self.err(
+                        "devcontainer",
+                        f"active M-007 requires {field} == 'node', got {config.get(field)!r}",
+                    )
+        else:
+            # Durable: root is permanently forbidden; any change away from the
+            # accepted `node` user (including removal) must be declared by the
+            # actually active later mission.
+            declared_users = {
+                "remoteUser": config.get("remoteUser"),
+                "containerUser": config.get("containerUser"),
+            }
+            for field in ("remoteUser", "containerUser"):
+                user = config.get(field)
+                if user is not None and str(user).strip() in {"root", "0", ""}:
+                    self.err("devcontainer", f"{field} must be a non-root user, got {user!r}")
+                elif user != "node" and not self._declared("users", declared_users):
+                    self.err(
+                        "devcontainer",
+                        f"durable {field} change from 'node' requires a declaration "
+                        f"owned by the active later mission",
+                    )
 
         # --- permanent bans (both modes) ---
         if config.get("privileged") is True:
@@ -703,7 +723,7 @@ class Validator:
                 if mounts and self.mode == "active":
                     self.err("devcontainer", "active M-007 forbids any mounts")
                 elif mounts and self.mode == "durable" and not self._declared("mounts", mounts):
-                    self.err("devcontainer", "durable mounts require a lock extension declaration")
+                    self.err("devcontainer", "durable mounts require a declaration owned by the active later mission")
 
         # --- environment fields: no raw secrets; active forbids entirely ---
         for field in ("containerEnv", "remoteEnv"):
@@ -716,7 +736,7 @@ class Validator:
             if value and self.mode == "active":
                 self.err("devcontainer", f"active M-007 forbids {field}")
             elif value and self.mode == "durable" and not self._declared(field, value):
-                self.err("devcontainer", f"durable {field} requires a lock extension declaration")
+                self.err("devcontainer", f"durable {field} requires a declaration owned by the active later mission")
             joined = json.dumps(value)
             for pattern in SECRET_PATTERNS:
                 if re.search(pattern, joined):
@@ -729,19 +749,19 @@ class Validator:
             if self.mode == "active":
                 self.err("devcontainer", "active M-007 forbids forwarded ports")
             elif not self._declared("forwarded_ports", ports):
-                self.err("devcontainer", "durable forwarded ports require a lock extension declaration")
+                self.err("devcontainer", "durable forwarded ports require a declaration owned by the active later mission")
 
         # --- product services / second descriptor ---
         if config.get("dockerComposeFile") is not None:
             if self.mode == "active":
                 self.err("devcontainer", "active M-007 forbids dockerComposeFile (product services)")
             elif not self._declared("docker_compose", True):
-                self.err("devcontainer", "durable dockerComposeFile requires a lock extension declaration")
+                self.err("devcontainer", "durable dockerComposeFile requires a declaration owned by the active later mission")
         if (self.root / ".devcontainer/Dockerfile").is_file():
             if self.mode == "active":
                 self.err("devcontainer", "active M-007 forbids a .devcontainer/Dockerfile")
             elif not self._declared("dockerfile", True):
-                self.err("devcontainer", "durable Dockerfile requires a lock extension declaration")
+                self.err("devcontainer", "durable Dockerfile requires a declaration owned by the active later mission")
         if (self.root / ".devcontainer/docker-compose.yml").is_file() and self.mode == "active":
             self.err("devcontainer", "active M-007 forbids a .devcontainer/docker-compose.yml")
 
@@ -772,7 +792,7 @@ class Validator:
         elif self.mode == "durable":
             extra = set(feature_refs) - locked_feature_refs
             if extra and not self._declared("features", sorted(extra)):
-                self.err("devcontainer", f"durable features {sorted(extra)} require a lock extension declaration")
+                self.err("devcontainer", f"durable features {sorted(extra)} require declarations owned by the active later mission")
 
         # --- committed env examples: no raw secrets ---
         for path in sorted(self.root.rglob(".env*")):
@@ -789,9 +809,17 @@ class Validator:
         return str(entry.get("digest_reference") or "")
 
     def _declared(self, kind: str, value: object) -> bool:
+        """True only if a durable extension entry declares `kind == value` AND
+        is owned by the actually active later mission (explicit mission_id)."""
+        if self.mode != "durable" or not self.active_later_mission:
+            return False
         policy = self.read_json(POLICY_REL) or {}
         for entry in policy.get("durable_extension_policy", {}).get("extensions") or []:
             if not isinstance(entry, dict):
+                continue
+            if str(entry.get("mission_id") or "") != self.active_later_mission:
+                continue
+            if not str(entry.get("rationale") or "").strip():
                 continue
             declared = entry.get("declared", {})
             if not isinstance(declared, dict):
@@ -883,6 +911,8 @@ class Validator:
         if not isinstance(extensions, list):
             self.err("policy", "durable_extension_policy.extensions must be a list")
         else:
+            if self.mode == "active" and extensions:
+                self.err("policy", "active M-007 snapshot requires zero durable extensions")
             for entry in extensions:
                 if not isinstance(entry, dict):
                     self.err("policy", "extension entries must be objects")
@@ -1047,18 +1077,50 @@ class Validator:
             if patch is None:
                 self.err("evidence", f"active M-007 requires {INTENDED_WORKFLOWS_REL}")
             else:
+                # The patch is the exact correction delta from the current
+                # workflow state: it must remove the defective imageName and
+                # pin the fixed coordinate plus the resulting local tag.
                 required_patch_content = (
                     "devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca",
-                    "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+                    "imageName: vibeflow-dev:smoke",
+                    "imageName: vibeflow-dev",
+                    "vibeflow-dev:latest",
                     "scripts/dev-runtime-smoke.py",
                     "scripts/security/scan-dev-image.sh",
                     "scripts/security/generate-dev-image-sbom.sh",
-                    "vibeflow-dev-image-cyclonedx",
-                    "scripts/validate-m007-local-dev.py",
                 )
                 for snippet in required_patch_content:
                     if snippet not in patch:
                         self.err("evidence", f"INTENDED_WORKFLOWS.patch missing {snippet!r}")
+            # Actual workflow files (applied by GPT through the
+            # workflow-authorized connector) must carry the stable M-007 CI
+            # evidence that is not part of the pending imageName correction.
+            # Arena cannot write workflows, so the corrected imageName itself
+            # is required only inside INTENDED_WORKFLOWS.patch until applied.
+            workflow_evidence = {
+                ".github/workflows/master-build-system-integrity.yml": (
+                    "scripts/validate-m007-local-dev.py",
+                    "tests/contract/test_m007_local_dev.py",
+                ),
+                ".github/workflows/repository-foundation.yml": (
+                    "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+                    "scripts/dev-runtime-smoke.py",
+                ),
+                ".github/workflows/security-and-dependency-gates.yml": (
+                    "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+                    "scripts/security/scan-dev-image.sh",
+                    "scripts/security/generate-dev-image-sbom.sh",
+                    "vibeflow-dev-image-cyclonedx",
+                ),
+            }
+            for rel, snippets in workflow_evidence.items():
+                text = self.read_text(rel)
+                if text is None:
+                    self.err("evidence", f"missing workflow {rel}")
+                    continue
+                for snippet in snippets:
+                    if snippet not in text:
+                        self.err("evidence", f"workflow {rel} missing {snippet!r}")
         lock = self.read_json("security/ci-toolchain.lock.json") or {}
         actions = lock.get("github_actions") or {}
         entry = actions.get(DEVCONTAINERS_CI_ACTION)

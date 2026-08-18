@@ -1,125 +1,93 @@
 {
-  "schema_version": 1,
-  "mission": "M-007",
-  "mission_status": "REVIEW",
-  "mission_title": "Establish local dev environment",
-  "phase": "1 - Repository Foundation",
-  "starting_main_sha": "f8b214a687944eb44b148997e6028044baf8b6b8",
-  "branch": "arena/01a01576-vibeflow-greenfield",
-  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
-  "mission_states": {
-    "M-001..M-006": "DONE",
-    "M-007": "REVIEW",
-    "M-008..M-151": "LOCKED"
-  },
-  "environment_descriptor": {
-    "adopted": "devcontainers",
-    "harvest_id": "H-023",
-    "canonical_file": ".devcontainer/devcontainer.json",
-    "policy_lock": "infrastructure/dev/dev-environment-policy.json",
-    "policy_lock_is_provenance_not_protocol": true
-  },
+  "adr_required": false,
   "base_image": {
-    "semantic_reference": "docker.io/library/node:24.19.0",
-    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
-    "media_type": "application/vnd.oci.image.index.v1+json",
     "architectures": {
       "amd64": "sha256:f6d02cf1353049cf3658e6ce9ec03c6877a6479495f122062d195e2279d01055",
       "arm64": "sha256:7e4b2953088599075c288871d109e23bc7a33384b96ca443a7cfb7b5c318b099",
       "ppc64le": "sha256:56c4cadee33f1eff8ace75854383652bcf9584319747bb2373e010ce86e00989"
     },
-    "upstream_source": "https://github.com/nodejs/docker-node",
+    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "media_type": "application/vnd.oci.image.index.v1+json",
+    "node_version": "24.19.0",
     "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
     "registry_published": "2026-08-05",
-    "node_version": "24.19.0"
-  },
-  "features": [
-    {
-      "id": "python",
-      "version": "1.8.0",
-      "semantic_tag": "ghcr.io/devcontainers/features/python:1",
-      "digest_reference": "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511",
-      "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
-      "project_license": "MIT",
-      "options": {
-        "version": "os-provided",
-        "installTools": false
-      },
-      "purpose": "Provides python3 (Debian bookworm os-provided) required by repository-owned stdlib validators/tests."
-    }
-  ],
-  "toolchain": {
-    "node": "24.19.0",
-    "pnpm": "11.4.0",
-    "typescript": "6.0.3",
-    "turborepo": "2.10.6",
-    "vitest": "4.1.7",
-    "typebox": "1.3.6",
-    "corepack": "required",
-    "python3": "required",
-    "git": "required"
+    "semantic_reference": "docker.io/library/node:24.19.0",
+    "upstream_source": "https://github.com/nodejs/docker-node"
   },
   "bootstrap": {
+    "check_network_free": true,
     "command": "python3 scripts/dev-bootstrap.py",
     "doctor": "python3 scripts/dev-doctor.py",
-    "runtime_smoke": "python3 scripts/dev-runtime-smoke.py",
-    "static_validator": "python3 scripts/validate-m007-local-dev.py",
     "frozen_lockfile": true,
-    "check_network_free": true
+    "runtime_smoke": "python3 scripts/dev-runtime-smoke.py",
+    "static_validator": "python3 scripts/validate-m007-local-dev.py"
   },
-  "security_posture": {
-    "non_root_user": "node",
-    "privileged": false,
-    "host_network": false,
-    "docker_socket_mount": false,
-    "docker_in_docker": false,
-    "host_credential_mounts": false,
-    "raw_secrets_in_env_or_committed_examples": false,
-    "ssh_agent_or_cloud_credential_forwarding": false,
-    "extra_capabilities": [],
-    "security_opt": [],
-    "forwarded_ports": [],
-    "product_services": []
-  },
+  "branch": "arena/01a01576-vibeflow-greenfield",
   "capability_status": {
     "VF-ENV-005": "IN_PROGRESS",
+    "overclaim": "none claimed IMPLEMENTED/VERIFIED/COMPLETE",
     "vf_env_001_004": "NOT_STARTED (unchanged)",
-    "vf_rel_006_011": "NOT_STARTED (unchanged)",
     "vf_rel_002_005": "M-006 baselines unchanged (IMPLEMENTED/IMPLEMENTED/IMPLEMENTED/IN_PROGRESS)",
-    "overclaim": "none claimed IMPLEMENTED/VERIFIED/COMPLETE"
+    "vf_rel_006_011": "NOT_STARTED (unchanged)"
   },
   "ci_evidence": {
+    "dev_image_sbom_wrapper": "scripts/security/generate-dev-image-sbom.sh",
+    "dev_image_trivy_wrapper": "scripts/security/scan-dev-image.sh",
+    "devcontainers_ci_action": {
+      "commit_sha": "513af61f4de4f75d37e4438f184ba4358f0fc1ca",
+      "push": "never",
+      "reference": "devcontainers/ci",
+      "version": "0.3.1900000450"
+    },
+    "intended_workflow_patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch (correction delta from workflow-handoff state 16d79c5)",
+    "intended_workflow_patch_sha256": "af48f2445516229bb91d23c38a9086daaf0979df1ca3c7fd122194089457ecf6",
     "required_contexts": [
       "Master Build System Integrity / verify",
       "Repository Foundation / foundation",
       "Repository Sanitation / sanitize",
       "Security & Dependency Gates / security-gate"
-    ],
-    "intended_workflow_patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch",
-    "intended_workflow_patch_sha256": "ebdef32cbea14ec1f169d6ae67059cf32f6be3597f401b18debf5586264e42ab",
-    "devcontainers_ci_action": {
-      "reference": "devcontainers/ci",
-      "version": "0.3.1900000450",
-      "commit_sha": "513af61f4de4f75d37e4438f184ba4358f0fc1ca",
-      "push": "never"
-    },
-    "dev_image_trivy_wrapper": "scripts/security/scan-dev-image.sh",
-    "dev_image_sbom_wrapper": "scripts/security/generate-dev-image-sbom.sh"
+    ]
   },
+  "environment_descriptor": {
+    "adopted": "devcontainers",
+    "canonical_file": ".devcontainer/devcontainer.json",
+    "harvest_id": "H-023",
+    "policy_lock": "infrastructure/dev/dev-environment-policy.json",
+    "policy_lock_is_provenance_not_protocol": true
+  },
+  "features": [
+    {
+      "digest_reference": "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511",
+      "id": "python",
+      "options": {
+        "installTools": false,
+        "version": "os-provided"
+      },
+      "project_license": "MIT",
+      "purpose": "Provides python3 (Debian bookworm os-provided) required by repository-owned stdlib validators/tests.",
+      "semantic_tag": "ghcr.io/devcontainers/features/python:1",
+      "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
+      "version": "1.8.0"
+    }
+  ],
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
   "intended_workflow_content": {
+    "dev_image_sbom": "scripts/security/generate-dev-image-sbom.sh (DEV_IMAGE=vibeflow-dev:latest)",
+    "dev_image_scan": "scripts/security/scan-dev-image.sh (DEV_IMAGE=vibeflow-dev:latest)",
+    "devcontainers_ci_imageName": "vibeflow-dev",
     "pull_by_digest": "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "resulting_local_tag": "vibeflow-dev:latest",
     "runtime_smoke_inside_image": "python3 scripts/dev-runtime-smoke.py",
-    "dev_image_scan": "scripts/security/scan-dev-image.sh",
-    "dev_image_sbom": "scripts/security/generate-dev-image-sbom.sh",
     "sbom_artifact": "vibeflow-dev-image-cyclonedx"
   },
-  "validator_design": {
-    "mode_selection": "auto: active while M-007 is READY/IN_PROGRESS/REVIEW; durable once M-007 is DONE",
-    "active_snapshot": "exact accepted environment shape, provenance, toolchain, capability snapshot, mission/ledger sync, master hash integrity",
-    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions; privileged/docker-socket/host-network/raw-secrets permanently banned",
-    "forward_compatible": "positive durable-extension test included in the M-007 mutation suite"
+  "mission": "M-007",
+  "mission_states": {
+    "M-001..M-006": "DONE",
+    "M-007": "REVIEW",
+    "M-008..M-151": "LOCKED"
   },
-  "adr_required": false,
+  "mission_status": "REVIEW",
+  "mission_title": "Establish local dev environment",
   "non_goals_respected": [
     "no M-008 identity/account persistence",
     "no PostgreSQL/Temporal/object-storage local services",
@@ -134,5 +102,88 @@
     "no architecture/resource/state/event changes",
     "no custom environment-description protocol",
     "no ADR required"
-  ]
+  ],
+  "phase": "1 - Repository Foundation",
+  "review_fixes": {
+    "fix_1_devcontainers_ci_imagename_defect": {
+      "correction": {
+        "explicit_env": "DEV_IMAGE=vibeflow-dev:latest on Trivy scan and dev-image SBOM steps",
+        "floating_base": false,
+        "imageName": "vibeflow-dev",
+        "push": "never",
+        "resulting_local_tag": "vibeflow-dev:latest",
+        "weakened_security": false,
+        "workflow_paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ]
+      },
+      "failed_runs": {
+        "failing_jobs": [
+          "foundation",
+          "vulnerabilities",
+          "sbom",
+          "security-gate"
+        ],
+        "failing_steps": [
+          "Build dev container and run runtime smoke inside the exact image",
+          "Build exact dev container image"
+        ],
+        "repository_foundation": 32158344344,
+        "security_and_dependency_gates": 32158344311
+      },
+      "root_cause": "devcontainers/ci defaults imageTag to 'latest' and buildImageNames joins `${imageName}:${tag}`, so imageName 'vibeflow-dev:smoke' became invalid 'vibeflow-dev:smoke:latest' (invalid reference format). Verified from pinned source 513af61f4de4f75d37e4438f184ba4358f0fc1ca github-action/dist/index.js."
+    },
+    "fix_2_active_non_root_validator": {
+      "requirement": "active M-007 requires BOTH remoteUser == 'node' AND containerUser == 'node' (missing or wrong value fails); durable may change the user only with an owning later-mission declaration; root permanently banned"
+    },
+    "fix_3_durable_extension_ownership": {
+      "requirement": "extension entries authorize changes only when owned (mission_id) by the actually active later mission; active M-007 snapshot requires zero durable extensions; permanent bans (privileged, docker socket, host network, raw secrets, silent privilege expansion) remain regardless of declarations"
+    },
+    "gpt_review_id": 4963221835,
+    "reviewed_head_pre_fix": "16d79c5b705207af64c38303e168cdfb6ac81287"
+  },
+  "schema_version": 1,
+  "security_posture": {
+    "docker_in_docker": false,
+    "docker_socket_mount": false,
+    "extra_capabilities": [],
+    "forwarded_ports": [],
+    "host_credential_mounts": false,
+    "host_network": false,
+    "non_root_user": "node",
+    "privileged": false,
+    "product_services": [],
+    "raw_secrets_in_env_or_committed_examples": false,
+    "security_opt": [],
+    "ssh_agent_or_cloud_credential_forwarding": false
+  },
+  "starting_main_sha": "f8b214a687944eb44b148997e6028044baf8b6b8",
+  "test_counts": {
+    "M-002": 44,
+    "M-003": 18,
+    "M-004": 82,
+    "M-005": 92,
+    "M-006": 41,
+    "M-007": 53,
+    "note": "M-007 grew from 44 to 53 in the review-fix round (user-exactness and durable-extension-ownership mutations).",
+    "total": 330
+  },
+  "toolchain": {
+    "corepack": "required",
+    "git": "required",
+    "node": "24.19.0",
+    "pnpm": "11.4.0",
+    "python3": "required",
+    "turborepo": "2.10.6",
+    "typebox": "1.3.6",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  },
+  "validator_design": {
+    "active_snapshot": "exact accepted environment shape including BOTH remoteUser == 'node' and containerUser == 'node'; zero durable extensions allowed; provenance, toolchain, capability snapshot, mission/ledger sync, master hash integrity",
+    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions owned by the actually active later mission (mission_id + rationale + exact values); privileged/docker-socket/host-network/raw-secrets permanently banned; user changes from 'node' require an owning declaration",
+    "forward_compatible": "positive durable-extension test included in the M-007 mutation suite",
+    "mode_selection": "auto: active while M-007 is READY/IN_PROGRESS/REVIEW; durable once M-007 is DONE"
+  }
 }

@@ -269,7 +269,31 @@ class M007Tests(unittest.TestCase):
     def test_root_dev_user_fails(self) -> None:
         box = self.box()
         box.set_devcontainer(remoteUser="root")
-        self.assert_rejected(box, "remoteUser must be a non-root user")
+        self.assert_rejected(box, "active M-007 requires remoteUser == 'node'")
+
+    def test_root_container_user_fails(self) -> None:
+        box = self.box()
+        box.set_devcontainer(containerUser="root")
+        self.assert_rejected(box, "active M-007 requires containerUser == 'node'")
+
+    def test_missing_remote_user_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["remoteUser"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active M-007 requires remoteUser == 'node'")
+
+    def test_missing_container_user_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["containerUser"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active M-007 requires containerUser == 'node'")
+
+    def test_wrong_non_root_user_fails_active(self) -> None:
+        box = self.box()
+        box.set_devcontainer(remoteUser="node-dev")
+        self.assert_rejected(box, "active M-007 requires remoteUser == 'node'")
 
     def test_privileged_true_fails(self) -> None:
         box = self.box()
@@ -420,6 +444,19 @@ class M007Tests(unittest.TestCase):
         result = run(M006_VALIDATOR, box.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_active_snapshot_rejects_durable_extensions(self) -> None:
+        box = self.box()
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Extensions must not exist while M-007 is active.",
+                "declared": {"forwarded_ports": [8080]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "active M-007 snapshot requires zero durable extensions")
+
     def test_durable_extension_rejected_by_active_snapshot(self) -> None:
         box = self.future_later_mission()
         box.set_devcontainer(forwardPorts=[8080])
@@ -437,7 +474,51 @@ class M007Tests(unittest.TestCase):
     def test_durable_undeclared_extension_fails(self) -> None:
         box = self.future_later_mission()
         box.set_devcontainer(forwardPorts=[8080])
-        self.assert_rejected(box, "durable forwarded ports require a lock extension declaration")
+        self.assert_rejected(box, "durable forwarded ports require a declaration owned by the active later mission")
+
+    def test_durable_extension_owned_by_other_mission_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(forwardPorts=[8080])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-009",
+                "rationale": "Wrong owner: must not authorize the change.",
+                "declared": {"forwarded_ports": [8080]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "durable forwarded ports require a declaration owned by the active later mission")
+
+    def test_durable_user_change_requires_owning_declaration(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="node-dev")
+        self.assert_rejected(box, "requires a declaration owned by the active later mission")
+
+    def test_durable_user_change_owned_declaration_passes(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="node-dev")
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Owning later mission changes the dev user to another non-root user.",
+                "declared": {"users": {"remoteUser": "node-dev", "containerUser": "node"}},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_accepted(box)
+
+    def test_durable_docker_socket_declared_still_banned(self) -> None:
+        box = self.future_later_mission()
+        mount = "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+        box.set_devcontainer(mounts=[mount])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {"mission_id": "M-008", "rationale": "Malicious: must still fail.", "declared": {"mounts": [mount]}}
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "docker socket mount is permanently forbidden")
 
     def test_durable_privileged_still_permanently_banned(self) -> None:
         box = self.future_later_mission()

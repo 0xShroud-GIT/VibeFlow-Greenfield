@@ -6,8 +6,16 @@
 | --- | --- |
 | Starting `origin/main` / verified branch start | `f8b214a687944eb44b148997e6028044baf8b6b8` |
 | Arena session branch | `arena/01a01576-vibeflow-greenfield` |
+| Reviewer workflow-handoff head (pre-fix) | `16d79c5b705207af64c38303e168cdfb6ac81287` |
 | Mission state at branch head | `M-001..M-006 DONE`; `M-007 REVIEW`; `M-008..M-151 LOCKED` |
 | ADR | Not required — implementation stays inside the ratified M-004/M-006 policy and H-023 |
+
+This revision records the Arena response to GPT review request-changes
+(review ID 4963221835): the exact-head CI workflow defect (`devcontainers/ci`
+`imageName`), the active non-root validator gap, and durable-extension
+ownership enforcement. All three fixes are implemented below in non-workflow
+files plus a regenerated `INTENDED_WORKFLOWS.patch`; Arena did not modify
+`.github/workflows/**`.
 
 Arena binds this session to `arena/01a01576-vibeflow-greenfield`; it cannot use
 a different branch name. Acceptance must bind to the exact final pushed head
@@ -113,15 +121,21 @@ package manager or application dependency.
 `scripts/validate-m007-local-dev.py` (retained after M-007) auto-selects:
 
 - **Active M-007 snapshot** (M-007 READY/IN_PROGRESS/REVIEW): exact accepted
-  initial environment shape, exact image/feature/toolchain provenance, no
-  ports/features/mount-based privilege, exact 405-capability status snapshot
-  (only `VF-ENV-005` advances), mission/ledger synchronization (M-001..M-006
-  DONE, M-007 active, M-008+ LOCKED), master-pack hash integrity.
+  initial environment shape — both `remoteUser == "node"` and
+  `containerUser == "node"` are **required** (missing or wrong value fails),
+  zero durable extensions allowed, exact image/feature/toolchain provenance,
+  no ports/features/mount-based privilege, exact 405-capability status
+  snapshot (only `VF-ENV-005` advances), mission/ledger synchronization
+  (M-001..M-006 DONE, M-007 active, M-008+ LOCKED), master-pack hash
+  integrity.
 - **Durable later-mission mode** (M-007 DONE): later owning missions may add
-  ports, digest-pinned registered features, benign env metadata, mounts or
-  service containers **only** through explicit `durable_extension_policy`
-  extension entries (mission_id + rationale + exact values), while
-  permanently retaining: immutable provenance, no raw secrets, no
+  ports, digest-pinned registered features, benign env metadata, mounts,
+  service containers, or a different non-root dev user **only** through
+  explicit `durable_extension_policy` extension entries (mission_id +
+  rationale + exact declared values) **owned by the actually active later
+  mission** — an entry belonging to another mission authorizes nothing. The
+  accepted `node` user baseline may not be changed without such a declaration.
+  Permanently retained: immutable provenance, no raw secrets, no
   privileged/docker-socket/host-network expansion, exact toolchain agreement,
   frozen-lockfile installation, mission/ledger synchronization, Dev
   Containers as the adopted descriptor.
@@ -131,20 +145,49 @@ future workflow/environment shape.
 
 ## Workflow-permission blocker (Arena handoff rule)
 
-Arena cannot write `.github/workflows/**`. The complete intended diff for the
-three affected workflows is preserved at:
+Arena cannot write `.github/workflows/**`. GPT applied the three original
+workflow handoff commits (`4896433`, `c977c15`, `16d79c5`) on the branch,
+which are the current workflow state.
 
-`evidence/missions/M-007/INTENDED_WORKFLOWS.patch`
+### Exact-head CI defect and the workflow correction
 
-SHA-256: `ebdef32cbea14ec1f169d6ae67059cf32f6be3597f401b18debf5586264e42ab`
+Exact-head CI on `16d79c5` failed in both dev-container build steps:
 
-`git apply --check` passes on the pushed tree. No OAuth/device-code workaround
-was attempted and no second implementation PR will be opened for workflow
-files. GPT applies exactly this patch through the workflow-authorized
-connector on the same PR branch; exact-head CI then reruns. Until then the
-checked-in workflows remain the pre-M-007 files, so the dev-image CI evidence
-below is **intended** (validated statically and against the patched tree in a
-sandbox), not yet executed on the pushed head.
+- Repository Foundation run `32158344344`: job `foundation` failed at
+  "Build dev container and run runtime smoke inside the exact image".
+- Security & Dependency Gates run `32158344311`: jobs `vulnerabilities` and
+  `sbom` failed at "Build exact dev container image"; aggregate
+  `security-gate` failed closed as required.
+
+Root cause verified from the pinned devcontainers/ci source
+(`513af61f4de4f75d37e4438f184ba4358f0fc1ca`, `github-action/dist/index.js`):
+when `imageTag` is unset it defaults to `'latest'` and `buildImageNames`
+returns `` `${imageName}:${tag}` ``, so `imageName: vibeflow-dev:smoke`
+becomes the invalid reference `vibeflow-dev:smoke:latest`
+(`invalid reference format`). The digest pull before the build succeeded.
+
+Correction (exact intended workflow diff preserved at
+`evidence/missions/M-007/INTENDED_WORKFLOWS.patch`, regenerated from the
+current workflow state):
+
+- `repository-foundation.yml` and `security-and-dependency-gates.yml`:
+  `imageName: vibeflow-dev:smoke` → `imageName: vibeflow-dev`
+  (devcontainers/ci then tags the local image `vibeflow-dev:latest`).
+- `security-and-dependency-gates.yml`: explicit
+  `env: DEV_IMAGE: vibeflow-dev:latest` on the Trivy scan and dev-image SBOM
+  steps so the wrappers and workflow agree on the exact resulting local tag.
+- No floating base image (the base stays digest-pinned in `devcontainer.json`);
+  no weakened security settings; no registry push (`push: never`).
+
+New patch SHA-256: `af48f2445516229bb91d23c38a9086daaf0979df1ca3c7fd122194089457ecf6`
+(`git apply --check` passes against the current tree). The wrappers now default
+`DEV_IMAGE=${DEV_IMAGE:-vibeflow-dev:latest}`.
+
+Until GPT applies this correction, the pushed tree intentionally keeps the
+pre-correction workflows (Arena cannot write workflows), so the dev-image CI
+evidence below is **intended** — validated statically, against the
+devcontainers/ci source, and against the patched tree in a sandbox — not yet
+executed on the pushed head.
 
 ### Intended CI evidence (under existing jobs, no new required contexts)
 
@@ -152,16 +195,19 @@ sandbox), not yet executed on the pushed head.
   `test_m007_local_dev.py` steps.
 - `Repository Foundation / foundation`: `docker pull` of the exact base image
   by digest; `devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca`
-  (`v0.3.1900000450`, `push: never`) builds the dev container from the
-  digest-pinned descriptor and runs `scripts/dev-runtime-smoke.py` inside it.
+  (`v0.3.1900000450`, `push: never`, `imageName: vibeflow-dev`) builds the dev
+  container from the digest-pinned descriptor (local tag `vibeflow-dev:latest`)
+  and runs `scripts/dev-runtime-smoke.py` inside it.
 - `Security & Dependency Gates / vulnerabilities`: rebuild the exact dev
-  image, then `scripts/security/scan-dev-image.sh` — locked Trivy image scan
-  (`--scanners vuln,misconfig --severity HIGH,CRITICAL --ignore-unfixed
-  --exit-code 1`), same policy as the M-006 repository scan.
+  image, then `scripts/security/scan-dev-image.sh` (`DEV_IMAGE:
+  vibeflow-dev:latest`) — locked Trivy image scan (`--scanners vuln,misconfig
+  --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1`), same policy as
+  the M-006 repository scan.
 - `Security & Dependency Gates / sbom`: rebuild the exact dev image, then
-  `scripts/security/generate-dev-image-sbom.sh` — ephemeral CycloneDX
-  dev-image SBOM (separate from the repository dependency SBOM) plus content
-  SHA-256, uploaded with the already-pinned `actions/upload-artifact`.
+  `scripts/security/generate-dev-image-sbom.sh` (`DEV_IMAGE:
+  vibeflow-dev:latest`) — ephemeral CycloneDX dev-image SBOM (separate from
+  the repository dependency SBOM) plus content SHA-256, uploaded with the
+  already-pinned `actions/upload-artifact`.
 - Retained evidence remains green: full-history Gitleaks, Semgrep, dependency
   policy, repository dependency SBOM, and the four protected contexts
   (`verify`, `foundation`, `sanitize`, `security-gate`).
@@ -169,9 +215,9 @@ sandbox), not yet executed on the pushed head.
 `devcontainers/ci` is registered in `security/ci-toolchain.lock.json`
 (commit SHA `513af61f4de4f75d37e4438f184ba4358f0fc1ca`, version
 `0.3.1900000450`, rationale recorded) so the patched tree passes the retained
-M-006 durable gate. The intended patch was validated by applying it to a
+M-006 durable gate. The intended correction was validated by applying it to a
 sandbox copy of the branch: M-006 validator `RESULT: PASS` (action_uses 8),
-master contracts `RESULT: PASS`.
+master contracts `RESULT: PASS`, M-007 validator `RESULT: PASS`.
 
 ## Capability ledger transitions
 
@@ -206,21 +252,31 @@ All 72 authoritative pack hashes verify on the branch
 | M-004 | 82 | PASS |
 | M-005 retained | 92 | PASS |
 | M-006 retained (status-relative) | 41 | PASS |
-| M-007 | 44 | PASS |
-| Total | 321 | PASS |
+| M-007 | 53 | PASS |
+| Total | 330 | PASS |
 
-The M-007 suite count is recorded after the local run on this branch; the
-exact-head CI run re-executes all retained suites.
+M-007 grew from 44 to 53 tests in the review-fix round: five new active-mode
+user-exactness mutations (missing `remoteUser`, missing `containerUser`,
+`containerUser=root`, wrong non-root user, updated root-`remoteUser` needle)
+and durable-extension ownership coverage (active snapshot rejects any
+extensions, extension owned by a non-active mission fails, owned non-root
+user change passes, undeclared user change fails, declared Docker-socket
+mount still permanently banned). The counts are recorded after the local run
+on this branch; the exact-head CI run re-executes all retained suites.
 
-## Actual verification recorded before first CI push
+## Actual verification recorded before this push
 
 No expected CI result is represented as actual CI. At this evidence revision:
 
+- Exact-head CI on `16d79c5` (runs `32158344344`, `32158344311`) failed as
+  recorded above: the dev-container build steps rejected
+  `vibeflow-dev:smoke:latest`. All other jobs in those runs (secrets,
+  dependency-policy, sast; pull-by-digest, repository scans) succeeded.
 - Static validators on the branch: M-007 (`RESULT: PASS`, mode active),
   master contracts, M-004 foundation, M-005 codegen, M-006 security gates,
   harvest registry, threat model, and `contracts:check` — all PASS.
 - Mutation suites: M-002 44, M-003 18, M-004 82, M-005 92, M-006 41,
-  M-007 44 — all PASS (321 total).
+  M-007 53 — all PASS (330 total).
 - `scripts/repo-sanitize.sh`: PASS.
 - `pnpm install --frozen-lockfile` and `pnpm run check` on the Arena host:
   PASS (host runs node v22.22.3; pnpm warns "Unsupported engine node 24.x"
@@ -229,13 +285,22 @@ No expected CI result is represented as actual CI. At this evidence revision:
   Arena host: FAIL closed on `node v22.22.3` (expected — the host does not
   reproduce the ratified toolchain; the scripts prove exactness rather than
   reporting a pass).
+- The workflow correction was validated statically: root cause confirmed from
+  the pinned devcontainers/ci source; the intended corrected workflows pass
+  the retained M-006 durable gate, master contracts and the M-007 validator
+  in a sandbox.
 - Exact dev-image pull, in-container runtime smoke, Trivy dev-image scan and
-  dev-image CycloneDX SBOM: intended, pending GPT applying
-  `INTENDED_WORKFLOWS.patch` on the exact head. No image/scanner result is
-  claimed before that.
+  dev-image CycloneDX SBOM: **not claimed until exact-head CI executes them**
+  after GPT applies the corrected `INTENDED_WORKFLOWS.patch`.
 
 ## Deviations and recorded risks
 
+- **Exact-head CI defect (workflow `imageName`)**: devcontainers/ci defaults
+  `imageTag` to `latest` and joins `` `${imageName}:${tag}` ``, so the
+  original `imageName: vibeflow-dev:smoke` produced `vibeflow-dev:smoke:latest`
+  (`invalid reference format`). Corrected to `imageName: vibeflow-dev`
+  (local tag `vibeflow-dev:latest`) with explicit wrapper agreement. This
+  correction is workflow-only and preserved as exact evidence for GPT.
 - **Python feature digest-ref lint**: VS Code's devcontainer JSON linter flags
   tag-less digest feature references as invalid characters although the
   devcontainer CLI builds them correctly (upstream
@@ -251,8 +316,8 @@ No expected CI result is represented as actual CI. At this evidence revision:
 - **Runtime evidence is CI-bound**: docker, the exact dev image, Trivy and the
   devcontainer CLI are unavailable in the Arena sandbox, so image pull,
   runtime smoke, Trivy image scan and dev-image SBOM results become actual
-  only after GPT applies `INTENDED_WORKFLOWS.patch` on the exact head. No
-  scanner/image result is claimed before that.
+  only after GPT applies the corrected `INTENDED_WORKFLOWS.patch` on the
+  exact head. No scanner/image result is claimed before that.
 - **Durable security posture**: privileged mode, docker-socket mounts, host
   networking and raw secrets are permanently banned in both validator modes;
   a later mission that genuinely requires them must amend this lock and the

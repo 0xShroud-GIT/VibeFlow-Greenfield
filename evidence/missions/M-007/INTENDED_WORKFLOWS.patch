@@ -1,107 +1,42 @@
-diff --git a/.github/workflows/master-build-system-integrity.yml b/.github/workflows/master-build-system-integrity.yml
-index ea10173..585cb86 100644
---- a/.github/workflows/master-build-system-integrity.yml
-+++ b/.github/workflows/master-build-system-integrity.yml
-@@ -54,3 +54,9 @@ jobs:
-       - name: Run M-006 security gate mutation tests
-         shell: bash
-         run: python3 tests/contract/test_m006_security_gates.py
-+      - name: Validate M-007 local dev environment
-+        shell: bash
-+        run: python3 scripts/validate-m007-local-dev.py
-+      - name: Run M-007 local dev mutation tests
-+        shell: bash
-+        run: python3 tests/contract/test_m007_local_dev.py
 diff --git a/.github/workflows/repository-foundation.yml b/.github/workflows/repository-foundation.yml
-index 9553262..3f366a2 100644
+index 3f366a2..929cc84 100644
 --- a/.github/workflows/repository-foundation.yml
 +++ b/.github/workflows/repository-foundation.yml
-@@ -11,7 +11,7 @@ permissions:
- jobs:
-   foundation:
-     runs-on: ubuntu-latest
--    timeout-minutes: 20
-+    timeout-minutes: 30
-     steps:
-       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+@@ -41,6 +41,6 @@ jobs:
+       - name: Build dev container and run runtime smoke inside the exact image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
          with:
-@@ -35,3 +35,12 @@ jobs:
-       - name: Run foundation check
-         shell: bash
-         run: pnpm run check
-+      - name: Pull exact dev container base image by digest
-+        shell: bash
-+        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
-+      - name: Build dev container and run runtime smoke inside the exact image
-+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
-+        with:
-+          imageName: vibeflow-dev:smoke
-+          runCmd: python3 scripts/dev-runtime-smoke.py
-+          push: never
+-          imageName: vibeflow-dev:smoke
++          imageName: vibeflow-dev
+           runCmd: python3 scripts/dev-runtime-smoke.py
+           push: never
 diff --git a/.github/workflows/security-and-dependency-gates.yml b/.github/workflows/security-and-dependency-gates.yml
-index a01f1ea..c95a626 100644
+index c95a626..bdd1edd 100644
 --- a/.github/workflows/security-and-dependency-gates.yml
 +++ b/.github/workflows/security-and-dependency-gates.yml
-@@ -48,7 +48,7 @@ jobs:
- 
-   vulnerabilities:
-     runs-on: ubuntu-latest
--    timeout-minutes: 20
-+    timeout-minutes: 30
-     steps:
-       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+@@ -70,9 +70,11 @@ jobs:
+       - name: Build exact dev container image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
          with:
-@@ -64,6 +64,17 @@ jobs:
-       - name: Scan repository vulnerabilities and misconfigurations with Trivy
+-          imageName: vibeflow-dev:smoke
++          imageName: vibeflow-dev
+           push: never
+       - name: Scan exact dev image with Trivy
++        env:
++          DEV_IMAGE: vibeflow-dev:latest
          shell: bash
-         run: scripts/security/run-trivy.sh
-+      - name: Pull exact dev container base image by digest
-+        shell: bash
-+        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
-+      - name: Build exact dev container image
-+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
-+        with:
-+          imageName: vibeflow-dev:smoke
-+          push: never
-+      - name: Scan exact dev image with Trivy
-+        shell: bash
-+        run: scripts/security/scan-dev-image.sh
+         run: scripts/security/scan-dev-image.sh
  
-   sast:
-     runs-on: ubuntu-latest
-@@ -81,7 +92,7 @@ jobs:
- 
-   sbom:
-     runs-on: ubuntu-latest
--    timeout-minutes: 20
-+    timeout-minutes: 30
-     steps:
-       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+@@ -118,9 +120,11 @@ jobs:
+       - name: Build exact dev container image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
          with:
-@@ -101,6 +112,26 @@ jobs:
-             ${{ runner.temp }}/vibeflow-repository.cdx.json.sha256
-           if-no-files-found: error
-           retention-days: 7
-+      - name: Pull exact dev container base image by digest
-+        shell: bash
-+        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
-+      - name: Build exact dev container image
-+        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
-+        with:
-+          imageName: vibeflow-dev:smoke
-+          push: never
-+      - name: Generate ephemeral CycloneDX dev-image SBOM
-+        shell: bash
-+        run: scripts/security/generate-dev-image-sbom.sh "$RUNNER_TEMP/vibeflow-dev-image.cdx.json"
-+      - name: Upload ephemeral dev-image CycloneDX evidence
-+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-+        with:
-+          name: vibeflow-dev-image-cyclonedx
-+          path: |
-+            ${{ runner.temp }}/vibeflow-dev-image.cdx.json
-+            ${{ runner.temp }}/vibeflow-dev-image.cdx.json.sha256
-+          if-no-files-found: error
-+          retention-days: 7
- 
-   security-gate:
-     if: always()
+-          imageName: vibeflow-dev:smoke
++          imageName: vibeflow-dev
+           push: never
+       - name: Generate ephemeral CycloneDX dev-image SBOM
++        env:
++          DEV_IMAGE: vibeflow-dev:latest
+         shell: bash
+         run: scripts/security/generate-dev-image-sbom.sh "$RUNNER_TEMP/vibeflow-dev-image.cdx.json"
+       - name: Upload ephemeral dev-image CycloneDX evidence
