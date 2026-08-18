@@ -1,0 +1,341 @@
+{
+  "mission_id": "M-005",
+  "mission_title": "Establish schema/codegen pipeline",
+  "phase": 1,
+  "phase_name": "Repository Foundation",
+  "starting_main_sha": "7b422e0675d5200d8e63e575496d16d1b2844bc3",
+  "branch": "mission/m-005-schema-codegen",
+  "final_branch_head_binding_policy": "Acceptance must bind to the exact final pushed head SHA of mission/m-005-schema-codegen. Any later push invalidates a prior exact-head review.",
+  "final_status": "REVIEW",
+  "self_accepted": false,
+  "merged": false,
+  "mission_state_transition": {
+    "M-001": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-002": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-003": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-004": {
+      "before": "REVIEW",
+      "after": "DONE"
+    },
+    "M-005": {
+      "before": "LOCKED",
+      "after": "REVIEW"
+    },
+    "M-006..M-151": {
+      "before": "LOCKED",
+      "after": "LOCKED"
+    }
+  },
+  "mission_pointers_updated": [
+    "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml",
+    "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv",
+    ".ai/ACTIVE_MISSION.md",
+    "README.md",
+    "docs/WORKSPACE_BOOTSTRAP_STATUS.md"
+  ],
+  "audit_remediation": {
+    "3A_m004_validator_generalized": {
+      "done": true,
+      "permanent_invariants_retained": [
+        "Node 24.19.0 baseline",
+        "pnpm 11.4.0",
+        "exact approved foundation dependency pins",
+        "one root pnpm lockfile",
+        "no npm/yarn/bun lockfiles",
+        "required workspace globs",
+        "seven shared package manifests",
+        "no package manifests under apps/services/workers/adapters",
+        "typebox 1.x at exact foundation pin 1.3.6",
+        "strict TypeScript requirements",
+        "no forbidden lifecycle scripts",
+        "pnpm supply-chain policy",
+        "no dangerouslyAllowAllBuilds",
+        "no unexpected allowBuilds",
+        "foundation CI exists",
+        "required build/typecheck/test commands"
+      ],
+      "progression_rules": [
+        "M-001..M-003 must remain DONE",
+        "M-004 must be REVIEW or DONE; regression to LOCKED/IN_PROGRESS fails",
+        "while M-004 is REVIEW, all later missions must remain LOCKED",
+        "once M-004 is DONE, later-mission progression is owned by validate-master-contracts.py; DAG/register agreement still enforced"
+      ],
+      "root_check_parsed_stages": [
+        "python3 scripts/validate-m004-foundation.py",
+        "... additional legitimate gates permitted here ...",
+        "pnpm run typecheck",
+        "pnpm run test",
+        "pnpm run build"
+      ]
+    },
+    "3B_mission_pointer_drift_closed": {
+      "done": true,
+      "readme_corrected_from": "M-003",
+      "readme_corrected_to": "M-005",
+      "pointer_files_now_validated": [
+        ".ai/ACTIVE_MISSION.md",
+        "README.md",
+        "docs/WORKSPACE_BOOTSTRAP_STATUS.md"
+      ],
+      "existing_active_mission_checks_weakened": false
+    },
+    "3C_mbs_workflow_trigger_gap": {
+      "prepared_locally": true,
+      "pushed_by_arena": false,
+      "reason": "Arena's GitHub App cannot push .github/workflows/**",
+      "oauth_or_device_code_workaround_attempted": false,
+      "handoff": "Exact workflow content/diff returned to GPT for application via its GitHub connector before final exact-head review.",
+      "added_trigger_paths": [
+        "apps/**",
+        "services/**",
+        "workers/**",
+        "adapters/**"
+      ],
+      "added_trigger_scopes": [
+        "pull_request",
+        "push:main"
+      ],
+      "added_steps": [
+        "python3 scripts/validate-m005-contract-codegen.py",
+        "python3 tests/contract/test_m005_contract_codegen.py"
+      ],
+      "existing_triggers_and_steps_retained": true
+    },
+    "3D_h025_reconciled": {
+      "done": true,
+      "is_new_adr": false,
+      "historical_m002_evidence_rewritten": false,
+      "m002_multiline_fixture_updated": true
+    },
+    "3E_healthschema_canary_retired": {
+      "done": true,
+      "public_index_reexports_generated_catalog": true,
+      "smoke_test_file_repurposed": true
+    }
+  },
+  "h025_decision": {
+    "selected_line": "TypeBox 1.x",
+    "package": "typebox",
+    "module_format": "ESM",
+    "foundation_exact_pin": "1.3.6",
+    "selected_by": "M-004",
+    "not_selected": "@sinclair/typebox 0.x (upstream LTS for CJS)",
+    "contracts_model": "JSON Schema first; TypeScript types derived",
+    "upgrade_policy": "Stay on vetted TypeBox 1.x from the M-004 exact pin 1.3.6; moving off the 1.x line requires an architecture change."
+  },
+  "external_dependency_changes": "NONE",
+  "dependencies_explicitly_not_added": [
+    "PyYAML",
+    "tsx",
+    "json-schema-to-typescript",
+    "typebox-codegen",
+    "@sinclair/typebox-codegen",
+    "Ajv"
+  ],
+  "pnpm_lock_changed": false,
+  "pnpm_lock_diff_vs_base": "empty",
+  "authority_routing_confirmed": {
+    "resources": "02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
+    "states": "03_BACKEND/STATE_MACHINES.yaml",
+    "events": "03_BACKEND/EVENT_CATALOG.yaml"
+  },
+  "authoritative_inputs": [
+    {
+      "path": "master-build-system/00_MASTER/SOURCE_OF_TRUTH_INDEX.yaml",
+      "sha256": "967cda17f559e0ccfb3e59ea01add1a76440fe93e9a499fc3e35b31e9090da68"
+    },
+    {
+      "path": "master-build-system/02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
+      "sha256": "5575eef27cef87cffa63aae5f6e2c619a517e43c5277a9c33487bfbea566c06d"
+    },
+    {
+      "path": "master-build-system/03_BACKEND/STATE_MACHINES.yaml",
+      "sha256": "4ecb50c4d3bb86fd1be59fa6d3114f454cacf4e38609005d0da4c9699ea1a5e2"
+    },
+    {
+      "path": "master-build-system/03_BACKEND/EVENT_CATALOG.yaml",
+      "sha256": "cf5aa50943046bcfa21d59a88d2bb4057ed7dc04c0e05b8872b756dc9003d203"
+    }
+  ],
+  "input_hashes_match_pack_sha256sums": true,
+  "generated_outputs": [
+    {
+      "path": "packages/contracts/src/generated/catalog.ts",
+      "sha256": "f520845b114008e185d7a18398efb3f0d2dee9b6e4d7ea4cecabb1ada7c21931"
+    },
+    {
+      "path": "packages/contracts/generated/catalog.schema.json",
+      "sha256": "11f20b0adb1354b8b444df111d3f731c1733d8cd3ede90eefc81df65fdd7cd76"
+    },
+    {
+      "path": "packages/contracts/generated/catalog.manifest.json",
+      "sha256": "74cb60f5577d6cf152de99d39f8746bb0fe9f53c388cfa30ef9e911c98ad96c9"
+    }
+  ],
+  "counts": {
+    "canonical_resources": 35,
+    "state_machines": 7,
+    "events": 37
+  },
+  "typebox_exact_pin": "1.3.6",
+  "json_schema_draft": "2020-12",
+  "catalog_schema_id": "urn:vibeflow:contracts:catalog:v1",
+  "determinism_proof": {
+    "two_consecutive_runs_byte_identical": true,
+    "tracked_artifacts_equal_fresh_generation": true,
+    "check_mode_performs_no_writes": true,
+    "check_mode_writes_nothing_even_when_stale": true,
+    "no_timestamp_or_machine_state_in_output": true
+  },
+  "mutation_test_counts": {
+    "test_m005_contract_codegen.py": 87
+  },
+  "old_suite_results": {
+    "test_m002_validators.py": {
+      "result": "OK",
+      "tests": 38
+    },
+    "test_m003_security_contracts.py": {
+      "result": "OK",
+      "tests": 18
+    },
+    "test_m004_foundation.py": {
+      "result": "OK",
+      "tests": 82
+    }
+  },
+  "old_suites_weakened": false,
+  "verification": {
+    "git_diff_check": "clean",
+    "repo_sanitize": "PASS",
+    "pack_hashes": "72/72 OK",
+    "validate_master_contracts": "PASS",
+    "validate_harvest_registry": "PASS",
+    "validate_threat_model": "PASS",
+    "validate_m004_foundation": "PASS",
+    "validate_m005_contract_codegen": "PASS",
+    "generate_contracts_check": "PASS",
+    "node_version": "v24.19.0",
+    "pnpm_version": "11.4.0",
+    "pnpm_install_frozen_lockfile": "PASS",
+    "pnpm_run_contracts_check": "PASS",
+    "pnpm_run_check": "PASS",
+    "typebox_smoke_tests": "8/8 pass against generated schemas"
+  },
+  "scope_exclusions": {
+    "statement": "The M-005 pipeline is capable of generating future command/event/error-code contracts once authoritative definitions exist; M-005 does not manufacture missing domain authority.",
+    "not_invented": [
+      "Project/Task/etc persistence schemas",
+      "REST request/response payloads",
+      "command payload fields",
+      "event payload fields",
+      "error codes",
+      "database schemas"
+    ],
+    "not_started": [
+      "IAM/auth",
+      "M-006 security tooling",
+      "M-007 dev environment work"
+    ]
+  },
+  "capability_ledger_review": {
+    "rows_reviewed": 16,
+    "selectors": [
+      "REL",
+      "ENV"
+    ],
+    "row_ids": [
+      "VF-REL-001",
+      "VF-REL-002",
+      "VF-REL-003",
+      "VF-REL-004",
+      "VF-REL-005",
+      "VF-REL-006",
+      "VF-REL-007",
+      "VF-REL-008",
+      "VF-REL-009",
+      "VF-REL-010",
+      "VF-REL-011",
+      "VF-ENV-001",
+      "VF-ENV-002",
+      "VF-ENV-003",
+      "VF-ENV-004",
+      "VF-ENV-005"
+    ],
+    "statuses_changed": 0,
+    "all_capability_statuses": "NOT_STARTED",
+    "total_capabilities": 405,
+    "rationale": "No existing row clearly and specifically represents this repository's contract codegen pipeline, and no row's verification gate (release/SBOM/provenance gates for REL; environment parsing/port/dependency reproducibility tests for ENV) is satisfied by schema tooling alone. No bulk marking performed.",
+    "bulk_marked": false
+  },
+  "pack_hashes_changed": [
+    "06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+    "10_IMPLEMENTATION/MISSION_DAG.yaml",
+    "10_IMPLEMENTATION/MISSION_REGISTER.csv"
+  ],
+  "pack_hash_verification": "72/72 OK",
+  "additional_authoritative_files_changed": "none",
+  "adr_required": false,
+  "adr_rationale": "No architecture decision changed. H-025 records a decision already delegated at M-002 and taken at M-004; JSON-Schema-first with derived types is the pre-existing ratified position.",
+  "ci": {
+    "run_ids": [],
+    "conclusions": [],
+    "note": "No CI run IDs or conclusions are claimed. The workflow change adding the M-005 steps and apps/services/workers/adapters triggers could not be pushed by Arena; real CI results must be read from the PR after GPT applies it. Expected CI is not reported as real CI."
+  },
+  "review_response": {
+    "review": "REQUEST_CHANGES on PR #6",
+    "workflow_applied_by_reviewer_commit": "bd7f59241706472699b1c4bcbd7b54088666a0f3",
+    "workflow_push_retried_by_arena": false,
+    "dependencies_added": 0,
+    "pipeline_redesigned": false,
+    "mission_state_changed": false,
+    "validate_m005_contract_codegen": {
+      "modes": [
+        "m005-active",
+        "durable"
+      ],
+      "historical_m005_review_passes": true,
+      "accepted_m005_done_with_m006_active_passes": true,
+      "successors_locked_while_m005_review": true,
+      "m005_regression_or_desync_fails": true,
+      "fixed_counts_scope": "M-005 snapshot/evidence tests only",
+      "durable_count_rule": "generated counts equal current authoritative inputs",
+      "scope_prohibitions_scope": "M-005 active snapshot only; later authoritative expansion permitted"
+    },
+    "validate_m004_foundation": {
+      "modes": [
+        "snapshot",
+        "durable"
+      ],
+      "snapshot_preserved_while_m004_review": true,
+      "durable_allows_later_manifests_dependencies_scripts": true,
+      "durable_properties_enforced": [
+        "required foundation packages/toolchain present",
+        "dependency specs exact and non-exotic",
+        "one root lockfile; no foreign lockfiles",
+        "pnpm supply-chain policy retained",
+        "strict TypeScript retained",
+        "workspace dependency graph acyclic",
+        "required build/typecheck/test scripts present",
+        "product-tree manifests must be direct workspace members"
+      ]
+    },
+    "tests_repointed_not_weakened": [
+      "seven M-004 bootstrap-absence tests pinned to the historical M-004 REVIEW snapshot",
+      "M-005 'never self-marked DONE' converted to a branch-state guard on the real repository"
+    ],
+    "test_totals": {
+      "before": 164,
+      "after": 225
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "catalog_id": "urn:vibeflow:contracts:catalog:v1",
+  "generator": "scripts/generate-contracts.py",
+  "json_schema_dialect": "https://json-schema.org/draft/2020-12/schema",
+  "authority": "master-build-system is authoritative; these artifacts are derived. Regenerate rather than edit.",
+  "sources": [
+    {
+      "path": "master-build-system/00_MASTER/SOURCE_OF_TRUTH_INDEX.yaml",
+      "sha256": "967cda17f559e0ccfb3e59ea01add1a76440fe93e9a499fc3e35b31e9090da68"
+    },
+    {
+      "path": "master-build-system/02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
+      "sha256": "5575eef27cef87cffa63aae5f6e2c619a517e43c5277a9c33487bfbea566c06d"
+    },
+    {
+      "path": "master-build-system/03_BACKEND/STATE_MACHINES.yaml",
+      "sha256": "4ecb50c4d3bb86fd1be59fa6d3114f454cacf4e38609005d0da4c9699ea1a5e2"
+    },
+    {
+      "path": "master-build-system/03_BACKEND/EVENT_CATALOG.yaml",
+      "sha256": "cf5aa50943046bcfa21d59a88d2bb4057ed7dc04c0e05b8872b756dc9003d203"
+    }
+  ],
+  "counts": {
+    "canonical_resources": 35,
+    "state_machines": 7,
+    "events": 37
+  },
+  "artifacts": [
+    "packages/contracts/src/generated/catalog.ts",
+    "packages/contracts/generated/catalog.schema.json",
+    "packages/contracts/generated/catalog.manifest.json"
+  ]
+}

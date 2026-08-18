@@ -212,7 +212,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: REVIEW
+  status: DONE
 - mission_id: M-005
   phase: 1
   phase_name: Repository Foundation
@@ -224,7 +224,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: LOCKED
+  status: REVIEW
 - mission_id: M-006
   phase: 1
   phase_name: Repository Foundation

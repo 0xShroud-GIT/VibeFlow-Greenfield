@@ -283,9 +283,13 @@ MULTILINE_RULE_CLAUSES = {
         "  rule: Primary BYOW candidate; adapter must pass VibeFlow workspace certification. Certification (Phase 11) must\n",
         "validate the operated Daytona service, since the open-source repository no longer receives updates.",
     ),
+    # H-025 was reconciled at M-005 to record the TypeBox 1.x / 1.3.6 selection
+    # that M-004 actually made. Its rule now folds two continuation lines, so
+    # both must stay inside the parsed `rule` value.
     "H-025": (
         "  rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,\n",
-        "ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.",
+        "ESM) is the VibeFlow selected line, chosen by M-004 and pinned exactly at 1.3.6; `@sinclair/typebox` 0.x "
+        "remains upstream LTS for CJS but is not the VibeFlow selected line.",
     ),
     "H-030": (
         "  rule: Container/dependency/misconfiguration scan. Verify release provenance/checksums when adopting CI binaries\n",
@@ -339,6 +343,11 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
     DAG = "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml"
     REG = "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv"
     ACTIVE = ".ai/ACTIVE_MISSION.md"
+    # M-005 extended mission-pointer coherence beyond ACTIVE_MISSION.md. A
+    # synthetic serial state must therefore move every pointer, exactly as a
+    # real mission transition does.
+    README = "README.md"
+    BOOTSTRAP = "docs/WORKSPACE_BOOTSTRAP_STATUS.md"
 
     def test_real_repository_passes(self) -> None:
         result = run_script(MASTER, REPO_ROOT)
@@ -466,6 +475,52 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
         result = run_script(MASTER, box.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    # --- M-005 audit remediation 3B: mission-pointer coherence -------------
+    #
+    # ACTIVE_MISSION.md was previously the only checked pointer, so README.md
+    # and docs/WORKSPACE_BOOTSTRAP_STATUS.md silently went stale. All three are
+    # now checked; these tests prove each stale pointer is rejected.
+
+    def test_stale_readme_active_mission_pointer_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-003", "REVIEW")
+        box.path(self.README).write_text(
+            "# VibeFlow\n\n## Current state\n\n"
+            "The active constitution mission is `M-002` (ratify dependency/harvest registry).\n",
+            encoding="utf-8",
+        )
+        result = run_script(MASTER, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("README.md", result.stdout)
+        self.assertIn("M-003", result.stdout)
+
+    def test_readme_naming_no_mission_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-003", "REVIEW")
+        box.path(self.README).write_text("# VibeFlow\n\nNo mission pointer here.\n", encoding="utf-8")
+        result = run_script(MASTER, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("README.md names no mission", result.stdout)
+
+    def test_stale_bootstrap_status_active_mission_pointer_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-003", "REVIEW")
+        box.path(self.BOOTSTRAP).write_text(
+            "# Workspace Bootstrap Status\n\n- Active mission: M-002 — stale pointer\n",
+            encoding="utf-8",
+        )
+        result = run_script(MASTER, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("docs/WORKSPACE_BOOTSTRAP_STATUS.md", result.stdout)
+
+    def test_missing_readme_pointer_file_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        self._set_serial_state(box, "M-003", "REVIEW")
+        box.path(self.README).unlink()
+        result = run_script(MASTER, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Mission pointer file missing: README.md", result.stdout)
+
     def _set_serial_state(self, box: RepoSandbox, active_id: str, active_status: str) -> None:
         """Build a complete serial state without inheriting the repository's current mission."""
         import csv
@@ -513,6 +568,17 @@ class MissionProgressionTests(TempDirMixin, unittest.TestCase):
         box.path(self.REG).write_text(out.getvalue(), encoding="utf-8")
         box.path(self.ACTIVE).write_text(
             f"# Active Mission\n\n**Mission:** {active_id} — Synthetic historical test state\n\n**Status:** {active_status}\n",
+            encoding="utf-8",
+        )
+        box.path(self.README).write_text(
+            "# VibeFlow\n\n## Current state\n\n"
+            f"Synthetic historical test state. The active mission is `{active_id}` "
+            f"({active_status}).\n",
+            encoding="utf-8",
+        )
+        box.path(self.BOOTSTRAP).write_text(
+            "# Workspace Bootstrap Status\n\n"
+            f"- Active mission: {active_id} — synthetic historical test state ({active_status})\n",
             encoding="utf-8",
         )
 

@@ -15,4 +15,17 @@ Human or AI contributor:
 
 ## Current state
 
-Greenfield repository seed only. Product implementation has not started. The active constitution mission is `M-003` (ratify threat model and trust boundaries); `M-001` and `M-002` are `DONE` after acceptance and merge. Do not start `M-004` or later until M-003 is independently accepted.
+Repository foundation established; product implementation has not started. The active mission is `M-005` (establish schema/codegen pipeline), in `REVIEW`. `M-001`, `M-002`, `M-003` and `M-004` are `DONE` after acceptance and merge. `M-006` and later remain `LOCKED`; do not start them until M-005 is independently accepted.
+
+`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` is authoritative for mission status; this section is a pointer to it.
+
+## Contracts
+
+`packages/contracts` publishes the canonical contract catalog — resource names, state machines and event catalog metadata — generated from the Master Build System. Generated files are derived artifacts marked DO NOT EDIT.
+
+```bash
+pnpm run contracts:generate   # regenerate from master authority
+pnpm run contracts:check      # fail on missing/stale/unexpected generated output
+```
+
+Command/event payload schemas, REST payloads, persistence schemas and error codes are intentionally absent until an authoritative domain mission defines them. See `packages/contracts/README.md`.
