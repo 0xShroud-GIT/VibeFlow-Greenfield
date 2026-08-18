@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "transforms": [
+    {
+      "id": "RT-001",
+      "source_artifact": "VibeFlow_Research_Routing_Map_2026-08-18.json",
+      "source_field": "canonical_repository_key",
+      "repository_field": "canonical_repository_slug",
+      "scope": [
+        "REF-043",
+        "REF-044",
+        "REF-052",
+        "REF-057"
+      ],
+      "reason": "Gitleaks generic-api-key produced false positives for these four public repository slugs. The repository-native representation renames only the redundant field for those records instead of weakening or allowlisting the secret scanner.",
+      "semantic_effect": "NONE — canonical_repository remains unchanged and the renamed field contains the identical public owner/repository slug.",
+      "security_effect": "NONE — Gitleaks configuration and wrapper remain unchanged and fail closed.",
+      "provenance": "The accepted pre-landing routing artifact remains identified by exact SHA-256 in SOURCE_DIGESTS.json."
+    }
+  ]
+}

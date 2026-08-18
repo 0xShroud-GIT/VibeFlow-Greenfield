@@ -1,0 +1,336 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-08-18",
+  "status": "ACCEPTED_ADVISORY_REFERENCE_LANDING",
+  "repository_mutation": "REFERENCE_ONLY_PR_UNDER_TOP_LEVEL_REFERENCE",
+  "source_basis": {
+    "input_report": {
+      "file": "VibeFlow_Open_Source_Harvest_Research_2026-08-18.md",
+      "sha256": "b9731683dafc98fa3e86490df0be90c45dff025ef1a71a5ee3ea7ca6bbe09ad6"
+    },
+    "audited_master_disposition": {
+      "file": "VibeFlow_OSS_Harvest_Audit_and_Master_Disposition_2026-08-18.md",
+      "sha256": "19e06ab045adcb75a43c5df116cb3adf3db101f42c76d789471e63ce069d1319",
+      "audited_repositories": 104
+    },
+    "vibeflow_mission_authority": {
+      "repository": "0xShroud-GIT/VibeFlow-Greenfield",
+      "main_sha": "affa8f9bab79a73dbc0a4e97fb4fa88f07ae3b34",
+      "path": "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv"
+    },
+    "agora_deep_pin": {
+      "repository": "newo-ether/Agora",
+      "commit": "38147fca345565649e8f4971d6cad974bc858b1b",
+      "tree": "1c08de6d29ca462eed03dbd12899c77b81fb789d",
+      "audit_date": "2026-08-18",
+      "status": "PINNED"
+    }
+  },
+  "policy": {
+    "authority": "This artifact routes research; it does not supersede VibeFlow master contracts.",
+    "active_mission_scope": "Do not load a reference into an implementation packet unless the active mission intersects its owning_missions.",
+    "dependency_registry": "Reference projects do not enter OSS_HARVEST_REGISTRY merely because they are useful to study.",
+    "source_reuse": "Direct source reuse is mission-owned, exact-revision/file-license bound, security reviewed, and interface-isolated.",
+    "m007": "No research reference is routed to M-007 by default. Local-dev work remains clean unless a concrete M-007 requirement independently justifies a component."
+  },
+  "routing_domains": {
+    "PROVIDER_BINDINGS": {
+      "missions": [
+        "M-016",
+        "M-017",
+        "M-018",
+        "M-019"
+      ],
+      "title": "Provider Bindings"
+    },
+    "CONNECTIONS_GRANTS": {
+      "missions": [
+        "M-020",
+        "M-021",
+        "M-022",
+        "M-023"
+      ],
+      "title": "Connections & Grants"
+    },
+    "DURABLE_EXECUTION": {
+      "missions": [
+        "M-024",
+        "M-025",
+        "M-026",
+        "M-027",
+        "M-028"
+      ],
+      "title": "Durable Task & Execution"
+    },
+    "REMOTE_LAYER": {
+      "missions": [
+        "M-029",
+        "M-030",
+        "M-031",
+        "M-032"
+      ],
+      "title": "Remote Layer"
+    },
+    "MOBILE_SHELL": {
+      "missions": [
+        "M-033",
+        "M-034",
+        "M-035",
+        "M-036",
+        "M-037"
+      ],
+      "title": "Mobile Shell"
+    },
+    "AGENT_INTEGRATION": {
+      "missions": [
+        "M-038",
+        "M-039",
+        "M-040",
+        "M-041",
+        "M-042"
+      ],
+      "title": "Agent Integration"
+    },
+    "MODEL_INTEGRATION": {
+      "missions": [
+        "M-043",
+        "M-044",
+        "M-045",
+        "M-046"
+      ],
+      "title": "Model Integration"
+    },
+    "WORKSPACE_INTEGRATION": {
+      "missions": [
+        "M-047",
+        "M-048",
+        "M-049",
+        "M-050",
+        "M-051"
+      ],
+      "title": "Workspace Integration"
+    },
+    "WORKSPACE_WEB_IDE": {
+      "missions": [
+        "M-052",
+        "M-053",
+        "M-054",
+        "M-055",
+        "M-056"
+      ],
+      "title": "Workspace Web IDE"
+    },
+    "NATIVE_WEB_BRIDGE": {
+      "missions": [
+        "M-057",
+        "M-058",
+        "M-059",
+        "M-060",
+        "M-061"
+      ],
+      "title": "Secure Native-Web Bridge"
+    },
+    "REPOSITORY_GIT": {
+      "missions": [
+        "M-062",
+        "M-063",
+        "M-064",
+        "M-065",
+        "M-066"
+      ],
+      "title": "Repository & Git"
+    },
+    "CHECKPOINTS": {
+      "missions": [
+        "M-067",
+        "M-068",
+        "M-069",
+        "M-070",
+        "M-071"
+      ],
+      "title": "Checkpoints"
+    },
+    "VERIFICATION": {
+      "missions": [
+        "M-072",
+        "M-073",
+        "M-074",
+        "M-075",
+        "M-076"
+      ],
+      "title": "Verification & Evidence"
+    },
+    "RECOVERY": {
+      "missions": [
+        "M-077",
+        "M-078",
+        "M-079",
+        "M-080",
+        "M-081"
+      ],
+      "title": "Recovery"
+    },
+    "MCP_TOOLS": {
+      "missions": [
+        "M-082",
+        "M-083",
+        "M-084",
+        "M-085",
+        "M-086"
+      ],
+      "title": "MCP / Tools"
+    },
+    "OBSERVABILITY": {
+      "missions": [
+        "M-097",
+        "M-098",
+        "M-099",
+        "M-100",
+        "M-101"
+      ],
+      "title": "Observability & Incidents"
+    },
+    "SECURITY_PRODUCT": {
+      "missions": [
+        "M-102",
+        "M-103",
+        "M-104",
+        "M-105",
+        "M-106"
+      ],
+      "title": "Security Product"
+    },
+    "NOTIFICATIONS_AUTOMATIONS": {
+      "missions": [
+        "M-107",
+        "M-108",
+        "M-109",
+        "M-110",
+        "M-111"
+      ],
+      "title": "Notifications & Automations"
+    },
+    "NATIVE_APP_DEV": {
+      "missions": [
+        "M-125",
+        "M-126",
+        "M-127",
+        "M-128"
+      ],
+      "title": "Native App Development"
+    },
+    "EXTERNAL_ECOSYSTEM": {
+      "missions": [
+        "M-129",
+        "M-130",
+        "M-131",
+        "M-132",
+        "M-133"
+      ],
+      "title": "External Ecosystem"
+    },
+    "RELIABILITY": {
+      "missions": [
+        "M-142",
+        "M-143",
+        "M-144",
+        "M-145",
+        "M-146"
+      ],
+      "title": "Reliability & Performance"
+    }
+  },
+  "lineage_groups": [
+    {
+      "group_id": "LIN-001",
+      "members": [
+        "REF-008",
+        "REF-009"
+      ],
+      "rule": "Happy/Happier overlap: de-duplicate behavior before counting independent evidence."
+    },
+    {
+      "group_id": "LIN-002",
+      "members": [
+        "REF-048",
+        "REF-049"
+      ],
+      "rule": "Codex Pocket redirects into CodeRelay lineage; treat as one lineage."
+    },
+    {
+      "group_id": "LIN-003",
+      "members": [
+        "REF-027",
+        "REF-028"
+      ],
+      "rule": "LastChat is RikkaHub-derived; use as delta evidence, not independent architecture confirmation."
+    },
+    {
+      "group_id": "LIN-004",
+      "members": [
+        "REF-019",
+        "REF-053"
+      ],
+      "rule": "SwiftTermApp is historical app evidence around SwiftTerm; prefer the maintained terminal component for implementation decisions."
+    },
+    {
+      "group_id": "LIN-005",
+      "members": [
+        "REF-071"
+      ],
+      "rule": "vercel/ai-chatbot redirects to vercel/chatbot; use canonical current repository."
+    },
+    {
+      "group_id": "LIN-006",
+      "members": [
+        "REF-072"
+      ],
+      "rule": "lobehub/lobe-chat redirects to lobehub/lobehub; current license posture must be evaluated at canonical repo."
+    },
+    {
+      "group_id": "LIN-007",
+      "members": [
+        "REF-091"
+      ],
+      "rule": "Old Codex Web UI moved to codex-mobile lineage; old unlicensed repo is not a source pool."
+    },
+    {
+      "group_id": "LIN-008",
+      "members": [
+        "REF-002"
+      ],
+      "rule": "Harness Remote canonical repository is giuliastro/harness-remote; old URL is redirect evidence only."
+    }
+  ],
+  "landing": {
+    "accepted_by_user": true,
+    "accepted_date": "2026-08-18",
+    "repository_path": "reference/oss-harvest",
+    "authority_effect": "ADVISORY_REFERENCE_ONLY",
+    "mission_state_effect": "NONE",
+    "dependency_registry_effect": "NONE",
+    "m007_effect": "NONE_BY_DEFAULT",
+    "layout": "SHARDED_REPO_NATIVE",
+    "historical_artifact_policy": "Original pre-landing artifacts are identified by exact SHA-256 in SOURCE_DIGESTS.json and are not rewritten."
+  },
+  "reference_count": 104,
+  "behavioral_contract_count": 25,
+  "reference_shards": [
+    "references/REFERENCES_001_008.json",
+    "references/REFERENCES_009_016.json",
+    "references/REFERENCES_017_024.json",
+    "references/REFERENCES_025_032.json",
+    "references/REFERENCES_033_040.json",
+    "references/REFERENCES_041_048.json",
+    "references/REFERENCES_049_056.json",
+    "references/REFERENCES_057_064.json",
+    "references/REFERENCES_065_072.json",
+    "references/REFERENCES_073_080.json",
+    "references/REFERENCES_081_088.json",
+    "references/REFERENCES_089_096.json",
+    "references/REFERENCES_097_104.json"
+  ],
+  "behavioral_contracts_file": "BEHAVIORAL_CONTRACTS.json",
+  "source_digest_file": "SOURCE_DIGESTS.json",
+  "human_review_file": "HUMAN_REVIEW.md"
+}
