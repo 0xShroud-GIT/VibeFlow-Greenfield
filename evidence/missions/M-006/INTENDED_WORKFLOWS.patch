@@ -1,0 +1,278 @@
+diff --git a/.github/workflows/master-build-system-integrity.yml b/.github/workflows/master-build-system-integrity.yml
+index 2880ee3..ea10173 100644
+--- a/.github/workflows/master-build-system-integrity.yml
++++ b/.github/workflows/master-build-system-integrity.yml
+@@ -2,48 +2,8 @@ name: Master Build System Integrity
+ 
+ on:
+   pull_request:
+-    paths:
+-      - 'master-build-system/**'
+-      - 'scripts/**'
+-      - 'tests/**'
+-      - 'evidence/**'
+-      - '.ai/**'
+-      - '.github/workflows/master-build-system-integrity.yml'
+-      - 'package.json'
+-      - 'pnpm-workspace.yaml'
+-      - 'pnpm-lock.yaml'
+-      - '.nvmrc'
+-      - '.npmrc'
+-      - 'tsconfig.base.json'
+-      - 'turbo.json'
+-      - 'packages/**'
+-      - 'apps/**'
+-      - 'services/**'
+-      - 'workers/**'
+-      - 'adapters/**'
+-      - '.github/workflows/repository-foundation.yml'
+   push:
+     branches: [main]
+-    paths:
+-      - 'master-build-system/**'
+-      - 'scripts/**'
+-      - 'tests/**'
+-      - 'evidence/**'
+-      - '.ai/**'
+-      - '.github/workflows/master-build-system-integrity.yml'
+-      - 'package.json'
+-      - 'pnpm-workspace.yaml'
+-      - 'pnpm-lock.yaml'
+-      - '.nvmrc'
+-      - '.npmrc'
+-      - 'tsconfig.base.json'
+-      - 'turbo.json'
+-      - 'packages/**'
+-      - 'apps/**'
+-      - 'services/**'
+-      - 'workers/**'
+-      - 'adapters/**'
+-      - '.github/workflows/repository-foundation.yml'
+ 
+ permissions:
+   contents: read
+@@ -51,8 +11,11 @@ permissions:
+ jobs:
+   verify:
+     runs-on: ubuntu-latest
++    timeout-minutes: 20
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
+       - name: Verify authoritative pack hashes
+         shell: bash
+         run: |
+@@ -85,3 +48,9 @@ jobs:
+       - name: Run M-005 contract codegen mutation tests
+         shell: bash
+         run: python3 tests/contract/test_m005_contract_codegen.py
++      - name: Validate M-006 security gates
++        shell: bash
++        run: python3 scripts/validate-m006-security-gates.py
++      - name: Run M-006 security gate mutation tests
++        shell: bash
++        run: python3 tests/contract/test_m006_security_gates.py
+diff --git a/.github/workflows/repo-sanitation.yml b/.github/workflows/repo-sanitation.yml
+index a00e767..8e9bd24 100644
+--- a/.github/workflows/repo-sanitation.yml
++++ b/.github/workflows/repo-sanitation.yml
+@@ -11,8 +11,11 @@ permissions:
+ jobs:
+   sanitize:
+     runs-on: ubuntu-latest
++    timeout-minutes: 5
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
+       - name: Check repository hygiene
+         shell: bash
+         run: bash scripts/repo-sanitize.sh
+diff --git a/.github/workflows/repository-foundation.yml b/.github/workflows/repository-foundation.yml
+index 6fa9269..9553262 100644
+--- a/.github/workflows/repository-foundation.yml
++++ b/.github/workflows/repository-foundation.yml
+@@ -2,40 +2,8 @@ name: Repository Foundation
+ 
+ on:
+   pull_request:
+-    paths:
+-      - 'package.json'
+-      - 'pnpm-workspace.yaml'
+-      - 'pnpm-lock.yaml'
+-      - '.nvmrc'
+-      - '.npmrc'
+-      - 'tsconfig.base.json'
+-      - 'turbo.json'
+-      - 'packages/**'
+-      - 'apps/**'
+-      - 'services/**'
+-      - 'workers/**'
+-      - 'adapters/**'
+-      - 'scripts/validate-m004-foundation.py'
+-      - 'tests/contract/test_m004_foundation.py'
+-      - '.github/workflows/repository-foundation.yml'
+   push:
+     branches: [main]
+-    paths:
+-      - 'package.json'
+-      - 'pnpm-workspace.yaml'
+-      - 'pnpm-lock.yaml'
+-      - '.nvmrc'
+-      - '.npmrc'
+-      - 'tsconfig.base.json'
+-      - 'turbo.json'
+-      - 'packages/**'
+-      - 'apps/**'
+-      - 'services/**'
+-      - 'workers/**'
+-      - 'adapters/**'
+-      - 'scripts/validate-m004-foundation.py'
+-      - 'tests/contract/test_m004_foundation.py'
+-      - '.github/workflows/repository-foundation.yml'
+ 
+ permissions:
+   contents: read
+@@ -43,12 +11,16 @@ permissions:
+ jobs:
+   foundation:
+     runs-on: ubuntu-latest
++    timeout-minutes: 20
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
+       - name: Setup Node 24.19.0
+-        uses: actions/setup-node@v4
++        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+         with:
+           node-version: 24.19.0
++          package-manager-cache: false
+       - name: Enable corepack
+         shell: bash
+         run: corepack enable
+diff --git a/.github/workflows/security-and-dependency-gates.yml b/.github/workflows/security-and-dependency-gates.yml
+new file mode 100644
+index 0000000..0e9c437
+--- /dev/null
++++ b/.github/workflows/security-and-dependency-gates.yml
+@@ -0,0 +1,115 @@
++name: Security & Dependency Gates
++
++on:
++  pull_request:
++  push:
++    branches: [main]
++
++permissions:
++  contents: read
++
++jobs:
++  dependency-policy:
++    runs-on: ubuntu-latest
++    timeout-minutes: 10
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
++      - name: Setup Node 24.19.0
++        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
++        with:
++          node-version: 24.19.0
++          package-manager-cache: false
++      - name: Enable exact pnpm
++        shell: bash
++        run: corepack enable
++      - name: Validate static security and dependency policy
++        shell: bash
++        run: pnpm run security:validate
++
++  secrets:
++    runs-on: ubuntu-latest
++    timeout-minutes: 10
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          fetch-depth: 0
++          persist-credentials: false
++      - name: Install checksum-verified Gitleaks
++        shell: bash
++        run: python3 scripts/security/install-ci-tool.py gitleaks
++      - name: Scan full repository history with redaction
++        shell: bash
++        run: scripts/security/run-gitleaks.sh
++
++  vulnerabilities:
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
++      - name: Install checksum-verified vulnerability scanners
++        shell: bash
++        run: |
++          python3 scripts/security/install-ci-tool.py osv-scanner
++          python3 scripts/security/install-ci-tool.py trivy
++      - name: Scan resolved lockfile state with OSV-Scanner
++        shell: bash
++        run: scripts/security/run-osv-scanner.sh
++      - name: Scan repository vulnerabilities and misconfigurations with Trivy
++        shell: bash
++        run: scripts/security/run-trivy.sh
++
++  sast:
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
++      - name: Test repository-owned Semgrep rules
++        shell: bash
++        run: scripts/security/test-semgrep-rules.sh
++      - name: Run digest-pinned Semgrep CE with local rules
++        shell: bash
++        run: scripts/security/run-semgrep.sh
++
++  sbom:
++    runs-on: ubuntu-latest
++    timeout-minutes: 20
++    steps:
++      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
++        with:
++          persist-credentials: false
++      - name: Install checksum-verified Trivy
++        shell: bash
++        run: python3 scripts/security/install-ci-tool.py trivy
++      - name: Generate ephemeral CycloneDX repository SBOM
++        shell: bash
++        run: scripts/security/generate-sbom.sh "$RUNNER_TEMP/vibeflow-repository.cdx.json"
++      - name: Upload ephemeral CycloneDX evidence
++        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
++        with:
++          name: vibeflow-repository-cyclonedx
++          path: |
++            ${{ runner.temp }}/vibeflow-repository.cdx.json
++            ${{ runner.temp }}/vibeflow-repository.cdx.json.sha256
++          if-no-files-found: error
++          retention-days: 7
++
++  security-gate:
++    if: always()
++    needs: [dependency-policy, secrets, vulnerabilities, sast, sbom]
++    runs-on: ubuntu-latest
++    timeout-minutes: 5
++    steps:
++      - name: Require every security gate to succeed
++        shell: bash
++        run: |
++          test "${{ needs.dependency-policy.result }}" = "success"
++          test "${{ needs.secrets.result }}" = "success"
++          test "${{ needs.vulnerabilities.result }}" = "success"
++          test "${{ needs.sast.result }}" = "success"
++          test "${{ needs.sbom.result }}" = "success"

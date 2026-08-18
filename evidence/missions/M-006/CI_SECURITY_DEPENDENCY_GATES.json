@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "mission": "M-006",
+  "mission_status": "REVIEW",
+  "starting_main_sha": "76f2f2ae908cd728e337b64fe538cbd07a158945",
+  "verified_branch_start_sha": "76f2f2ae908cd728e337b64fe538cbd07a158945",
+  "branch": "arena/01a01281-vibeflow-greenfield",
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "mission_states": {
+    "M-001..M-005": "DONE",
+    "M-006": "REVIEW",
+    "M-007..M-151": "LOCKED"
+  },
+  "dependency_registry_mappings": {
+    "typescript": "H-002",
+    "turbo": "H-004",
+    "typebox": "H-025",
+    "vitest": "H-028"
+  },
+  "allow_builds_policy": {
+    "default": "deny",
+    "current_approvals": [],
+    "approval_requirements": [
+      "ratified npm coordinate",
+      "matching harvest_id",
+      "explicit boolean true",
+      "non-empty rationale"
+    ],
+    "dangerouslyAllowAllBuilds": "permanently forbidden"
+  },
+  "security_tools": {
+    "gitleaks": {
+      "harvest_id": "H-029",
+      "version": "8.30.1",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    },
+    "trivy": {
+      "harvest_id": "H-030",
+      "version": "0.72.0",
+      "sha256": "bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea",
+      "checksum_manifest_sha256": "ebe9d19a774b950e240b1017a038e9b5a002ea068e02023369ff6d241c10c580",
+      "sigstore_bundle_sha256": "fccbe7d4877af44f27e205528626dfeb3ff6efac57c22061f1fccb59e8a80007"
+    },
+    "osv-scanner": {
+      "harvest_id": "H-031",
+      "version": "2.4.0",
+      "sha256": "15314940c10d26af9c6649f150b8a47c1262e8fc7e17b1d1029b0e479e8ed8a0"
+    },
+    "semgrep": {
+      "harvest_id": "H-032",
+      "version": "1.172.0",
+      "container_digest": "sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b"
+    }
+  },
+  "github_actions": {
+    "actions/checkout@v7.0.1": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    "actions/setup-node@v7.0.0": "820762786026740c76f36085b0efc47a31fe5020",
+    "actions/upload-artifact@v7.0.1": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+  },
+  "scan_commands": {
+    "gitleaks": "scripts/security/run-gitleaks.sh",
+    "osv": "scripts/security/run-osv-scanner.sh",
+    "trivy": "scripts/security/run-trivy.sh",
+    "semgrep_rules": "scripts/security/test-semgrep-rules.sh",
+    "semgrep_repository": "scripts/security/run-semgrep.sh",
+    "sbom": "scripts/security/generate-sbom.sh $RUNNER_TEMP/vibeflow-repository.cdx.json"
+  },
+  "actual_results_before_first_ci_push": {
+    "node_24_19_0_pnpm_11_4_0_frozen_install": "PASS",
+    "pnpm_check": "PASS",
+    "semgrep_rule_fixtures": {
+      "result": "PASS",
+      "positive_rule_ids": 6,
+      "negative_findings": 0
+    },
+    "semgrep_repository": {
+      "result": "PASS",
+      "candidate_commit": "55a380b",
+      "rules": 6,
+      "applicable_targets": 17,
+      "findings": 0
+    },
+    "gitleaks": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "osv_scanner": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "trivy": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "sbom": "NOT_GENERATED_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "expected_ci_results_claimed_as_actual": false,
+    "github_security_workflow": "NOT_RUN_WORKFLOW_PERMISSION_BLOCKER"
+  },
+  "sbom": {
+    "format": "CycloneDX JSON",
+    "ci_artifact_name": "vibeflow-repository-cyclonedx",
+    "retention_days": 7,
+    "content_sha256": null,
+    "status": "BLOCKED_WORKFLOW_PERMISSION_AND_LOCAL_RELEASE_ASSET_EGRESS",
+    "source_of_truth": false
+  },
+  "container_image_scan": {
+    "status": "N/A",
+    "reason": "No product container image exists in M-006."
+  },
+  "test_counts": {
+    "M-002": 43,
+    "M-003": 18,
+    "M-004": 82,
+    "M-005_retained": 91,
+    "M-006": 27,
+    "total": 261
+  },
+  "capability_transitions": {
+    "VF-REL-002": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-003": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-004": [
+      "NOT_STARTED",
+      "IMPLEMENTED"
+    ],
+    "VF-REL-005": [
+      "NOT_STARTED",
+      "IN_PROGRESS"
+    ]
+  },
+  "environment_rows_changed": false,
+  "master_file_sha256": {
+    "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv": "5c4324f418afb6b7d069e103007d05e79b5bdb9c0e21ad5253cd9b37c7c92a79",
+    "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml": "a1907508cc5ecd40d779cfac843f47868a1f1fd307684a7f26aa640fdab3d40b",
+    "06_HARVEST/OSS_HARVEST_REGISTRY.yaml": "d8edb9877a018223c5b9f633e3a78b8c63d7bba86ee83d3dcd85a4f89217827b",
+    "10_IMPLEMENTATION/MISSION_DAG.yaml": "afd8e637ec0f96c8aedc748bf196dbf8d1b3977fb28ebd9f0bbbd8655491ac2a",
+    "10_IMPLEMENTATION/MISSION_REGISTER.csv": "8970ef31164ba8dbfd47d102e44fe151a6c44dcc493af7d35787d15b537e66f6",
+    "SHA256SUMS.txt": "1bb3a8e4784c05f0d8320277e8ce5148bce3496c2edb62671242707da351647c"
+  },
+  "authoritative_pack_hashes": {
+    "entries": 72,
+    "result": "PASS"
+  },
+  "branch_protection": {
+    "status": "PENDING_EXTERNAL_REVIEWER_APPLICATION",
+    "workflow_files_claim_protection": false,
+    "required_checks": [
+      "Master Build System Integrity / verify",
+      "Repository Foundation / foundation",
+      "Repository Sanitation / sanitize",
+      "Security & Dependency Gates / security-gate"
+    ],
+    "actions_sha_pinning_setting_available": "UNKNOWN_GITHUB_APP_HTTP_403"
+  },
+  "adr": {
+    "required": false,
+    "status": "NOT_REQUIRED",
+    "reason": "No architecture decision outside the ratified M-006 policy was discovered."
+  },
+  "workflow_permission_blocker": {
+    "blocked": true,
+    "candidate_commit": "55a380b",
+    "push_attempts_with_workflows": 1,
+    "github_error": "GitHub App may not create or update .github/workflows/** without workflows permission",
+    "oauth_or_device_workaround_attempted": false,
+    "workflow_changes_reverted_for_push": true,
+    "exact_intended_diff": "evidence/missions/M-006/INTENDED_WORKFLOWS.patch",
+    "intended_workflows_active_on_pushed_head": false,
+    "checks_that_cannot_be_green_until_applied": [
+      "validate-m006-security-gates.py",
+      "test_m006_security_gates.py real-repository case",
+      "pnpm run check",
+      "Gitleaks CI",
+      "OSV-Scanner CI",
+      "Trivy CI",
+      "Semgrep CI",
+      "CycloneDX SBOM CI",
+      "security-gate"
+    ]
+  }
+}

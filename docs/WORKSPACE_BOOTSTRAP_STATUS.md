@@ -2,16 +2,26 @@
 
 - Repository seed: READY
 - Product implementation: NOT STARTED
-- Active mission: M-005 — Establish schema/codegen pipeline (REVIEW); M-001, M-002, M-003, M-004 DONE (accepted)
+- Active mission: M-006 — Establish CI/security/dependency gates (REVIEW)
+- Accepted missions: M-001, M-002, M-003, M-004, M-005 (DONE)
+- Locked missions: M-007..M-151
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases
 - Canonical resources: 35
 
-The seed contains no harvested third-party source code. Harvesting begins only from registry-approved sources under the relevant mission, with license/provenance recorded in the repository.
+The seed contains no harvested third-party source code. Direct npm coordinates
+are reconciled to ratified harvest entries. Package install/build scripts are
+deny-by-default and require an explicit harvest-side package approval and
+rationale.
 
-M-004 repository foundation: Node 24.19.0, pnpm 11.4.0, TypeScript 6.0.3, Turborepo 2.10.6, Vitest 4.1.7, TypeBox 1.3.6 (ESM). Monorepo workspace globs: apps/*, services/*, workers/*, packages/*, adapters/*.
+M-004 repository foundation remains Node 24.19.0, pnpm 11.4.0, TypeScript 6.0.3,
+Turborepo 2.10.6, Vitest 4.1.7, and TypeBox 1.3.6. M-005's deterministic
+schema/codegen pipeline remains retained and checked.
 
-M-005 schema/codegen pipeline: `scripts/generate-contracts.py` (stdlib only, deterministic, no new dependency) derives the contract catalog from the authoritative master files routed by `00_MASTER/SOURCE_OF_TRUTH_INDEX.yaml` — canonical resources (35), state machines (7) and events (37). Generated artifacts are `packages/contracts/src/generated/catalog.ts`, `packages/contracts/generated/catalog.schema.json` and `packages/contracts/generated/catalog.manifest.json`; they are derived, marked DO NOT EDIT, and drift is detected by `pnpm run contracts:check` as a stage of root `pnpm run check`. Contracts are JSON Schema first (2020-12) with TypeScript types derived through TypeBox `Static<>`.
-
-Payload schemas for commands and events, REST request/response contracts, persistence schemas and an error-code catalog are not generated: the master pack does not yet define them, and the pipeline does not manufacture missing domain authority.
+M-006 statically enforces dependency/harvest reconciliation, immutable CI tool
+and Action pins, least-privilege workflows, repository-owned Semgrep rules,
+full-history secret scanning, vulnerability/misconfiguration scans, and an
+ephemeral CycloneDX repository SBOM. A product-container scan is N/A because no
+product image exists. Main branch protection is pending external reviewer
+application; workflow files alone do not protect main.

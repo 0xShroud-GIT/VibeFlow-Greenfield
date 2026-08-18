@@ -1,0 +1,61 @@
+rules:
+  - id: vibeflow.python.dynamic-eval
+    message: Dynamic eval can execute attacker-controlled Python code.
+    severity: ERROR
+    languages: [python]
+    pattern: eval(...)
+    metadata:
+      confidence: HIGH
+      category: security
+
+  - id: vibeflow.python.dynamic-exec
+    message: Dynamic exec can execute attacker-controlled Python code.
+    severity: ERROR
+    languages: [python]
+    pattern: exec(...)
+    metadata:
+      confidence: HIGH
+      category: security
+
+  - id: vibeflow.python.os-system
+    message: os.system invokes a command through a shell.
+    severity: ERROR
+    languages: [python]
+    pattern: os.system(...)
+    metadata:
+      confidence: HIGH
+      category: security
+
+  - id: vibeflow.python.subprocess-shell-true
+    message: subprocess with shell=True can enable shell injection.
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+    metadata:
+      confidence: HIGH
+      category: security
+
+  - id: vibeflow.javascript.dynamic-eval
+    message: Dynamic eval can execute attacker-controlled JavaScript or TypeScript.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: eval(...)
+    metadata:
+      confidence: HIGH
+      category: security
+
+  - id: vibeflow.javascript.child-process-exec
+    message: child_process exec APIs invoke commands through a shell.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: child_process.exec(...)
+      - pattern: child_process.execSync(...)
+      - pattern: require("child_process").exec(...)
+      - pattern: require("child_process").execSync(...)
+      - pattern: require("node:child_process").exec(...)
+      - pattern: require("node:child_process").execSync(...)
+    metadata:
+      confidence: HIGH
+      category: security

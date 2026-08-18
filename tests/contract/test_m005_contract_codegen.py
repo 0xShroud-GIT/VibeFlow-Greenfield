@@ -142,6 +142,36 @@ class Sandbox:
             writer.writeheader()
             writer.writerows(rows)
 
+    def as_historical_m005(self, status: str = "REVIEW") -> "Sandbox":
+        """Reconstruct M-005's accepted historical snapshot from a later repo."""
+        self.set_mission_status("M-005", status)
+        self.set_mission_status("M-006", "LOCKED")
+        self.write(
+            ".ai/ACTIVE_MISSION.md",
+            f"# Active Mission\n\n**Mission:** M-005 — historical snapshot\n\n**Status:** {status}\n",
+        )
+        self.write(
+            "README.md",
+            f"# VibeFlow\n\n## Current state\n\nThe active mission is `M-005` ({status}).\n",
+        )
+        self.write(
+            "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+            f"# Workspace Bootstrap Status\n\n- Active mission: M-005 — historical ({status})\n",
+        )
+        return self
+
+    def approve_typebox_build(self) -> None:
+        self.patch(
+            REGISTRY,
+            "  approvals: []",
+            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n"
+            "    approved: true\n    rationale: Deterministic retained M-005 progression fixture.",
+        )
+        self.write(
+            "pnpm-workspace.yaml",
+            self.read("pnpm-workspace.yaml") + "allowBuilds:\n  typebox: true\n",
+        )
+
     def refresh_pack_hash(self, pack_rel: str) -> None:
         """Recompute one SHA256SUMS.txt entry so pack drift is not the failure."""
         sums = self.path("master-build-system/SHA256SUMS.txt")
@@ -162,7 +192,7 @@ class M005TestCase(unittest.TestCase):
         self.tmp = Path(self._tmp.name)
 
     def box(self) -> Sandbox:
-        return Sandbox(self.tmp)
+        return Sandbox(self.tmp).as_historical_m005()
 
     def assert_rejected(self, box: Sandbox, needle: str) -> None:
         result = run_script(VALIDATOR, box.root)
@@ -546,6 +576,49 @@ class ContractPackageTests(M005TestCase):
         self.assert_rejected(box, "must not invent commands")
 
 
+class BuildScriptProgressionTests(M005TestCase):
+    def durable(self) -> Sandbox:
+        box = self.box()
+        box.set_mission_status("M-005", "DONE")
+        box.set_mission_status("M-006", "REVIEW")
+        box.write(
+            ".ai/ACTIVE_MISSION.md",
+            "# Active Mission\n\n**Mission:** M-006 — successor\n\n**Status:** REVIEW\n",
+        )
+        box.write("README.md", "# VibeFlow\n\nThe active mission is `M-006` (REVIEW).\n")
+        box.write(
+            "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+            "# Workspace Bootstrap Status\n\n- Active mission: M-006 — successor (REVIEW)\n",
+        )
+        return box
+
+    def test_historical_m005_snapshot_rejects_allow_builds(self) -> None:
+        box = self.box()
+        box.approve_typebox_build()
+        self.assert_rejected(box, "M-005 active snapshot forbids allowBuilds")
+
+    def test_m005_done_m006_active_accepts_approved_allow_builds(self) -> None:
+        box = self.durable()
+        box.approve_typebox_build()
+        self.assert_accepted(box)
+
+    def test_durable_unapproved_allow_builds_fails(self) -> None:
+        box = self.durable()
+        box.write(
+            "pnpm-workspace.yaml",
+            box.read("pnpm-workspace.yaml") + "allowBuilds:\n  typebox: true\n",
+        )
+        self.assert_rejected(box, "lacks matching harvest-side approval")
+
+    def test_dangerously_allow_all_builds_fails_forever(self) -> None:
+        box = self.durable()
+        box.write(
+            "pnpm-workspace.yaml",
+            box.read("pnpm-workspace.yaml") + "dangerouslyAllowAllBuilds: true\n",
+        )
+        self.assert_rejected(box, "dangerouslyAllowAllBuilds is permanently forbidden")
+
+
 class RootScriptTests(M005TestCase):
     def test_contracts_check_removed_from_root_check_fails(self) -> None:
         box = self.box()
@@ -578,22 +651,20 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_this_branch_keeps_m005_at_review(self) -> None:
-        """M-005 must not be self-marked DONE on this branch.
-
-        DONE is a legitimate *accepted* state for the generalized validator
-        (see M005ProgressionTests), so this is asserted against the real
-        repository rather than by making DONE universally invalid.
-        """
+    def test_current_branch_records_m005_accepted_and_m006_review(self) -> None:
+        """The retained gate must accept, but never invent, M-005 acceptance."""
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        block = dag.split("- mission_id: M-005", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: REVIEW", block)
+        m005 = dag.split("- mission_id: M-005", 1)[1].split("- mission_id:", 1)[0]
+        m006 = dag.split("- mission_id: M-006", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: DONE", m005)
+        self.assertIn("status: REVIEW", m006)
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
-        self.assertEqual(rows["M-005"], "REVIEW")
         self.assertEqual(rows["M-004"], "DONE")
-        for index in range(6, 152):
+        self.assertEqual(rows["M-005"], "DONE")
+        self.assertEqual(rows["M-006"], "REVIEW")
+        for index in range(7, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:
@@ -699,10 +770,10 @@ class M005ProgressionTests(M005TestCase):
         self.assert_accepted(self.accepted("M-008", "IN_PROGRESS"))
 
     def test_reports_active_and_durable_modes(self) -> None:
-        result = run_script(VALIDATOR, REPO_ROOT)
-        self.assertIn("mode=m005-active", result.stdout)
-        future = run_script(VALIDATOR, self.accepted().root)
-        self.assertIn("mode=durable", future.stdout)
+        historical = run_script(VALIDATOR, self.box().root)
+        self.assertIn("mode=m005-active", historical.stdout)
+        current = run_script(VALIDATOR, REPO_ROOT)
+        self.assertIn("mode=durable", current.stdout)
 
     # --- invalid states fail ---------------------------------------------
 

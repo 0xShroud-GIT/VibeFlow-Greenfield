@@ -254,6 +254,62 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
         self.assertIn("BUILD decision requires explicit ADR justification", result.stdout)
 
 
+    # --- M-006 extension of the same authoritative harvest policy ----------
+
+    def test_current_npm_coordinate_mapping_passes(self) -> None:
+        result = run_script(HARVEST, REPO_ROOT)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("package coordinates: 4", result.stdout)
+        self.assertIn("install/build-script approvals: 0", result.stdout)
+
+    def test_package_coordinate_unknown_harvest_id_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "harvest_id: H-002\n    approved_usage: development",
+            "harvest_id: H-999\n    approved_usage: development",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown harvest ID", result.stdout)
+
+    def test_duplicate_package_coordinate_fails(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "  source: https://github.com/vercel/turborepo\n  package_coordinates:",
+            "  source: https://github.com/vercel/turborepo\n  package_coordinates:\n"
+            "  - ecosystem: npm\n    name: typescript\n    harvest_id: H-004\n"
+            "    approved_usage: development",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Duplicate package coordinate", result.stdout)
+
+    def test_build_script_policy_must_default_deny(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "install_build_script_policy:\n  default: deny",
+            "install_build_script_policy:\n  default: allow",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("default must be 'deny'", result.stdout)
+
+    def test_build_script_approval_requires_rationale(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "  approvals: []",
+            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n"
+            "    approved: true\n    rationale: ''",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required field 'rationale'", result.stdout)
+
+
 def load_registry_entries(root: Path) -> dict[str, dict]:
     """Parse the registry with the repository's own stdlib YAML-subset loader."""
     import importlib.util
@@ -310,6 +366,7 @@ def multiline_rules_intact(root: Path) -> list[str]:
         if clause in replacement:
             problems.append(f"{hid}: clause leaked into replacement_strategy")
     return problems
+
 
 
 class RegistryMultilineRuleRegressionTests(TempDirMixin, unittest.TestCase):

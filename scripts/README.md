@@ -3,6 +3,10 @@
 Repository maintenance and validation scripts.
 
 - `repo-sanitize.sh` — tracked-path and high-confidence secret sanitation.
-- `validate-master-contracts.py` — no-dependency master-contract consistency validator with generalized mission-progression validation (M-002 removed the M-001 bootstrap hard-coding).
-- `validate-harvest-registry.py` — no-dependency dependency/harvest registry validator introduced by M-002 (35-entry integrity, exact official-source identity, decision/integration vocabulary, license classification, DO_NOT_INVENT coherence).
-- `validate-threat-model.py` — no-dependency M-003 security-contract validator for 12 asset IDs, 24 threat IDs, 13 trust-boundary IDs, cross-references, invariant coverage, secret/workspace protections, and fail-closed authority markers.
+- `validate-master-contracts.py` — stdlib master-contract, capability-ledger and generalized mission-progression consistency.
+- `validate-harvest-registry.py` — stdlib harvest integrity, official-source, license, package-coordinate and deny-by-default build-approval policy.
+- `validate-threat-model.py` — stdlib M-003 security-contract validator.
+- `validate-m004-foundation.py` — retained monorepo/toolchain foundation gate.
+- `generate-contracts.py` / `validate-m005-contract-codegen.py` — deterministic generated-contract pipeline and retained gate.
+- `validate-m006-security-gates.py` — network-free static M-006 dependency, workflow, tool-lock, Semgrep and progression gate.
+- `security/` — checksum/provenance-verified CI tool installer and deterministic Gitleaks, OSV-Scanner, Trivy, CycloneDX and Semgrep wrappers. Runtime scans are intentionally outside root `pnpm run check`.
