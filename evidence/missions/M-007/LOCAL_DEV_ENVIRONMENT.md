@@ -417,7 +417,7 @@ No expected CI result is represented as actual CI. At this evidence revision:
 - `Repository Sanitation / sanitize`: **PASS** (run `32164179507`).
 - `Repository Foundation / foundation`: **FAIL** (run `32164179453`) at
   `postCreateCommand` with `EACCES` on the fresh root-owned volume (fixed by
-  the initializeCommand chown above; pending re-run on the new head).
+  the initializeCommand chown above; see the re-run below).
 - `Security & Dependency Gates / sbom`: **PASS** (run `32164179498`) — the
   exact dev image was built and the ephemeral dev-image CycloneDX SBOM was
   generated and uploaded:
@@ -429,8 +429,27 @@ No expected CI result is represented as actual CI. At this evidence revision:
   image, which **correctly failed closed** on real actionable findings
   (see the stop-and-report blocker below). `secrets`, `dependency-policy`,
   `sast` all PASS; aggregate `security-gate` failed closed as designed.
-- Runtime smoke, Trivy scan pass, and a green `security-gate`: **not claimed**
-  until exact-head CI executes them on the new head.
+### Round-3b exact-head CI evidence (head `21108b3`, the volume-permissions fix)
+
+- `Master Build System Integrity / verify`: **PASS** (run `32167152736`).
+- `Repository Sanitation / sanitize`: **PASS** (run `32167152743`).
+- `Repository Foundation / foundation`: **PASS** (run `32167152756`) — the
+  dev container now builds, the `postCreateCommand` bootstrap
+  (`pnpm install --frozen-lockfile` + `pnpm run check`) succeeds
+  non-interactively, and the step "Build dev container and run runtime smoke
+  inside the exact image" passes, so the in-container runtime smoke executed
+  successfully.
+- `Security & Dependency Gates / security-gate`: **FAIL** (run `32167152746`)
+  — the aggregate gate failed closed because the `vulnerabilities` job
+  correctly fails on the real Trivy dev-image findings (stop-and-report
+  blocker below). `secrets`, `dependency-policy`, `sast` and `sbom` pass
+  (same pattern as run `32164179498`, where `sbom` produced artifact
+  `9334786052`); the dev-image SBOM generation/upload succeeds.
+- The four required contexts remain: `verify` PASS, `foundation` PASS,
+  `sanitize` PASS, `security-gate` FAIL-closed on the documented image
+  findings.
+- Runtime smoke: **executed and passed** inside the exact built dev image
+  (part of the green foundation step on `21108b3`).
 
 ### Stop-and-report blocker: dev-image Trivy findings (packet §4.3 / §8)
 

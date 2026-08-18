@@ -208,6 +208,30 @@
           }
         }
       },
+      "exact_head_ci_round3b": {
+        "head": "21108b354abbfa0257bd02a8bf9a3356adc3febe",
+        "note": "GitHub token expired during evidence capture; job-level breakdown for 32167152746 is inferred from run 32164179498 pattern plus unchanged inputs.",
+        "runs": {
+          "foundation": {
+            "detail": "devcontainer builds; postCreate bootstrap (pnpm install --frozen-lockfile + pnpm run check) succeeds non-interactively; runtime smoke inside the exact image passes",
+            "id": 32167152756,
+            "result": "PASS"
+          },
+          "sanitize": {
+            "id": 32167152743,
+            "result": "PASS"
+          },
+          "security_gate": {
+            "id": 32167152746,
+            "reason": "aggregate gate failed closed because vulnerabilities job correctly fails on real Trivy dev-image findings (stop-and-report blocker); secrets/dependency-policy/sast/sbom pass",
+            "result": "FAIL"
+          },
+          "verify": {
+            "id": 32167152736,
+            "result": "PASS"
+          }
+        }
+      },
       "gpt_review_id": 4963633347,
       "new_mutation_tests": {
         "blocker_1": [
