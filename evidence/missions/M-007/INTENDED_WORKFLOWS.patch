@@ -1,0 +1,35 @@
+diff --git a/.github/workflows/repository-foundation.yml b/.github/workflows/repository-foundation.yml
+index 929cc84..e0a6654 100644
+--- a/.github/workflows/repository-foundation.yml
++++ b/.github/workflows/repository-foundation.yml
+@@ -37,7 +37,7 @@ jobs:
+         run: pnpm run check
+       - name: Pull exact dev container base image by digest
+         shell: bash
+-        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
++        run: docker pull docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d
+       - name: Build dev container and run runtime smoke inside the exact image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
+         with:
+diff --git a/.github/workflows/security-and-dependency-gates.yml b/.github/workflows/security-and-dependency-gates.yml
+index bdd1edd..337c6f7 100644
+--- a/.github/workflows/security-and-dependency-gates.yml
++++ b/.github/workflows/security-and-dependency-gates.yml
+@@ -66,7 +66,7 @@ jobs:
+         run: scripts/security/run-trivy.sh
+       - name: Pull exact dev container base image by digest
+         shell: bash
+-        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
++        run: docker pull docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d
+       - name: Build exact dev container image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
+         with:
+@@ -116,7 +116,7 @@ jobs:
+           retention-days: 7
+       - name: Pull exact dev container base image by digest
+         shell: bash
+-        run: docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
++        run: docker pull docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d
+       - name: Build exact dev container image
+         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
+         with:

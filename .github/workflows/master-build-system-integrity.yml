@@ -54,3 +54,9 @@ jobs:
       - name: Run M-006 security gate mutation tests
         shell: bash
         run: python3 tests/contract/test_m006_security_gates.py
+      - name: Validate M-007 local dev environment
+        shell: bash
+        run: python3 scripts/validate-m007-local-dev.py
+      - name: Run M-007 local dev mutation tests
+        shell: bash
+        run: python3 tests/contract/test_m007_local_dev.py

@@ -304,8 +304,8 @@ class M004MissionProgressionTests(unittest.TestCase):
         """M-001..M-003 DONE, M-004 REVIEW, M-005+ LOCKED remains valid."""
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
-        box.set_mission_status("M-005", "LOCKED")
-        box.set_mission_status("M-006", "LOCKED")
+        for index in range(5, 152):
+            box.set_mission_status(f"M-{index:03d}", "LOCKED")
         self.assert_accepted(box)
 
     def test_m004_done_with_m005_review_passes(self) -> None:
@@ -390,11 +390,16 @@ class M004DurableVsSnapshotTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def historical(self) -> Sandbox:
-        """A sandbox pinned to the historical M-004 REVIEW snapshot."""
+        """A sandbox pinned to the historical M-004 REVIEW snapshot.
+
+        Later missions (M-005..M-151) are explicitly LOCKED so the
+        reconstruction is valid on any successor tree (e.g. after M-007
+        consumes M-006 acceptance and M-007 is REVIEW).
+        """
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
-        box.set_mission_status("M-005", "LOCKED")
-        box.set_mission_status("M-006", "LOCKED")
+        for index in range(5, 152):
+            box.set_mission_status(f"M-{index:03d}", "LOCKED")
         return box
 
     def future(self, active: str = "M-008") -> Sandbox:

@@ -1,0 +1,554 @@
+{
+  "adr_required": false,
+  "base_image": {
+    "architectures": {
+      "amd64": "sha256:f2925910482dc53394bc0034c5f4abffcd01de400794c050ca343fe0d733b486",
+      "arm64": "sha256:8525258f39fa3365fcf9a9d01e85458c7280ad00bd30c5e67655311262257e9e"
+    },
+    "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+    "dockerfile": false,
+    "license": "MIT",
+    "node_version": "24.19.0",
+    "os": "Debian trixie-slim (13)",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie-slim",
+    "upstream_source": "https://github.com/nodejs/docker-node"
+  },
+  "bootstrap": {
+    "check_network_free": true,
+    "command": "python3 scripts/dev-bootstrap.py",
+    "doctor": "python3 scripts/dev-doctor.py",
+    "frozen_lockfile": true,
+    "runtime_smoke": "python3 scripts/dev-runtime-smoke.py",
+    "static_validator": "python3 scripts/validate-m007-local-dev.py"
+  },
+  "branch": "arena/01a01576-vibeflow-greenfield",
+  "capability_status": {
+    "VF-ENV-005": "IN_PROGRESS",
+    "overclaim": "none claimed IMPLEMENTED/VERIFIED/COMPLETE",
+    "vf_env_001_004": "NOT_STARTED (unchanged)",
+    "vf_rel_002_005": "M-006 baselines unchanged (IMPLEMENTED/IMPLEMENTED/IMPLEMENTED/IN_PROGRESS)",
+    "vf_rel_006_011": "NOT_STARTED (unchanged)"
+  },
+  "ci_evidence": {
+    "dev_image_artifact_final": {
+      "archive_digest": "sha256:643148cef331dc2bfe69eafdbf7d67c8f0a3c2bcc314075c1cd92fa04a64e423",
+      "artifact_id": 9335883437,
+      "component_count": 617,
+      "cyclonedx_content_sha256": "dc50d3e4ba39dd7a0487389e8db96d2b6f685b82f9e812e706e510e888653cfc",
+      "cyclonedx_spec_version": "1.7",
+      "name": "vibeflow-dev-image-cyclonedx",
+      "note": "Reviewer-provided final-head artifact for round-4 exact-head evidence"
+    },
+    "dev_image_sbom_wrapper": "scripts/security/generate-dev-image-sbom.sh",
+    "dev_image_trivy_wrapper": "scripts/security/scan-dev-image.sh",
+    "devcontainers_ci_action": {
+      "commit_sha": "513af61f4de4f75d37e4438f184ba4358f0fc1ca",
+      "push": "never",
+      "reference": "devcontainers/ci",
+      "version": "0.3.1900000450"
+    },
+    "intended_workflow_patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch (correction delta from workflow-handoff state 16d79c5)",
+    "intended_workflow_patch_sha256": "e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94",
+    "required_contexts": [
+      "Master Build System Integrity / verify",
+      "Repository Foundation / foundation",
+      "Repository Sanitation / sanitize",
+      "Security & Dependency Gates / security-gate"
+    ]
+  },
+  "environment_descriptor": {
+    "adopted": "devcontainers",
+    "canonical_file": ".devcontainer/devcontainer.json",
+    "canonical_mounts": [
+      "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+    ],
+    "harvest_id": "H-023",
+    "policy_lock": "infrastructure/dev/dev-environment-policy.json",
+    "policy_lock_is_provenance_not_protocol": true
+  },
+  "features": [
+    {
+      "digest_reference": "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511",
+      "id": "python",
+      "options": {
+        "installTools": false,
+        "version": "os-provided"
+      },
+      "version": "1.8.0"
+    },
+    {
+      "digest_reference": "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2",
+      "id": "git",
+      "options": {
+        "ppa": false,
+        "version": "os-provided"
+      },
+      "version": "1.3.8"
+    }
+  ],
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "intended_workflow_content": {
+    "dev_image_sbom": "scripts/security/generate-dev-image-sbom.sh (DEV_IMAGE=vibeflow-dev:latest)",
+    "dev_image_scan": "scripts/security/scan-dev-image.sh (DEV_IMAGE=vibeflow-dev:latest)",
+    "devcontainers_ci_imageName": "vibeflow-dev",
+    "pull_by_digest": "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "resulting_local_tag": "vibeflow-dev:latest",
+    "runtime_smoke_inside_image": "python3 scripts/dev-runtime-smoke.py",
+    "sbom_artifact": "vibeflow-dev-image-cyclonedx"
+  },
+  "mission": "M-007",
+  "mission_states": {
+    "M-001..M-006": "DONE",
+    "M-007": "REVIEW",
+    "M-008..M-151": "LOCKED"
+  },
+  "mission_status": "REVIEW",
+  "mission_title": "Establish local dev environment",
+  "non_goals_respected": [
+    "no M-008 identity/account persistence",
+    "no PostgreSQL/Temporal/object-storage local services",
+    "no Expo/React Native product packages",
+    "no Fastify/Drizzle/Better Auth/Temporal SDK/provider SDKs/MCP/ACP/A2A SDKs",
+    "no VibeFlow workspace provider or sandbox",
+    "no product ports or .env product configuration",
+    "no raw/example provider secrets",
+    "no OSS research mapped into implementation",
+    "no branch-protection or required-check changes",
+    "no security-tool or GitHub Action upgrades",
+    "no architecture/resource/state/event changes",
+    "no custom environment-description protocol",
+    "no ADR required"
+  ],
+  "phase": "1 - Repository Foundation",
+  "review_fixes": {
+    "fix_1_devcontainers_ci_imagename_defect": {
+      "correction": {
+        "explicit_env": "DEV_IMAGE=vibeflow-dev:latest on Trivy scan and dev-image SBOM steps",
+        "floating_base": false,
+        "imageName": "vibeflow-dev",
+        "push": "never",
+        "resulting_local_tag": "vibeflow-dev:latest",
+        "weakened_security": false,
+        "workflow_paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ]
+      },
+      "failed_runs": {
+        "failing_jobs": [
+          "foundation",
+          "vulnerabilities",
+          "sbom",
+          "security-gate"
+        ],
+        "failing_steps": [
+          "Build dev container and run runtime smoke inside the exact image",
+          "Build exact dev container image"
+        ],
+        "repository_foundation": 32158344344,
+        "security_and_dependency_gates": 32158344311
+      },
+      "root_cause": "devcontainers/ci defaults imageTag to 'latest' and buildImageNames joins `${imageName}:${tag}`, so imageName 'vibeflow-dev:smoke' became invalid 'vibeflow-dev:smoke:latest' (invalid reference format). Verified from pinned source 513af61f4de4f75d37e4438f184ba4358f0fc1ca github-action/dist/index.js."
+    },
+    "fix_2_active_non_root_validator": {
+      "requirement": "active M-007 requires BOTH remoteUser == 'node' AND containerUser == 'node' (missing or wrong value fails); durable may change the user only with an owning later-mission declaration; root permanently banned"
+    },
+    "fix_3_durable_extension_ownership": {
+      "requirement": "extension entries authorize changes only when owned (mission_id) by the actually active later mission; active M-007 snapshot requires zero durable extensions; permanent bans (privileged, docker socket, host network, raw secrets, silent privilege expansion) remain regardless of declarations"
+    },
+    "gpt_review_id": 4963221835,
+    "reviewed_head_pre_fix": "16d79c5b705207af64c38303e168cdfb6ac81287",
+    "round_3": {
+      "blocker_1_bootstrap_no_tty_purge": {
+        "failed_runs": {
+          "repository_foundation": 32162692250,
+          "security_and_dependency_gates": 32162692252
+        },
+        "failure": "ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY during postCreateCommand pnpm install --frozen-lockfile: host checkout node_modules visible through the workspace bind mount with host pnpm-store symlinks; pnpm attempted to purge/recreate modules dir non-interactively.",
+        "fix": "canonical container-local volume: source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume (shadows host node_modules; host files untouched; frozen-lockfile bootstrap unchanged; no TTY required; no CI-only path).",
+        "fix_part_2_volume_permissions": {
+          "failed_run": 32164179453,
+          "failure": "EACCES: permission denied, mkdir /workspaces/VibeFlow-Greenfield/node_modules/.pnpm \u2014 fresh Docker named volume is root-owned; non-root container user cannot write it.",
+          "fix": "host-side initializeCommand chowns the volume root to the host user (uid the container user is aligned to): docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 chown $(id -u):$(id -g) /data. Same digest-pinned image; no host paths into the dev container; host node_modules untouched.",
+          "validator": "active M-007 requires exactly the canonical initializeCommand; durable changes require an owning declaration."
+        },
+        "validator": "active M-007 requires exactly the node_modules volume (removal or any extra mount fails)."
+      },
+      "blocker_2_wrappers_not_executable": {
+        "failure": "scripts/security/scan-dev-image.sh and generate-dev-image-sbom.sh tracked 100644; CI exit 126 Permission denied.",
+        "fix": "both chmod 100755; validator enforces os.access X_OK on fresh checkout.",
+        "validated": true
+      },
+      "blocker_3_durable_feature_extensions": {
+        "fix": "active: exactly python feature + zero extensions; durable: retain python, allow additional features only when registered in the policy/provenance structure, digest-pinned, options exact, and owned by the active later mission or an already-completed later mission (historical remain); unrelated/future missions authorize nothing."
+      },
+      "blocker_4_durable_runargs": {
+        "fix": "any non-empty durable runArgs require an extension owned by the active later mission (exact value + rationale); permanent bans (--privileged, host network, --cap-add/--security-opt, docker-socket/host-credential/ssh-agent) enforced independently and never declarable."
+      },
+      "blocker_5_durable_user_fields": {
+        "fix": "both remoteUser and containerUser must remain explicitly present and non-root in durable mode (missing/null/empty/root/UID-0 always fail); change from node requires exact owning-active-mission declaration; root ban never overridable."
+      },
+      "exact_head_ci_round3": {
+        "head": "2911bc3e3176b8c0b6642031bf1922044292281d",
+        "runs": {
+          "foundation": {
+            "id": 32164179453,
+            "reason": "postCreate EACCES on fresh root-owned volume (fixed by initializeCommand chown; pending re-run)",
+            "result": "FAIL"
+          },
+          "sanitize": {
+            "id": 32164179507,
+            "result": "PASS"
+          },
+          "sbom": {
+            "dev_image_artifact": {
+              "archive_digest": "sha256:155a219433f5eedb8b2ea7d3748383d34a2e4655bd11f9f96a59d25d78519b96",
+              "bytes": 1319260,
+              "id": 9334786052,
+              "name": "vibeflow-dev-image-cyclonedx"
+            },
+            "id": 32164179498,
+            "result": "PASS"
+          },
+          "security_gate": {
+            "id": 32164179498,
+            "reason": "vulnerabilities job correctly failed closed on real Trivy findings",
+            "result": "FAIL"
+          },
+          "verify": {
+            "id": 32164179653,
+            "result": "PASS"
+          }
+        }
+      },
+      "exact_head_ci_round3b": {
+        "head": "21108b354abbfa0257bd02a8bf9a3356adc3febe",
+        "note": "GitHub token expired during evidence capture; job-level breakdown for 32167152746 is inferred from run 32164179498 pattern plus unchanged inputs.",
+        "runs": {
+          "foundation": {
+            "detail": "devcontainer builds; postCreate bootstrap (pnpm install --frozen-lockfile + pnpm run check) succeeds non-interactively; runtime smoke inside the exact image passes",
+            "id": 32167152756,
+            "result": "PASS"
+          },
+          "sanitize": {
+            "id": 32167152743,
+            "result": "PASS"
+          },
+          "security_gate": {
+            "id": 32167152746,
+            "reason": "aggregate gate failed closed because vulnerabilities job correctly fails on real Trivy dev-image findings (stop-and-report blocker); secrets/dependency-policy/sast/sbom pass",
+            "result": "FAIL"
+          },
+          "verify": {
+            "id": 32167152736,
+            "result": "PASS"
+          }
+        }
+      },
+      "gpt_review_id": 4963633347,
+      "new_mutation_tests": {
+        "blocker_1": [
+          "active requires exactly node_modules volume",
+          "active extra mount fails",
+          "real repo carries canonical volume"
+        ],
+        "blocker_2": [
+          "wrapper not executable fails",
+          "real repo wrappers executable"
+        ],
+        "blocker_3": [
+          "active extra feature fails",
+          "durable feature no declaration fails",
+          "durable feature wrong mission fails",
+          "floating feature fails",
+          "unregistered feature fails",
+          "owned extra feature passes"
+        ],
+        "blocker_4": [
+          "undeclared safe runArgs fail",
+          "wrong-mission runArgs declaration fails",
+          "declared privileged runArgs fail",
+          "declared host-network runArgs fail",
+          "declared docker-socket runArgs fail",
+          "owned safe runArgs pass"
+        ],
+        "blocker_5": [
+          "missing remoteUser fails",
+          "missing containerUser fails",
+          "null user fails",
+          "empty user fails",
+          "root user fails",
+          "UID-0 user fails",
+          "wrong-mission user change fails",
+          "owned both-user change passes"
+        ],
+        "from": 53,
+        "to": 78
+      },
+      "reviewed_head_pre_fix": "3dbe9e84e21ffaf8eaac141395a9e17d039b4520",
+      "round_2_imagename_correction_applied_at": "3dbe9e84e21ffaf8eaac141395a9e17d039b4520",
+      "stop_and_report_blocker": {
+        "findings": {
+          "debian_12_15_total": "5 HIGH (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2025-8714, CVE-2026-6473)",
+          "node_pkg_total": "7 (6 HIGH + 1 CRITICAL): brace-expansion 5.0.6 (CVE-2026-13149, CVE-2026-14257, CVE-2026-69152), ip-address 10.2.0 (CVE-2026-69192), tar 7.5.16 (CVE-2026-59873 CRITICAL, CVE-2026-59874), undici 6.26.0 (CVE-2026-12151)",
+          "remediation": "requires owner decision: later toolchain/ADR mission to repin Node to patched 24.19.x, documented risk exception, or explicit direction. No threshold weakening proposed."
+        },
+        "policy_reference": "M-007 packet sections 4.3 and 8: do not weaken security thresholds; select/remediate the image instead; STOP and report instead of improvising."
+      },
+      "workflow_changes_required": false
+    },
+    "round_4": {
+      "candidate_matrix": {
+        "node_24_19_0_alpine": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git; apk; musl)"
+        },
+        "node_24_19_0_bookworm": {
+          "debian_high": 5,
+          "git": true,
+          "index_digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+          "npm_findings": 7,
+          "verdict": "FAIL (previous)"
+        },
+        "node_24_19_0_bookworm_slim": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git; git unaddable without apt)"
+        },
+        "node_24_19_0_forky": {
+          "verdict": "not published for Node 24"
+        },
+        "node_24_19_0_trixie": {
+          "debian_high": 3,
+          "git": true,
+          "index_digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+          "npm_findings": 7,
+          "verdict": "SELECTED"
+        },
+        "node_24_19_0_trixie_slim": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git)"
+        }
+      },
+      "debian_cve_status": {
+        "CVE-2025-8714_postgresql": {
+          "bookworm": "15.18 vulnerable, 15.19 fixed",
+          "trixie_main": "17.10 FIXED"
+        },
+        "CVE-2026-34191_libaprutil1": {
+          "bookworm": "1.6.3-1 vulnerable, 1.6.3-1+deb12u1 fixed",
+          "trixie_main": "1.6.3-3 vulnerable",
+          "trixie_security": "1.6.3-3+deb13u1 fixed"
+        },
+        "CVE-2026-6473_postgresql": {
+          "bookworm": "15.18 vulnerable, 15.19 fixed",
+          "trixie_main": "17.10 vulnerable",
+          "trixie_security": "17.11 fixed"
+        }
+      },
+      "ds0002_correction": "added 'USER node' to .devcontainer/Dockerfile; validator requires it; mutation test added (M-007 suite 88).",
+      "exact_head_ci_65faf04": {
+        "foundation": {
+          "id": 32171671050,
+          "result": "PASS"
+        },
+        "sanitize": {
+          "id": 32171671104,
+          "result": "PASS"
+        },
+        "security": {
+          "id": 32171671047,
+          "reason": "repository scan flagged .devcontainer/Dockerfile DS-0002 (HIGH): missing non-root USER; fixed by adding 'USER node' (hardening, not threshold change); dev-image scan step reruns on next head",
+          "result": "FAIL"
+        },
+        "verify": {
+          "id": 32171671074,
+          "result": "PASS"
+        }
+      },
+      "exact_head_ci_9b2b02c": {
+        "dev_image_sbom_artifact": {
+          "archive_digest": "sha256:1b8346b1cf2891fe12615ec44494722bbbb555691a1085d27f615d1a4ac92d23",
+          "bytes": 805235,
+          "id": 9338179146,
+          "name": "vibeflow-dev-image-cyclonedx"
+        },
+        "foundation": {
+          "id": 32173471066,
+          "result": "PASS"
+        },
+        "sanitize": {
+          "id": 32173471100,
+          "result": "PASS"
+        },
+        "security": {
+          "id": 32173471062,
+          "jobs": {
+            "dependency-policy": "PASS",
+            "sast": "PASS",
+            "sbom": "PASS",
+            "secrets": "PASS",
+            "security-gate": "FAIL (fail-closed)",
+            "vulnerabilities": "FAIL at dev-image scan"
+          },
+          "result": "FAIL-closed on dev-image Trivy findings"
+        },
+        "verify": {
+          "id": 32173471127,
+          "result": "PASS"
+        }
+      },
+      "expected_trivy": {
+        "debian_residual": [
+          "libaprutil1 CVE-2026-34191 HIGH (trixie-security only fix)",
+          "libpq-dev/libpq5 CVE-2026-6473 HIGH (trixie-security only fix)"
+        ],
+        "npm_findings": "cleared (node-pkg detection is filesystem-based)",
+        "stop_and_report": "expected per packet 4.3/8: only owner amendment (change Node, mutable apt, unratified tooling, or weaken policy) could pass the unchanged gate",
+        "why_not_clearable": "Trivy os-pkg detection reads dpkg status; filesystem removal cannot clear; apt purge/upgrade is mutable apt (forbidden); no newer official Node 24.19.0 variant (no forky); slim/alpine lack git"
+      },
+      "proven_trivy_result": {
+        "debian": "35 HIGH, 0 CRITICAL \u2014 all in unused buildpack-deps dev/build packages (linux-libc-dev 18 kernel CVEs, libheif 5, libpq CVE-2026-6473, libaprutil1 CVE-2026-34191, imagemagick/mercurial/subversion)",
+        "image": "vibeflow-dev:latest (debian 13.6) built from node:24.19.0-trixie@sha256:66bb8d36...75c1",
+        "misconfig": "0 (USER node resolves DS-0002)",
+        "node_pkg": "0 (npm/yarn removal proven; corepack clean)",
+        "why_not_clearable": "Trivy os-pkg detection reads dpkg status; filesystem removal cannot clear; apt purge/upgrade is mutable apt (forbidden by packet); slim/alpine lack git; forky not published for Node 24"
+      },
+      "reviewed_head": "21108b354abbfa0257bd02a8bf9a3356adc3febe",
+      "selected_design": {
+        "base": "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+        "devcontainer_json": "dockerFile: Dockerfile (image key removed); mounts + initializeCommand (trixie digest) + non-root users + python feature + postCreate unchanged",
+        "dockerfile": ".devcontainer/Dockerfile",
+        "npm_not_required": "bootstrap/runtime-smoke/check/validators invoke only node, corepack, pnpm, python3, git; npm CLI never invoked; corepack shims independent of npm",
+        "remediation": "deterministic rm -rf of /usr/local/lib/node_modules/npm, /usr/local/bin/npm, /usr/local/bin/npx, /opt/yarn-v1.22.22, /usr/local/bin/yarn, /usr/local/bin/yarnpkg; corepack retained"
+      },
+      "stop_and_report": "CI-proven: no M-007-permitted image selection or deterministic remediation can pass the unchanged HIGH/CRITICAL gate without changing Node 24.19.0, mutable apt/apk operations, new unratified tooling, or weakening Trivy policy. Owner decision required.",
+      "workflow_handoff": {
+        "change": "replace 3 x 'docker pull docker.io/library/node@sha256:934240a1...' with 'docker pull docker.io/library/node:24.19.0-trixie@sha256:66bb8d36...'",
+        "patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch",
+        "paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ],
+        "sha256": "e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94"
+      }
+    },
+    "round_5": {
+      "authority_correction": "Round-4 Dockerfile removed: frozen packet Dockerfile trigger (official image cannot meet required runtime using its existing contents) not met for security-only removal. No-Dockerfile slim + registered Features configuration adopted.",
+      "candidate_matrix": {
+        "A_bookworm_full": {
+          "debian_high": 5,
+          "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+          "evidence": "round-3 CI",
+          "node_pkg": 7,
+          "verdict": "REJECT"
+        },
+        "B_trixie_full": {
+          "debian_high": 35,
+          "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+          "evidence": "round-4 CI",
+          "node_pkg": 7,
+          "verdict": "REJECT"
+        },
+        "C_trixie_slim_features": {
+          "debian_critical": 0,
+          "debian_high": 0,
+          "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+          "evidence": "probe run 32176814993 (head 15ed549), debian 13.6 pkg_num 290",
+          "node_pkg": 7,
+          "verdict": "SELECTED"
+        },
+        "D_bookworm_slim_features": {
+          "debian_critical": 0,
+          "debian_high": 0,
+          "digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+          "evidence": "probe run 32178600049 (head 077fc39), debian 12.15 pkg_num 299",
+          "node_pkg": 7,
+          "verdict": "REJECT (identical npm blocker; older base)"
+        }
+      },
+      "feature_authority_disposition": "Authorized as a registered feature: frozen mutation requirement is 'unregistered feature in active M-007' (prohibits unregistered); packet 4.2 requires git; Dev Containers specification (H-023) defines Features as the tool-adding mechanism. Active snapshot requires exactly python+git with exact locked options.",
+      "git_feature": {
+        "coordinate": "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2",
+        "digest_source": "official devcontainers/images devcontainer-lock.json",
+        "license": "MIT",
+        "options": {
+          "ppa": false,
+          "version": "os-provided"
+        },
+        "runtime_proof": "git 2.47.3-0+deb13u1 installed from trixie-security pocket (CI log); foundation runtime smoke passes",
+        "source": "https://github.com/devcontainers/features/tree/main/src/git",
+        "version": "1.3.8"
+      },
+      "review_id": 4964882866,
+      "selected": {
+        "dockerfile": false,
+        "features": [
+          "python 1.8.0 (fbcad695...) {os-provided, installTools:false}",
+          "git 1.3.8 (fd75977d...) {os-provided, ppa:false}"
+        ],
+        "image": "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+        "runtime_proof": "foundation CI: node v24.19.0, pnpm 11.4.0, python3, git 2.47.3, frozen install, pnpm run check, runtime smoke all PASS"
+      },
+      "stop_and_report": "Empirically proven: no packet-compliant image selection or deterministic remediation can pass the unchanged HIGH/CRITICAL gate. Slim+features achieves 0 Debian findings; the only residual is 7 node-pkg findings (1 CRITICAL tar CVE-2026-59873) in npm bundled in every official Node 24.19.0 image; removal requires a Dockerfile (frozen trigger not met under strict reading) or unratified custom feature. Owner decision required; no threshold weakened.",
+      "workflow_handoff": {
+        "change": "replace 3 bookworm-digest docker pull lines with trixie-slim digest-pinned coordinate",
+        "paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ],
+        "sha256": "1a1d1c06418c1d527d3f55002fcfbd5f650dd2f73e5b612360368d26d0557488"
+      }
+    }
+  },
+  "schema_version": 1,
+  "security_posture": {
+    "docker_in_docker": false,
+    "docker_socket_mount": false,
+    "extra_capabilities": [],
+    "forwarded_ports": [],
+    "host_credential_mounts": false,
+    "host_network": false,
+    "non_root_user": "node",
+    "privileged": false,
+    "product_services": [],
+    "raw_secrets_in_env_or_committed_examples": false,
+    "security_opt": [],
+    "ssh_agent_or_cloud_credential_forwarding": false
+  },
+  "starting_main_sha": "f8b214a687944eb44b148997e6028044baf8b6b8",
+  "test_counts": {
+    "M-002": 44,
+    "M-003": 18,
+    "M-004": 82,
+    "M-005": 92,
+    "M-006": 41,
+    "M-007": 88,
+    "total": 365
+  },
+  "toolchain": {
+    "corepack": "required",
+    "git": "required",
+    "node": "24.19.0",
+    "pnpm": "11.4.0",
+    "python3": "required",
+    "turborepo": "2.10.6",
+    "typebox": "1.3.6",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  },
+  "validator_design": {
+    "active_snapshot": "exact accepted environment shape including BOTH remoteUser == 'node' and containerUser == 'node'; zero durable extensions allowed; provenance, toolchain, capability snapshot, mission/ledger sync, master hash integrity",
+    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions owned by the actually active later mission (mission_id + rationale + exact values); historical extensions from completed later missions remain; additional features must be registered, digest-pinned and owned; durable runArgs require an owning declaration; both user fields must remain explicit and non-root; privileged/docker-socket/host-network/raw-secrets permanently banned",
+    "forward_compatible": "positive durable-extension test included in the M-007 mutation suite",
+    "mode_selection": "auto: active while M-007 is READY/IN_PROGRESS/REVIEW; durable once M-007 is DONE"
+  }
+}

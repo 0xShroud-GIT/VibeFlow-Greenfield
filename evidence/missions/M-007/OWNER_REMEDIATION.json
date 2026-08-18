@@ -1,0 +1,25 @@
+{
+  "mission": "M-007",
+  "parent_candidate": "10d7db0d9659ce276169ed1fa4ba5ae6625af1ca",
+  "decision": "owner_integrator_remediation",
+  "mission_status": "REVIEW",
+  "later_missions": "LOCKED",
+  "security_threshold_changed": false,
+  "base_image": "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+  "remediation": {
+    "dockerfile": ".devcontainer/Dockerfile",
+    "operation": "filesystem-only removal of unused bundled npm/yarn and shims",
+    "package_install": false,
+    "package_upgrade": false,
+    "downloads": false,
+    "new_tools": false,
+    "floating_references": false
+  },
+  "pre_remediation_final_image_findings": {
+    "debian_high": 0,
+    "debian_critical": 0,
+    "node_pkg_high": 6,
+    "node_pkg_critical": 1
+  },
+  "required_acceptance": "All four protected exact-head contexts green, including unchanged final-image Trivy HIGH/CRITICAL gate and dev-image CycloneDX evidence."
+}
