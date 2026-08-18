@@ -12,6 +12,7 @@ cd "$root"
 # whenever those files appear. There is no product image in M-006.
 exec "$bin" filesystem \
   --scanners vuln,misconfig \
+  --include-dev-deps \
   --severity HIGH,CRITICAL \
   --ignore-unfixed \
   --exit-code 1 \

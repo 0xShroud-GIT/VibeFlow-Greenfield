@@ -13,5 +13,5 @@ output=$1
 mkdir -p "$(dirname "$output")"
 
 cd "$root"
-"$bin" filesystem --scanners vuln --format cyclonedx --output "$output" --no-progress .
+"$bin" filesystem --scanners vuln --include-dev-deps --format cyclonedx --output "$output" --no-progress .
 sha256sum "$output" | tee "${output}.sha256"

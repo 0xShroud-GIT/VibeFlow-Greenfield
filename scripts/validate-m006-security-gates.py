@@ -658,11 +658,17 @@ class Validator:
             "scripts/security/run-osv-scanner.sh": ("scan source --recursive .",),
             "scripts/security/run-trivy.sh": (
                 "--scanners vuln,misconfig",
+                "--include-dev-deps",
                 "--severity HIGH,CRITICAL",
                 "--ignore-unfixed",
                 "--exit-code 1",
             ),
-            "scripts/security/generate-sbom.sh": ("--format cyclonedx", "sha256sum"),
+            "scripts/security/generate-sbom.sh": (
+                "--scanners vuln",
+                "--include-dev-deps",
+                "--format cyclonedx",
+                "sha256sum",
+            ),
             "scripts/security/run-semgrep.sh": ("security/semgrep.yml", "distribution_coordinate"),
         }
         for rel, snippets in required_wrapper_content.items():

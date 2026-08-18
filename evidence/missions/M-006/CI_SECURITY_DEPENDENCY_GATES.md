@@ -40,6 +40,15 @@ head. The intended-workflow implementation passed those static checks before
 this required reversion; that result is historical implementation evidence, not
 a claim that the pushed workflow state passes.
 
+### Reviewer workflow resolution
+
+The blocker above is preserved as historical evidence. GPT subsequently applied
+the exact workflow change in reviewer commit
+`4c1a237b8a767a93860e301f43d3451cb27d9f04`. The first real M-006 workflow run
+then completed green. The SBOM artifact from that run was generated, but later
+artifact inspection found incomplete dependency coverage; that result is
+recorded separately below and is not rewritten as a complete-inventory pass.
+
 ## Dependency policy
 
 `master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml` remains the one
@@ -131,15 +140,17 @@ scripts/security/run-osv-scanner.sh
 
 python3 scripts/security/install-ci-tool.py trivy
 scripts/security/run-trivy.sh
-  -> filesystem vulnerability + misconfiguration scan; actionable/fixed
-     HIGH/CRITICAL findings fail
+  -> filesystem vulnerability + misconfiguration scan across production,
+     development, build and test dependencies (`--include-dev-deps`);
+     actionable/fixed HIGH/CRITICAL findings fail
 
 scripts/security/test-semgrep-rules.sh
 scripts/security/run-semgrep.sh
   -> Semgrep CE 1.172.0 by digest; only security/semgrep.yml; ERROR findings fail
 
 scripts/security/generate-sbom.sh "$RUNNER_TEMP/vibeflow-repository.cdx.json"
-  -> ephemeral CycloneDX JSON plus content SHA-256
+  -> ephemeral CycloneDX JSON plus content SHA-256; inventory includes all pnpm
+     production, development, build and test dependency scopes
 ```
 
 The local Semgrep configuration has six high-confidence Python/JS/TS dynamic
@@ -176,7 +187,36 @@ No expected CI result is represented as actual CI. At this evidence revision:
 The updated deterministic tests and `pnpm run check` result below are recorded
 against the complete intended workflow tree before the required workflow-only
 reversion. On the pushed non-workflow tree, M-006 static validation and root
-`check` are expected to fail closed on the absent/unhardened workflows.
+`check` were expected to fail closed on the absent/unhardened workflows. GPT's
+later reviewer commit resolved that historical workflow state.
+
+## First real CI and historical incomplete SBOM
+
+The first real M-006 CI run executed against reviewer head
+`4c1a237b8a767a93860e301f43d3451cb27d9f04` (Security & Dependency Gates run
+`32095582384`) and all required jobs, including `security-gate`, completed
+successfully. OSV-Scanner covered all 77 lockfile packages. Trivy's first run,
+however, used its default behavior that suppresses development/test
+dependencies, so its green job is not evidence of complete build/test dependency
+coverage.
+
+The first CycloneDX artifact is preserved as historical real evidence:
+
+- artifact name: `vibeflow-repository-cyclonedx`;
+- artifact ID: `9309810695`;
+- artifact archive size: 1,039 bytes;
+- artifact API digest: `sha256:e63e363ab577a2d9762615f6ad5a791ccc0924e3d393c5c4289bf88f3a3f3bbb`;
+- generated successfully;
+- inspected component count: **2**;
+- components: `pnpm-lock.yaml` application and `typebox@1.3.6`;
+- completeness verdict: **INCOMPLETE** because direct development/build/test
+  dependencies were omitted by Trivy's default suppression.
+
+The correction adds `--include-dev-deps` independently to both the Trivy
+vulnerability wrapper and CycloneDX wrapper. Static validation and two mutation
+tests enforce each command location separately. The corrected intended scope is
+all pnpm production, development, build and test dependencies. No corrected
+SBOM artifact or corrected Trivy result is claimed until CI runs the new head.
 
 ## Deterministic test counts
 
@@ -186,8 +226,8 @@ reversion. On the pushed non-workflow tree, M-006 static validation and root
 | M-003 | 18 | PASS |
 | M-004 | 82 | PASS |
 | M-005 retained | 92 | PASS |
-| M-006 | 37 | PASS |
-| Total | 273 | PASS |
+| M-006 | 39 | PASS |
+| Total | 275 | PASS |
 
 M-005's appended acceptance reconciliation separately preserves the accepted
 historical count of 87 and explains the four later build-progression tests.

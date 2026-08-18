@@ -291,6 +291,26 @@ class M006Tests(unittest.TestCase):
 
     # Tool locks and local SAST configuration.
 
+    def test_trivy_vulnerability_wrapper_requires_dev_dependencies(self) -> None:
+        box = self.box()
+        box.patch("scripts/security/run-trivy.sh", "--include-dev-deps", "")
+        self.assert_rejected(
+            box,
+            "scripts/security/run-trivy.sh missing required policy argument '--include-dev-deps'",
+        )
+
+    def test_cyclonedx_wrapper_requires_dev_dependencies(self) -> None:
+        box = self.box()
+        box.patch(
+            "scripts/security/generate-sbom.sh",
+            " --include-dev-deps --format cyclonedx",
+            " --format cyclonedx",
+        )
+        self.assert_rejected(
+            box,
+            "scripts/security/generate-sbom.sh missing required policy argument '--include-dev-deps'",
+        )
+
     def test_malformed_tool_digest_fails(self) -> None:
         box = self.box()
         lock = json.loads(box.read("security/ci-toolchain.lock.json"))
