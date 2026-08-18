@@ -2,16 +2,20 @@
   "adr_required": false,
   "base_image": {
     "architectures": {
-      "amd64": "sha256:f6d02cf1353049cf3658e6ce9ec03c6877a6479495f122062d195e2279d01055",
-      "arm64": "sha256:7e4b2953088599075c288871d109e23bc7a33384b96ca443a7cfb7b5c318b099",
-      "ppc64le": "sha256:56c4cadee33f1eff8ace75854383652bcf9584319747bb2373e010ce86e00989"
+      "amd64": "sha256:05c60dce78787e477fd7c0d61d9efcd5b7ae3f21a8b18787c7ef3daf9c9a2ad3",
+      "arm64": "sha256:3f734716ad93ed2aa8a6eec03f2404de09b8505f3f9ce06c15933ffaf49ec65c",
+      "ppc64le": "sha256:6c207361d6106ba9afd94be2dbc25ab2fac15da6bf2dce761e05bdd3ce7a34e5",
+      "s390x": "sha256:cbdd8a21c55d1411e06bc0b9af82af98ed3040f0b1e80f2f51a50a43d261b607"
     },
-    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
     "media_type": "application/vnd.oci.image.index.v1+json",
     "node_version": "24.19.0",
+    "os": "Debian trixie (13), snapshot 2026-08-01",
     "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
     "registry_published": "2026-08-05",
-    "semantic_reference": "docker.io/library/node:24.19.0",
+    "remediation": "deterministic filesystem-only removal of unused bundled npm and yarn; no apt/apk; no downloads; no floating references",
+    "remediation_dockerfile": ".devcontainer/Dockerfile",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie",
     "upstream_source": "https://github.com/nodejs/docker-node"
   },
   "bootstrap": {
@@ -31,6 +35,15 @@
     "vf_rel_006_011": "NOT_STARTED (unchanged)"
   },
   "ci_evidence": {
+    "dev_image_artifact_final": {
+      "archive_digest": "sha256:643148cef331dc2bfe69eafdbf7d67c8f0a3c2bcc314075c1cd92fa04a64e423",
+      "artifact_id": 9335883437,
+      "component_count": 617,
+      "cyclonedx_content_sha256": "dc50d3e4ba39dd7a0487389e8db96d2b6f685b82f9e812e706e510e888653cfc",
+      "cyclonedx_spec_version": "1.7",
+      "name": "vibeflow-dev-image-cyclonedx",
+      "note": "Reviewer-provided final-head artifact for round-4 exact-head evidence"
+    },
     "dev_image_sbom_wrapper": "scripts/security/generate-dev-image-sbom.sh",
     "dev_image_trivy_wrapper": "scripts/security/scan-dev-image.sh",
     "devcontainers_ci_action": {
@@ -40,7 +53,7 @@
       "version": "0.3.1900000450"
     },
     "intended_workflow_patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch (correction delta from workflow-handoff state 16d79c5)",
-    "intended_workflow_patch_sha256": "af48f2445516229bb91d23c38a9086daaf0979df1ca3c7fd122194089457ecf6",
+    "intended_workflow_patch_sha256": "e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94",
     "required_contexts": [
       "Master Build System Integrity / verify",
       "Repository Foundation / foundation",
@@ -283,6 +296,90 @@
         "policy_reference": "M-007 packet sections 4.3 and 8: do not weaken security thresholds; select/remediate the image instead; STOP and report instead of improvising."
       },
       "workflow_changes_required": false
+    },
+    "round_4": {
+      "candidate_matrix": {
+        "node_24_19_0_alpine": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:d32cdf619f63fe0471182d08996dd516c6275bb5fd31ae06e55a570bd9e1ad43",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git; apk; musl)"
+        },
+        "node_24_19_0_bookworm": {
+          "debian_high": 5,
+          "git": true,
+          "index_digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+          "npm_findings": 7,
+          "verdict": "FAIL (previous)"
+        },
+        "node_24_19_0_bookworm_slim": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git; git unaddable without apt)"
+        },
+        "node_24_19_0_forky": {
+          "verdict": "not published for Node 24"
+        },
+        "node_24_19_0_trixie": {
+          "debian_high": 3,
+          "git": true,
+          "index_digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+          "npm_findings": 7,
+          "verdict": "SELECTED"
+        },
+        "node_24_19_0_trixie_slim": {
+          "debian_high": 0,
+          "git": false,
+          "index_digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+          "npm_findings": 7,
+          "verdict": "not eligible (no git)"
+        }
+      },
+      "debian_cve_status": {
+        "CVE-2025-8714_postgresql": {
+          "bookworm": "15.18 vulnerable, 15.19 fixed",
+          "trixie_main": "17.10 FIXED"
+        },
+        "CVE-2026-34191_libaprutil1": {
+          "bookworm": "1.6.3-1 vulnerable, 1.6.3-1+deb12u1 fixed",
+          "trixie_main": "1.6.3-3 vulnerable",
+          "trixie_security": "1.6.3-3+deb13u1 fixed"
+        },
+        "CVE-2026-6473_postgresql": {
+          "bookworm": "15.18 vulnerable, 15.19 fixed",
+          "trixie_main": "17.10 vulnerable",
+          "trixie_security": "17.11 fixed"
+        }
+      },
+      "expected_trivy": {
+        "debian_residual": [
+          "libaprutil1 CVE-2026-34191 HIGH (trixie-security only fix)",
+          "libpq-dev/libpq5 CVE-2026-6473 HIGH (trixie-security only fix)"
+        ],
+        "npm_findings": "cleared (node-pkg detection is filesystem-based)",
+        "stop_and_report": "expected per packet 4.3/8: only owner amendment (change Node, mutable apt, unratified tooling, or weaken policy) could pass the unchanged gate",
+        "why_not_clearable": "Trivy os-pkg detection reads dpkg status; filesystem removal cannot clear; apt purge/upgrade is mutable apt (forbidden); no newer official Node 24.19.0 variant (no forky); slim/alpine lack git"
+      },
+      "reviewed_head": "21108b354abbfa0257bd02a8bf9a3356adc3febe",
+      "selected_design": {
+        "base": "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+        "devcontainer_json": "dockerFile: Dockerfile (image key removed); mounts + initializeCommand (trixie digest) + non-root users + python feature + postCreate unchanged",
+        "dockerfile": ".devcontainer/Dockerfile",
+        "npm_not_required": "bootstrap/runtime-smoke/check/validators invoke only node, corepack, pnpm, python3, git; npm CLI never invoked; corepack shims independent of npm",
+        "remediation": "deterministic rm -rf of /usr/local/lib/node_modules/npm, /usr/local/bin/npm, /usr/local/bin/npx, /opt/yarn-v1.22.22, /usr/local/bin/yarn, /usr/local/bin/yarnpkg; corepack retained"
+      },
+      "workflow_handoff": {
+        "change": "replace 3 x 'docker pull docker.io/library/node@sha256:934240a1...' with 'docker pull docker.io/library/node:24.19.0-trixie@sha256:66bb8d36...'",
+        "patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch",
+        "paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ],
+        "sha256": "e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94"
+      }
     }
   },
   "schema_version": 1,
@@ -307,9 +404,9 @@
     "M-004": 82,
     "M-005": 92,
     "M-006": 41,
-    "M-007": 81,
-    "note": "Round 3 grew M-007 from 53 to 81 (blockers 1-5 + initializeCommand mutations).",
-    "total": 358
+    "M-007": 87,
+    "note": "Round 4 rewrote image-provenance mutations to the trixie dockerFile/Dockerfile (53 -> 78 -> 81 -> 87).",
+    "total": 364
   },
   "toolchain": {
     "corepack": "required",

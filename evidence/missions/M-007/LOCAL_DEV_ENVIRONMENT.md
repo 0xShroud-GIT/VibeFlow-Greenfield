@@ -8,6 +8,7 @@
 | Arena session branch | `arena/01a01576-vibeflow-greenfield` |
 | Reviewer workflow-handoff head (pre-fix) | `16d79c5b705207af64c38303e168cdfb6ac81287` |
 | Round-2 fix head (GPT applied imageName correction) | `3dbe9e84e21ffaf8eaac141395a9e17d039b4520` |
+| Round-3/3b fix heads | `2911bc3` (blockers 1-5), `21108b3` (volume permissions) |
 | Mission state at branch head | `M-001..M-006 DONE`; `M-007 REVIEW`; `M-008..M-151 LOCKED` |
 | ADR | Not required — implementation stays inside the ratified M-004/M-006 policy and H-023 |
 
@@ -337,6 +338,87 @@ safe runArgs + non-root user change, all declared and owned by M-008) passes
 the M-007 durable validator, the retained M-006 durable gate, and master
 contracts — demonstrating the forward-compatibility contract.
 
+## Round 4 — image selection / remediation (review ID 4963633347 continuation)
+
+Exact-head CI at `21108b3` (runs `32167152736/56/43/46`) proved: foundation
+(devcontainer build + non-root start + postCreate bootstrap + frozen-lockfile
+install + `pnpm run check` + runtime smoke) PASS, verify PASS, sanitize PASS,
+security-gate FAIL only because the dev-image Trivy scan reported real
+HIGH/CRITICAL findings in the exact `node:24.19.0` bookworm image.
+
+### Candidate evidence matrix (official Node 24.19.0 variants, resolved to immutable OCI digests)
+
+| Variant | OCI index digest | amd64 digest | arm64 digest | git | Debian HIGH (bookworm evidence / trixie analysis) | npm findings | Eligible |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `node:24.19.0` (bookworm, previous) | `sha256:934240a1…e6584` | `sha256:f6d02cf1…1055` | `sha256:7e4b2953…8099` | yes | 5 (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2025-8714, CVE-2026-6473) | 7 | tested → FAIL |
+| `node:24.19.0-bookworm-slim` | `sha256:3638d9a6…fc03` | `sha256:65932751…4848` | `sha256:c133efe2…bb03` | **no** | ~0 (minimal base) | 7 | not eligible (no git; git unaddable without apt) |
+| `node:24.19.0-trixie` | `sha256:66bb8d36…75c1` | `sha256:05c60dce…2ad3` | `sha256:3f734716…65c` | yes | 3 (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2026-6473) — CVE-2025-8714 fixed by trixie main 17.10 | 7 → 0 after npm removal | **selected** |
+| `node:24.19.0-trixie-slim` | `sha256:0711b541…74d` | `sha256:f2925910…b486` | `sha256:8525258f…e9e` | **no** | ~0 | 7 | not eligible (no git) |
+| `node:24.19.0-alpine` (3.24) | `sha256:d32cdf61…ad43` | `sha256:2a49bdf7…b43` | `sha256:0e6f1567…082` | **no** | ~0 (musl/apk base) | 7 | not eligible (no git; apk package manager; musl) |
+| `node:24.19.0-forky` (Debian 14) | N/A | N/A | N/A | — | — | — | **not published** for Node 24 (docker-node `24/` contains only alpine3.23, alpine3.24, bookworm, bookworm-slim, bullseye, bullseye-slim, trixie, trixie-slim) |
+
+Debian CVE fixed-version status (Debian security tracker, 2026-08-18):
+CVE-2026-34191 libaprutil1 — bookworm fixed `1.6.3-1+deb12u1`, **trixie main
+`1.6.3-3` still vulnerable** (only trixie-security `1.6.3-3+deb13u1` fixes);
+CVE-2025-8714 postgresql — bookworm fixed `15.19`, **trixie main `17.10`
+fixed**; CVE-2026-6473 postgresql — bookworm fixed `15.19`, **trixie main
+`17.10` still vulnerable** (trixie-security `17.11` fixes). Official Debian
+docker images are built from release snapshots without security-update
+pockets, so a digest-pinned official image cannot carry the +deb13u1/+deb12u1
+fixes.
+
+### Selected design
+
+- Base: `docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1`
+  (amd64 `sha256:05c60dce…`, arm64 `sha256:3f734716…`, ppc64le, s390x).
+- `.devcontainer/Dockerfile` (new, deterministic remediation layer):
+  `FROM` the digest-pinned trixie base; `RUN rm -rf` of unused bundled npm
+  (`/usr/local/lib/node_modules/npm`, `/usr/local/bin/npm`, `/usr/local/bin/npx`)
+  and yarn (`/opt/yarn-v1.22.22`, `/usr/local/bin/yarn`,
+  `/usr/local/bin/yarnpkg`). No apt/apk operations, no downloads, no floating
+  references; corepack and git retained.
+- `.devcontainer/devcontainer.json` now uses `"dockerFile": "Dockerfile"`
+  (the `image` key is removed); mounts, initializeCommand (trixie digest),
+  non-root users, pinned python feature and postCreate bootstrap unchanged.
+- Deterministic npm-removal proof: the M-007 bootstrap (`dev-bootstrap.py`),
+  runtime smoke, root `pnpm run check`, and all retained validators invoke
+  only `node`, `corepack`, `pnpm`, `python3`, `git`; the `npm`/`yarn`
+  executables are never invoked (repo references to "npm" are registry-
+  ecosystem labels in harvest validators, not the npm CLI). Corepack provides
+  pnpm/yarn shims independently of npm.
+
+### Expected Trivy outcome and residual findings (analysis; exact-head CI to confirm)
+
+- Node-pkg findings (brace-expansion, ip-address, tar, undici — all inside the
+  removed `/usr/local/lib/node_modules/npm`) are cleared by the deterministic
+  removal: Trivy's node-pkg detection is filesystem-based.
+- Debian findings in the trixie base are **not clearable within M-007
+  authority**: Trivy's os-pkg detection reads the dpkg status database;
+  filesystem-only removal does not clear them; `apt-get purge`/`upgrade`
+  is a mutable apt operation forbidden by the packet; no newer official
+  Node 24.19.0 image exists (no forky variant); and every Node 24.19.0 image
+  with git baked in carries the same buildpack-deps dev-package set.
+  Expected residual on trixie: `libaprutil1` CVE-2026-34191 (HIGH, fixed
+  only in trixie-security) and `libpq-dev`/`libpq5` CVE-2026-6473 (HIGH,
+  fixed only in trixie-security). CVE-2025-8714 is fixed by trixie main 17.10.
+- The packet's stop-and-report clause is therefore expected to apply: no
+  M-007-permitted image selection or deterministic remediation can pass the
+  unchanged HIGH/CRITICAL gate without (a) changing Node 24.19.0, (b) mutable
+  apt/apk package operations, (c) new unratified tooling, or (d) weakening
+  Trivy policy — each requiring owner amendment of mission authority.
+
+### Round-4 workflow handoff (exact patch)
+
+Arena cannot write `.github/workflows/**`. The exact Round-4 correction
+(replace the three `docker pull` bookworm-digest lines with the trixie
+digest-pinned coordinate in `repository-foundation.yml` and
+`security-and-dependency-gates.yml`) is preserved at
+`evidence/missions/M-007/INTENDED_WORKFLOWS.patch`
+
+SHA-256: `e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94`
+(`git apply --check` clean). GPT applies only those workflow files on the same
+branch; exact-head CI then reruns the four protected contexts.
+
 ## Capability ledger transitions
 
 - `VF-ENV-005 Environment Definition`: `NOT_STARTED` → `IN_PROGRESS`
@@ -370,15 +452,16 @@ All 72 authoritative pack hashes verify on the branch
 | M-004 | 82 | PASS |
 | M-005 retained | 92 | PASS |
 | M-006 retained (status-relative) | 41 | PASS |
-| M-007 | 78 | PASS |
-| Total | 355 | PASS |
+| M-007 | 87 | PASS |
+| Total | 364 | PASS |
 
-Round 3 grew the M-007 suite from 53 to 78 tests: Blocker-1 node_modules
-volume exactness (removal/extra-mount fail), Blocker-2 wrapper exec-bit
-regression, Blocker-3 durable feature ownership (5 FAIL + 1 PASS), Blocker-4
-durable runArgs ownership (6 FAIL + 1 PASS), and Blocker-5 durable user-field
-presence (6 FAIL + 1 PASS). The counts are recorded after the local run on
-this branch; the exact-head CI run re-executes all retained suites.
+Round 4 (image remediation) rewrote the image-provenance mutations from the
+bookworm `image` key to the trixie `dockerFile`/Dockerfile: floating FROM,
+malformed digest, digest-lock mismatch, wrong semantic coordinate, missing
+Dockerfile, forbidden `image` key, missing npm removal, and Dockerfile
+containing `apt-get`/`apk`/curl-pipe all fail (previous rounds: 53 -> 78 ->
+81 -> 87). The counts are recorded after the local run on this branch; the
+exact-head CI run re-executes all retained suites.
 
 ## Actual verification recorded before this push
 

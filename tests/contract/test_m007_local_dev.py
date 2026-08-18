@@ -39,12 +39,13 @@ DEVCONTAINER = ".devcontainer/devcontainer.json"
 POLICY = "infrastructure/dev/dev-environment-policy.json"
 
 FEATURE_REF = "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511"
-BASE_IMAGE = "docker.io/library/node:24.19.0@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584"
+BASE_IMAGE = "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1"
+DOCKERFILE = ".devcontainer/Dockerfile"
 GIT_FEATURE_REF = "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2"
 NODE_MODULES_VOLUME = "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
 NODE_MODULES_INIT = (
     "docker run --rm -u 0 -v vibeflow-node-modules:/data "
-    "docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 "
+    "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1 "
     "chown $(id -u):$(id -g) /data"
 )
 
@@ -195,27 +196,58 @@ class M007Tests(unittest.TestCase):
         self.assertIn("capabilities: 405", result.stdout)
         self.assertIn("devcontainer_features: 1", result.stdout)
 
-    # ---------- image provenance ----------
-    def test_floating_image_reference_fails(self) -> None:
+    # ---------- image provenance (dockerFile + Dockerfile) ----------
+    def test_floating_dockerfile_from_fails(self) -> None:
         box = self.box()
-        box.set_devcontainer(image="docker.io/library/node:24.19.0")
-        self.assert_rejected(box, "image must be a digest-pinned reference")
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie\n")
+        self.assert_rejected(box, "Dockerfile FROM must be a digest-pinned reference")
 
     def test_malformed_digest_fails(self) -> None:
         box = self.box()
-        box.set_devcontainer(image="docker.io/library/node:24.19.0@sha256:zzz")
-        self.assert_rejected(box, "image must be a digest-pinned reference")
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:zzz\n")
+        self.assert_rejected(box, "Dockerfile FROM must be a digest-pinned reference")
 
-    def test_image_digest_lock_mismatch_fails(self) -> None:
+    def test_dockerfile_digest_lock_mismatch_fails(self) -> None:
         box = self.box()
         other = "sha256:" + "0" * 64
-        box.set_devcontainer(image=f"docker.io/library/node:24.19.0@{other}")
-        self.assert_rejected(box, "image digest")
+        box.write(DOCKERFILE, f"FROM docker.io/library/node:24.19.0-trixie@{other}\n")
+        self.assert_rejected(box, "Dockerfile FROM digest")
 
-    def test_image_coordinate_differs_from_locked_provenance_fails(self) -> None:
+    def test_dockerfile_coordinate_differs_from_locked_provenance_fails(self) -> None:
         box = self.box()
-        box.set_devcontainer(image="docker.io/library/node:24.19.1@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584")
-        self.assert_rejected(box, "image semantic coordinate")
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.1@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\n")
+        self.assert_rejected(box, "Dockerfile FROM semantic coordinate")
+
+    def test_missing_dockerfile_fails(self) -> None:
+        box = self.box()
+        (box.path(DOCKERFILE)).unlink()
+        self.assert_rejected(box, "active M-007 requires .devcontainer/Dockerfile")
+
+    def test_image_key_forbidden_in_active(self) -> None:
+        box = self.box()
+        box.set_devcontainer(image=BASE_IMAGE)
+        self.assert_rejected(box, "active M-007 uses dockerFile, not an image key")
+
+    def test_dockerfile_missing_npm_removal_fails(self) -> None:
+        box = self.box()
+        text = box.read(DOCKERFILE).replace("rm -rf /usr/local/lib/node_modules/npm", "rm -rf /usr/local/lib/node_modules/not-npm")
+        box.write(DOCKERFILE, text)
+        self.assert_rejected(box, "must deterministically remove unused bundled material")
+
+    def test_dockerfile_apt_get_fails(self) -> None:
+        box = self.box()
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN apt-get update && apt-get install -y git\n")
+        self.assert_rejected(box, "must not use 'apt-get'")
+
+    def test_dockerfile_apk_fails(self) -> None:
+        box = self.box()
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN apk add --no-cache git\n")
+        self.assert_rejected(box, "must not use 'apk '")
+
+    def test_dockerfile_curl_pipe_fails(self) -> None:
+        box = self.box()
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN curl -fsSL https://x | sh\n")
+        self.assert_rejected(box, "must not use 'curl -fsSL'")
 
     def test_policy_lock_digest_drift_fails(self) -> None:
         box = self.box()
@@ -355,10 +387,12 @@ class M007Tests(unittest.TestCase):
         box.write(".devcontainer/docker-compose.yml", "services:\n  postgres:\n    image: postgres:16\n")
         self.assert_rejected(box, "forbids dockerComposeFile")
 
-    def test_devcontainer_dockerfile_fails(self) -> None:
+    def test_devcontainer_missing_dockerfile_key_fails(self) -> None:
         box = self.box()
-        box.write(".devcontainer/Dockerfile", "FROM docker.io/library/node:24.19.0\n")
-        self.assert_rejected(box, "forbids a .devcontainer/Dockerfile")
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["dockerFile"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active M-007 requires dockerFile 'Dockerfile'")
 
     def test_host_credential_mount_fails(self) -> None:
         box = self.box()

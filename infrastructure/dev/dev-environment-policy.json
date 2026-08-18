@@ -5,24 +5,46 @@
   "adopted_descriptor_harvest_id": "H-023",
   "purpose": "Immutable provenance and security policy lock for the M-007 repository development environment. This is a provenance/policy lock, not a second environment-description protocol; devcontainer.json remains the single portable environment description.",
   "base_image": {
-    "semantic_reference": "docker.io/library/node:24.19.0",
-    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie",
+    "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
     "media_type": "application/vnd.oci.image.index.v1+json",
     "architectures": {
-      "amd64": "sha256:f6d02cf1353049cf3658e6ce9ec03c6877a6479495f122062d195e2279d01055",
-      "arm64": "sha256:7e4b2953088599075c288871d109e23bc7a33384b96ca443a7cfb7b5c318b099",
-      "ppc64le": "sha256:56c4cadee33f1eff8ace75854383652bcf9584319747bb2373e010ce86e00989"
+      "amd64": "sha256:05c60dce78787e477fd7c0d61d9efcd5b7ae3f21a8b18787c7ef3daf9c9a2ad3",
+      "arm64": "sha256:3f734716ad93ed2aa8a6eec03f2404de09b8505f3f9ce06c15933ffaf49ec65c",
+      "ppc64le": "sha256:6c207361d6106ba9afd94be2dbc25ab2fac15da6bf2dce761e05bdd3ce7a34e5",
+      "s390x": "sha256:cbdd8a21c55d1411e06bc0b9af82af98ed3040f0b1e80f2f51a50a43d261b607"
     },
     "upstream_source": "https://github.com/nodejs/docker-node",
     "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
     "registry_published": "2026-08-05",
     "node_version": "24.19.0",
+    "os": "Debian trixie (13), debian:trixie snapshot 2026-08-01",
     "contains": [
       "node 24.19.0",
       "corepack (bundled with the Node.js distribution)",
       "git",
-      "yarn 1.22.22 (present but unused by the repository)"
-    ]
+      "yarn 1.22.22 (removed deterministically by the M-007 Dockerfile; unused by VibeFlow)",
+      "npm (removed deterministically by the M-007 Dockerfile; unused by VibeFlow)"
+    ],
+    "remediation": {
+      "dockerfile": ".devcontainer/Dockerfile",
+      "purpose": "Select/remediate the image per M-007 packet 4.3/8. Trixie is the newest official Debian base for Node 24.19.0 (fixes CVE-2025-8714 in postgresql/libpq 17.10 vs bookworm's vulnerable 15.18). The Dockerfile deterministically removes unused bundled npm and yarn material (filesystem-only; no apt/apk operations, no downloads, no floating references).",
+      "removed": [
+        "/usr/local/lib/node_modules/npm",
+        "/usr/local/bin/npm",
+        "/usr/local/bin/npx",
+        "/opt/yarn-v1.22.22",
+        "/usr/local/bin/yarn",
+        "/usr/local/bin/yarnpkg"
+      ],
+      "retained": [
+        "node 24.19.0",
+        "corepack",
+        "git",
+        "pnpm 11.4.0 via corepack",
+        "python3 via pinned feature"
+      ]
+    }
   },
   "features": [
     {
@@ -36,7 +58,7 @@
         "version": "os-provided",
         "installTools": false
       },
-      "purpose": "Provides python3 (Debian bookworm os-provided) required to run all repository-owned stdlib validators and tests. Feature release is immutable by digest; install behavior is fixed by that release."
+      "purpose": "Provides python3 (Debian trixie os-provided) required by all repository-owned stdlib validators/tests. Feature release is immutable by digest; install behavior is fixed by that release."
     }
   ],
   "toolchain": {
@@ -84,12 +106,12 @@
       }
     ],
     "initialize_command": {
-      "command": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 chown $(id -u):$(id -g) /data",
-      "purpose": "Host-side (initializeCommand) one-shot: chowns the canonical vibeflow-node-modules volume root to the host user so the non-root container user (uid-aligned to the host by devcontainers/ci / VS Code) can write node_modules. Uses the same digest-pinned node image, runs as root only inside that throwaway chown container, mounts no host paths into the dev container, and never touches the host checkout's node_modules."
+      "command": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1 chown $(id -u):$(id -g) /data",
+      "purpose": "Host-side (initializeCommand) one-shot: chowns the canonical vibeflow-node-modules volume root to the host user so the non-root container user (uid-aligned to the host by devcontainers/ci / VS Code) can write node_modules. Uses the same digest-pinned trixie base, runs as root only inside that throwaway chown container, mounts no host paths into the dev container, and never touches the host checkout's node_modules."
     }
   },
   "durable_extension_policy": {
-    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume is retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
+    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume and initializeCommand, the digest-pinned trixie base, and the deterministic npm/yarn removal are retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
     "extensions": []
   }
 }
