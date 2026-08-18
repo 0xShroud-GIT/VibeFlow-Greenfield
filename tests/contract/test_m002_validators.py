@@ -297,12 +297,25 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("default must be 'deny'", result.stdout)
 
-    def test_build_script_approval_requires_rationale(self) -> None:
+    def test_build_script_approval_requires_exact_version_binding(self) -> None:
         box = RepoSandbox(self.tmp)
         box.patch(
             "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
             "  approvals: []",
             "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n"
+            "    pnpm_matcher: typebox\n    version: ^1.3.6\n"
+            "    approved: true\n    rationale: Synthetic stale-range fixture.",
+        )
+        result = run_script(HARVEST, box.root)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("must be one exact package version", result.stdout)
+
+    def test_build_script_approval_requires_rationale(self) -> None:
+        box = RepoSandbox(self.tmp)
+        box.patch(
+            "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml",
+            "  approvals: []",
+            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n    pnpm_matcher: typebox\n    version: 1.3.6\n"
             "    approved: true\n    rationale: ''",
         )
         result = run_script(HARVEST, box.root)

@@ -491,8 +491,27 @@ class Validator:
                     registry = self.load_yaml(
                         "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml", "H"
                     )
-                    approved: dict[str, str] = {}
+                    approved: dict[str, dict[str, str]] = {}
                     coordinates: dict[str, str] = {}
+                    direct_versions: dict[str, set[str]] = {}
+                    manifest_paths = [self.root / "package.json"] + sorted(
+                        path
+                        for path in self.root.rglob("package.json")
+                        if "node_modules" not in path.parts and path != self.root / "package.json"
+                    )
+                    for manifest_path in manifest_paths:
+                        try:
+                            package_doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            continue
+                        for field in (
+                            "dependencies",
+                            "devDependencies",
+                            "peerDependencies",
+                            "optionalDependencies",
+                        ):
+                            for name, spec in (package_doc.get(field) or {}).items():
+                                direct_versions.setdefault(str(name), set()).add(str(spec))
                     if isinstance(registry, dict):
                         for entry in registry.get("entries") or []:
                             hid = str(entry.get("id") or "")
@@ -506,21 +525,40 @@ class Validator:
                                 and approval.get("approved") is True
                                 and str(approval.get("rationale") or "").strip()
                             ):
-                                approved[str(approval.get("package") or "")] = str(
-                                    approval.get("harvest_id") or ""
-                                )
-                    for package, value in allow_builds.items():
+                                matcher = str(approval.get("pnpm_matcher") or "")
+                                approved[matcher] = {
+                                    "package": str(approval.get("package") or ""),
+                                    "harvest_id": str(approval.get("harvest_id") or ""),
+                                    "version": str(approval.get("version") or ""),
+                                }
+                    for matcher, value in allow_builds.items():
+                        approval = approved.get(str(matcher))
                         if value is not True:
                             self.err(
                                 "H",
-                                f"allowBuilds[{package!r}] must be the explicit boolean true, got {value!r}",
+                                f"allowBuilds[{matcher!r}] must be the explicit boolean true, got {value!r}",
                             )
-                        elif package not in coordinates:
-                            self.err("H", f"allowBuilds package {package!r} has no harvest coordinate")
-                        elif approved.get(str(package)) != coordinates[str(package)]:
+                        elif approval is None:
                             self.err(
                                 "H",
-                                f"allowBuilds package {package!r} lacks matching harvest-side approval and rationale",
+                                f"allowBuilds matcher {matcher!r} lacks matching harvest-side approval, exact version and rationale",
+                            )
+                        elif approval["package"] not in coordinates:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} has no harvest package coordinate",
+                            )
+                        elif approval["harvest_id"] != coordinates[approval["package"]]:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} harvest approval disagrees with its coordinate",
+                            )
+                        elif direct_versions.get(approval["package"], set()) != {approval["version"]}:
+                            self.err(
+                                "H",
+                                f"allowBuilds matcher {matcher!r} has stale approval version "
+                                f"{approval['version']!r}; direct version(s) are "
+                                f"{sorted(direct_versions.get(approval['package'], set()))}",
                             )
 
     # -- I/J/K/L: routing, generator, inventory ----------------------------

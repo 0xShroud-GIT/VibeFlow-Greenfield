@@ -1,7 +1,7 @@
 as_of: '2026-08-17'
 policy: This registry records ratified technology choices, package coordinates, version lines, license classifications and explicit
   install/build-script approvals. Exact installable package versions are pinned in the repository lockfile starting with Mission 004;
-  package install/build scripts are denied unless a per-package approval with rationale is recorded here.
+  package install/build scripts are denied unless a per-package approval with exact version, explicit pnpm matcher and rationale is recorded here.
 install_build_script_policy:
   default: deny
   approvals: []

@@ -17,6 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = REPO_ROOT / "scripts/validate-m006-security-gates.py"
 M005_VALIDATOR = REPO_ROOT / "scripts/validate-m005-contract-codegen.py"
+MASTER_VALIDATOR = REPO_ROOT / "scripts/validate-master-contracts.py"
 IGNORE = shutil.ignore_patterns(
     ".git", "node_modules", "dist", ".turbo", ".cache", ".vite",
     "__pycache__", ".pytest_cache", ".next", ".expo",
@@ -82,6 +83,29 @@ class Sandbox:
         writer.writerows(rows)
         self.write(REGISTER, output.getvalue())
 
+    def set_capability_status(self, vf_id: str, status: str) -> None:
+        csv_path = self.path("master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv")
+        with csv_path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            fields = reader.fieldnames or []
+        for row in rows:
+            if row["vf_id"] == vf_id:
+                row["status"] = status
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+        self.write("master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv", output.getvalue())
+
+        rel = "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml"
+        text = self.read(rel)
+        pattern = rf"(?ms)(^- vf_id: {re.escape(vf_id)}\n.*?^  status: )[A-Z_]+"
+        text, count = re.subn(pattern, rf"\g<1>{status}", text, count=1)
+        if count != 1:
+            raise AssertionError(f"capability missing: {vf_id}")
+        self.write(rel, text)
+
     def point_to(self, mission: str, status: str) -> None:
         self.write(
             ".ai/ACTIVE_MISSION.md",
@@ -100,7 +124,7 @@ class Sandbox:
         self.patch(
             REGISTRY,
             "  approvals: []",
-            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n    approved: true\n    rationale: TypeBox fixture proves explicit reviewed package build approval.",
+            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n    pnpm_matcher: typebox\n    version: 1.3.6\n    approved: true\n    rationale: TypeBox fixture proves explicit reviewed package build approval.",
         )
         self.write("pnpm-workspace.yaml", self.read("pnpm-workspace.yaml") + "allowBuilds:\n  typebox: true\n")
 
@@ -131,6 +155,13 @@ class M006Tests(unittest.TestCase):
     def assert_accepted(self, box: Sandbox, script: Path = VALIDATOR) -> None:
         result = run(script, box.root)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def future_m007(self) -> Sandbox:
+        box = self.box()
+        box.set_status("M-006", "DONE")
+        box.set_status("M-007", "REVIEW")
+        box.point_to("M-007", "REVIEW")
+        return box
 
     # Dependency/harvest and build-script reconciliation.
 
@@ -174,10 +205,21 @@ class M006Tests(unittest.TestCase):
         self.assert_accepted(box)
         self.assert_accepted(box, M005_VALIDATOR)
 
+    def test_dependency_version_drift_invalidates_stale_build_approval(self) -> None:
+        box = self.box()
+        box.add_approved_allow_build()
+        box.patch(
+            "packages/contracts/package.json",
+            '"typebox": "1.3.6"',
+            '"typebox": "1.3.7"',
+        )
+        self.assert_rejected(box, "stale install/build approval")
+        self.assert_rejected(box, "stale approval version", M005_VALIDATOR)
+
     def test_durable_unapproved_allow_builds_fails(self) -> None:
         box = self.box()
         box.write("pnpm-workspace.yaml", box.read("pnpm-workspace.yaml") + "allowBuilds:\n  typebox: true\n")
-        self.assert_rejected(box, "lacks explicit harvest-side approval")
+        self.assert_rejected(box, "lacks exact harvest-side approval")
         self.assert_rejected(box, "lacks matching harvest-side approval", M005_VALIDATOR)
 
     def test_dangerously_allow_all_builds_fails(self) -> None:
@@ -201,12 +243,12 @@ class M006Tests(unittest.TestCase):
     def test_unapproved_third_party_action_fails(self) -> None:
         box = self.box()
         box.patch(SECURITY_WORKFLOW, f"actions/checkout@{CHECKOUT_SHA}", "vendor/scanner@" + "a" * 40)
-        self.assert_rejected(box, "unapproved third-party")
+        self.assert_rejected(box, "absent from the action lock")
 
     def test_workflow_write_permission_fails(self) -> None:
         box = self.box()
         box.patch(SECURITY_WORKFLOW, "  contents: read", "  contents: write")
-        self.assert_rejected(box, "contents: read only")
+        self.assert_rejected(box, "permissions")
 
     def test_missing_timeout_fails(self) -> None:
         box = self.box()
@@ -217,6 +259,16 @@ class M006Tests(unittest.TestCase):
         box = self.box()
         box.patch(SECURITY_WORKFLOW, "  pull_request:", "  pull_request_target:")
         self.assert_rejected(box, "pull_request_target")
+
+    def test_security_workflow_missing_gitleaks_fixture_smoke_fails(self) -> None:
+        box = self.box()
+        box.patch(
+            SECURITY_WORKFLOW,
+            "      - name: Test exact Gitleaks binary with positive and negative fixtures\n"
+            "        shell: bash\n        run: scripts/security/test-gitleaks.sh\n",
+            "",
+        )
+        self.assert_rejected(box, "scripts/security/test-gitleaks.sh")
 
     def test_security_workflow_missing_scanner_job_fails(self) -> None:
         box = self.box()
@@ -251,7 +303,7 @@ class M006Tests(unittest.TestCase):
         lock = json.loads(box.read("security/ci-toolchain.lock.json"))
         lock["tools"]["gitleaks"]["version"] = "8.30.0"
         box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
-        self.assert_rejected(box, "version must be exactly 8.30.1")
+        self.assert_rejected(box, "version disagrees with harvest registry")
 
     def test_remote_semgrep_config_fails(self) -> None:
         box = self.box()
@@ -260,6 +312,86 @@ class M006Tests(unittest.TestCase):
 
     def test_local_semgrep_config_and_fixtures_pass(self) -> None:
         self.assert_accepted(self.box())
+
+    def test_durable_registered_additional_workflow_and_action_pass(self) -> None:
+        box = self.future_m007()
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        action = "example/security-audit"
+        pin = "a" * 40
+        lock["github_actions"][action] = {
+            "version": "1.2.3",
+            "commit_sha": pin,
+            "official_upstream_source": f"https://github.com/{action}",
+            "rationale": "Synthetic M-007 durable workflow registry fixture.",
+        }
+        rel = ".github/workflows/future-audit.yml"
+        lock["workflow_policy"]["additional_workflows"][rel] = {
+            "name": "Future Audit",
+            "required_jobs": ["audit"],
+            "permissions": {"issues": "read"},
+            "allowed_secrets": [],
+            "allow_repository_write": False,
+            "allow_continue_on_error": False,
+            "allow_package_manager_cache": False,
+            "rationale": "Synthetic future workflow proves lock-driven durable expansion.",
+        }
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        box.write(
+            rel,
+            "name: Future Audit\n\non:\n  workflow_dispatch:\n\npermissions:\n"
+            "  issues: read\n\njobs:\n  audit:\n    runs-on: ubuntu-latest\n"
+            "    timeout-minutes: 5\n    steps:\n"
+            f"      - uses: {action}@{pin} # v1.2.3\n",
+        )
+        self.assert_accepted(box)
+
+    def test_durable_unregistered_additional_workflow_fails(self) -> None:
+        box = self.future_m007()
+        box.write(
+            ".github/workflows/unregistered.yml",
+            "name: Unregistered\n\non:\n  workflow_dispatch:\npermissions:\n  contents: read\n"
+            "jobs:\n  check:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n"
+            "    steps:\n      - run: echo check\n",
+        )
+        self.assert_rejected(box, "unregistered")
+
+    def test_durable_scanner_upgrade_is_harvest_lock_driven(self) -> None:
+        box = self.future_m007()
+        box.patch(
+            REGISTRY,
+            "  name: Gitleaks\n  version: 8.30.1",
+            "  name: Gitleaks\n  version: 8.30.2",
+        )
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        tool = lock["tools"]["gitleaks"]
+        tool["version"] = "8.30.2"
+        tool["distribution_coordinate"] = tool["distribution_coordinate"].replace("8.30.1", "8.30.2")
+        tool["immutable_sha256"] = "b" * 64
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        self.assert_accepted(box)
+
+    def test_durable_semgrep_rule_expansion_is_lock_driven(self) -> None:
+        box = self.future_m007()
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        lock["semgrep_policy"]["rules"].append(
+            {"id": "vibeflow.python.dynamic-compile-exec", "severity": "ERROR"}
+        )
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        box.write(
+            "security/semgrep.yml",
+            box.read("security/semgrep.yml")
+            + "\n  - id: vibeflow.python.dynamic-compile-exec\n"
+            "    message: Dynamic compile in exec mode can enable code injection.\n"
+            "    severity: ERROR\n    languages: [python]\n"
+            "    pattern: compile(..., \"exec\")\n"
+            "    metadata:\n      confidence: HIGH\n      category: security\n",
+        )
+        box.write(
+            "tests/security/fixtures/semgrep/positive/dangerous.py",
+            box.read("tests/security/fixtures/semgrep/positive/dangerous.py")
+            + "compile(user_input, \"fixture\", \"exec\")\n",
+        )
+        self.assert_accepted(box)
 
     # Progression-aware retained validator.
 
@@ -277,13 +409,32 @@ class M006Tests(unittest.TestCase):
         self.assert_rejected(box, "M-007 must remain LOCKED")
 
     def test_future_accepted_m006_with_m007_active_passes(self) -> None:
-        box = self.box()
-        box.set_status("M-006", "DONE")
-        box.set_status("M-007", "REVIEW")
-        box.point_to("M-007", "REVIEW")
+        box = self.future_m007()
         self.assert_accepted(box)
         result = run(VALIDATOR, box.root)
         self.assertIn("mode: durable", result.stdout)
+
+    def test_durable_rel_capability_progression_passes(self) -> None:
+        box = self.future_m007()
+        box.set_capability_status("VF-REL-002", "VERIFIED")
+        self.assert_accepted(box)
+
+    def test_durable_rel_capability_regression_fails(self) -> None:
+        box = self.future_m007()
+        box.set_capability_status("VF-REL-002", "IN_PROGRESS")
+        self.assert_rejected(box, "regressed below M-006 baseline")
+
+    def test_real_m007_env_progression_passes_durable_validator(self) -> None:
+        box = self.future_m007()
+        box.set_capability_status("VF-ENV-001", "IN_PROGRESS")
+        self.assert_accepted(box)
+        master = run(MASTER_VALIDATOR, box.root)
+        self.assertEqual(master.returncode, 0, master.stdout + master.stderr)
+
+    def test_m006_active_snapshot_rejects_env_progression(self) -> None:
+        box = self.box()
+        box.set_capability_status("VF-ENV-001", "IN_PROGRESS")
+        self.assert_rejected(box, "M-006 active snapshot requires VF-ENV-001")
 
     def test_dag_register_desync_fails(self) -> None:
         box = self.box()

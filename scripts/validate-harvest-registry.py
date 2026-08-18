@@ -369,7 +369,15 @@ def validate(root: Path) -> dict:
             if not isinstance(approval, dict):
                 errors.append(f"{label} must be a mapping")
                 continue
-            required = ("ecosystem", "package", "harvest_id", "approved", "rationale")
+            required = (
+                "ecosystem",
+                "package",
+                "harvest_id",
+                "pnpm_matcher",
+                "version",
+                "approved",
+                "rationale",
+            )
             for field in required:
                 value = approval.get(field)
                 if value is None or (isinstance(value, str) and not value.strip()):
@@ -377,7 +385,10 @@ def validate(root: Path) -> dict:
             ecosystem = str(approval.get("ecosystem") or "").strip().lower()
             package = str(approval.get("package") or "").strip()
             approval_hid = str(approval.get("harvest_id") or "").strip()
+            pnpm_matcher = str(approval.get("pnpm_matcher") or "").strip()
+            version = str(approval.get("version") or "").strip()
             key = (ecosystem, package.lower())
+            approval_key = (ecosystem, pnpm_matcher.lower())
             if approval.get("approved") is not True:
                 errors.append(f"{label}.approved must be the boolean true")
             if approval_hid not in EXPECTED_IDS:
@@ -389,14 +400,28 @@ def validate(root: Path) -> dict:
                 errors.append(
                     f"{label} harvest_id {approval_hid!r} disagrees with coordinate mapping {coordinate['harvest_id']!r}"
                 )
-            if key in seen_approvals:
-                errors.append(f"Duplicate install/build-script approval for {ecosystem}:{package}")
-            seen_approvals.add(key)
+            if not re.fullmatch(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?", version):
+                errors.append(
+                    f"{label}.version must be one exact package version, got {version!r}"
+                )
+            valid_matchers = {package, f"{package}@{version}"}
+            if pnpm_matcher not in valid_matchers:
+                errors.append(
+                    f"{label}.pnpm_matcher must be the exact package or package@version "
+                    f"selector {sorted(valid_matchers)!r}, got {pnpm_matcher!r}"
+                )
+            if approval_key in seen_approvals:
+                errors.append(
+                    f"Duplicate install/build-script approval for {ecosystem}:{pnpm_matcher}"
+                )
+            seen_approvals.add(approval_key)
             approvals.append(
                 {
                     "ecosystem": ecosystem,
                     "package": package,
                     "harvest_id": approval_hid,
+                    "pnpm_matcher": pnpm_matcher,
+                    "version": version,
                     "rationale": str(approval.get("rationale") or "").strip(),
                 }
             )

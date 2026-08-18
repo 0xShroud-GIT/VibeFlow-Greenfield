@@ -23,10 +23,13 @@
     "approval_requirements": [
       "ratified npm coordinate",
       "matching harvest_id",
+      "explicit pnpm_matcher",
+      "one exact package version matching direct manifests and pnpm-lock.yaml",
       "explicit boolean true",
       "non-empty rationale"
     ],
-    "dangerouslyAllowAllBuilds": "permanently forbidden"
+    "dangerouslyAllowAllBuilds": "permanently forbidden",
+    "stale_version_behavior": "dependency or resolved lockfile version drift invalidates approval"
   },
   "security_tools": {
     "gitleaks": {
@@ -71,7 +74,9 @@
     "semgrep_rule_fixtures": {
       "result": "PASS",
       "positive_rule_ids": 6,
-      "negative_findings": 0
+      "negative_findings": 0,
+      "candidate_commit": "55a380b",
+      "scope": "historical pre-generalization fixture wrapper"
     },
     "semgrep_repository": {
       "result": "PASS",
@@ -85,7 +90,9 @@
     "trivy": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
     "sbom": "NOT_GENERATED_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
     "expected_ci_results_claimed_as_actual": false,
-    "github_security_workflow": "NOT_RUN_WORKFLOW_PERMISSION_BLOCKER"
+    "github_security_workflow": "NOT_RUN_WORKFLOW_PERMISSION_BLOCKER",
+    "gitleaks_fixture_smoke": "NOT_RUN_LOCAL_ARENA_RELEASE_ASSET_TLS_EGRESS",
+    "generalized_semgrep_fixture_wrapper": "NOT_REEXECUTED_EXACT_DISTRIBUTION_UNAVAILABLE_AFTER_ARENA_RESET"
   },
   "sbom": {
     "format": "CycloneDX JSON",
@@ -100,12 +107,12 @@
     "reason": "No product container image exists in M-006."
   },
   "test_counts": {
-    "M-002": 43,
+    "M-002": 44,
     "M-003": 18,
     "M-004": 82,
-    "M-005_retained": 91,
-    "M-006": 27,
-    "total": 261
+    "M-005_retained": 92,
+    "M-006": 37,
+    "total": 273
   },
   "capability_transitions": {
     "VF-REL-002": [
@@ -129,10 +136,10 @@
   "master_file_sha256": {
     "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv": "5c4324f418afb6b7d069e103007d05e79b5bdb9c0e21ad5253cd9b37c7c92a79",
     "01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml": "a1907508cc5ecd40d779cfac843f47868a1f1fd307684a7f26aa640fdab3d40b",
-    "06_HARVEST/OSS_HARVEST_REGISTRY.yaml": "d8edb9877a018223c5b9f633e3a78b8c63d7bba86ee83d3dcd85a4f89217827b",
+    "06_HARVEST/OSS_HARVEST_REGISTRY.yaml": "79b491bba51ee91bdc107c67af35537b9673ff308204678cad227991c5687d60",
     "10_IMPLEMENTATION/MISSION_DAG.yaml": "afd8e637ec0f96c8aedc748bf196dbf8d1b3977fb28ebd9f0bbbd8655491ac2a",
     "10_IMPLEMENTATION/MISSION_REGISTER.csv": "8970ef31164ba8dbfd47d102e44fe151a6c44dcc493af7d35787d15b537e66f6",
-    "SHA256SUMS.txt": "1bb3a8e4784c05f0d8320277e8ce5148bce3496c2edb62671242707da351647c"
+    "SHA256SUMS.txt": "d3b0d74faab2db2744c26e6ab6b1983531683f86ba2454a643bb175ee91117bb"
   },
   "authoritative_pack_hashes": {
     "entries": 72,
@@ -173,6 +180,40 @@
       "Semgrep CI",
       "CycloneDX SBOM CI",
       "security-gate"
-    ]
+    ],
+    "intended_diff_sha256": "fb415f076d49ae02c824b6432e0805f863eb5a476031aa3d28034f202ef54a15"
+  },
+  "policy_progression": {
+    "active_snapshot": {
+      "capabilities": "exact M-006 REL transitions; all ENV NOT_STARTED",
+      "workflows": "exact four M-006 baseline workflows and exact baseline requirements",
+      "scanners": "exact H-029..H-032 versions and immutable identities",
+      "actions": "exact three M-006 Action versions and SHAs",
+      "semgrep": "exact six local rules and four fixture files"
+    },
+    "durable": {
+      "capabilities": "M-006 REL baseline cannot regress; successor-selected ENV/REL rows may progress",
+      "workflows": "baseline remains permanent; additional workflows require exact workflow-policy registration",
+      "scanners": "retained scanner keys validated from CI_TOOL harvest entries and immutable lock identities",
+      "actions": "every external Action must match a provenance/rationale/full-SHA lock entry",
+      "semgrep": "local config, rule IDs, severities, and fixture paths are semgrep_policy lock driven"
+    }
+  },
+  "security_lock_schema_version": 2,
+  "gitleaks_fixture_smoke": {
+    "script": "scripts/security/test-gitleaks.sh",
+    "binary": "exact checksum-installed gitleaks lock version",
+    "positive": "runtime-generated synthetic token must be detected with exit 1 and absent from redacted logs",
+    "negative": "safe synthetic repository must exit 0",
+    "local_result": "NOT_EXECUTED_EXACT_BINARY_DOWNLOAD_BLOCKED_BY_ARENA_RELEASE_ASSET_TLS",
+    "pass_claimed": false
+  },
+  "durable_regression_evidence": {
+    "M-007_ENV_progression": "M-006 DONE, M-007 REVIEW, VF-ENV-001 IN_PROGRESS passes CSV/YAML and retained gate",
+    "capability_regression": "accepted REL baseline regression fails",
+    "workflow_expansion": "registered workflow/action passes; unregistered workflow fails",
+    "scanner_upgrade": "matching harvest and immutable tool lock upgrade passes durable mode",
+    "semgrep_rule_expansion": "matching local config/rule/fixture lock expansion passes durable mode",
+    "stale_build_approval": "typebox 1.3.6 approval fails when direct dependency drifts to 1.3.7"
   }
 }

@@ -28,6 +28,8 @@ diff is preserved in:
 
 `evidence/missions/M-006/INTENDED_WORKFLOWS.patch`
 
+SHA-256: `fb415f076d49ae02c824b6432e0805f863eb5a476031aa3d28034f202ef54a15`
+
 Until GPT applies that patch through a workflow-authorized connector, the
 checked-in workflows remain the pre-M-006 files: the security workflow is
 absent, Action tags are not hardened, path filters remain, and M-006 workflow
@@ -58,11 +60,14 @@ workspace edges using the `workspace:` protocol. M-004 continues to enforce
 exact/non-exotic specs and the lockfile.
 
 Install/build scripts default to deny. `install_build_script_policy.approvals`
-is currently empty. A future `allowBuilds` package must be a ratified coordinate
-and have a matching harvest ID, explicit boolean approval, and non-empty
-rationale. Active M-005 snapshots still reject the key; durable M-005 accepts
-only reconciled approvals. `dangerouslyAllowAllBuilds` is permanently forbidden.
-Review-required licenses cannot be approved for production dependency use.
+is currently empty. A future `allowBuilds` key must match an explicit
+`pnpm_matcher` whose harvest approval records the ratified package, harvest ID,
+one exact package version, boolean approval, and non-empty rationale. The M-006
+gate reconciles both direct manifests and resolved `pnpm-lock.yaml` versions;
+dependency-version drift invalidates a stale approval. Active M-005 snapshots
+still reject the key; durable M-005 accepts only matcher/version-reconciled
+approvals. `dangerouslyAllowAllBuilds` is permanently forbidden. Review-required
+licenses cannot be approved for production dependency use.
 
 ## Immutable security toolchain
 
@@ -83,24 +88,40 @@ The installer verifies the archive, the official manifest binding, the bundle
 identity, and that the bundle subject digest equals the archive digest. This
 explicitly addresses H-030's recorded malicious-release incident history.
 
-## GitHub Action pins
+The active M-006 snapshot still asserts the four exact scanner versions above.
+After M-006 acceptance, scanner validation is harvest/lock-driven: retained
+scanner keys cannot disappear, but a later exact version is valid only when its
+CI-tool harvest entry, official source, immutable distribution identity, and
+lock version agree. Semgrep rule IDs/severities/config and fixture paths are
+likewise driven by `semgrep_policy`; active M-006 preserves the exact six-rule
+snapshot while durable mode permits locally configured, fixture-backed locked
+rules.
 
-Only required GitHub-owned Actions are accepted by the static gate, and the intended workflow patch pins:
+## GitHub Action pins and workflow progression
+
+The M-006 active snapshot requires exactly these Action lock entries and pins:
 
 - `actions/checkout` v7.0.1 — `3d3c42e5aac5ba805825da76410c181273ba90b1`
 - `actions/setup-node` v7.0.0 — `820762786026740c76f36085b0efc47a31fe5020`
 - `actions/upload-artifact` v7.0.1 — `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`
 
-Every workflow in the intended patch has `contents: read`, finite job timeouts, unfiltered PR/main-push
-triggers, checkout credential persistence disabled, and no
-`pull_request_target`, write permission, repository-writing command,
-third-party Action, or secret reference. Setup Node explicitly sets
-`package-manager-cache: false`.
+The four M-006 baseline workflows permanently retain unfiltered PR/main-push
+coverage, required jobs, exact least-privilege `contents: read`, finite timeouts,
+and fail-closed scanner aggregation. Durable mode does not pretend every future
+workflow has the same trigger or permission needs: an additional workflow must
+be explicitly registered under `workflow_policy.additional_workflows` with its
+required jobs, exact permissions, allowed secrets, cache/write/continue policy,
+and rationale. Every external Action remains full-SHA pinned and must match a
+provenanced `github_actions` lock entry. This permits later authorized workflows
+and Actions without weakening the baseline or accepting unregistered expansion.
 
 ## Scan commands and policy
 
 ```text
 python3 scripts/security/install-ci-tool.py gitleaks
+scripts/security/test-gitleaks.sh
+  -> exact installed version; generated negative repo must pass; generated
+     positive repo must fail and redact the runtime-only synthetic token
 scripts/security/run-gitleaks.sh
   -> full reachable history (`--log-opts="--all"`), findings fail, 100% redaction
 
@@ -136,16 +157,23 @@ No expected CI result is represented as actual CI. At this evidence revision:
 
 - Node `v24.19.0` / pnpm `11.4.0` frozen install: PASS.
 - `pnpm run check`: PASS (static security validation included; scanner downloads excluded).
-- Semgrep positive/negative fixtures: PASS — 6 expected rule IDs / 0 negative findings.
+- Historical Semgrep positive/negative fixture run at candidate `55a380b`: PASS —
+  6 expected rule IDs / 0 negative findings. The generalized lock-driven fixture
+  wrapper was not re-executed locally after this response because the exact
+  distribution is unavailable in the reset Arena environment; no new scanner
+  pass is claimed.
 - Semgrep repository scan at committed candidate `55a380b`: PASS — 6 rules,
   17 applicable source targets, 0 findings. Positive fixtures were excluded.
-- Gitleaks, OSV-Scanner, Trivy, and Trivy SBOM: not run locally because Arena's
+- The new exact-binary Gitleaks positive/negative smoke test was not executed
+  locally because the exact release binary could not be downloaded through
+  Arena release-asset egress. No Gitleaks fixture pass is claimed.
+- Gitleaks repository scan, OSV-Scanner, Trivy, and Trivy SBOM: not run locally because Arena's
   egress terminates TLS to GitHub release-assets; no pass is claimed. Their
   exact commands were intended to run in the PR workflow, but the workflow
   permission rejection prevents that until GPT applies `INTENDED_WORKFLOWS.patch`.
   No scanner or SBOM pass is claimed for those tools.
 
-The 261 deterministic tests and `pnpm run check` result below were recorded
+The updated deterministic tests and `pnpm run check` result below are recorded
 against the complete intended workflow tree before the required workflow-only
 reversion. On the pushed non-workflow tree, M-006 static validation and root
 `check` are expected to fail closed on the absent/unhardened workflows.
@@ -154,12 +182,12 @@ reversion. On the pushed non-workflow tree, M-006 static validation and root
 
 | Suite | Tests | Result |
 | --- | ---: | --- |
-| M-002 | 43 | PASS |
+| M-002 | 44 | PASS |
 | M-003 | 18 | PASS |
 | M-004 | 82 | PASS |
-| M-005 retained | 91 | PASS |
-| M-006 | 27 | PASS |
-| Total | 261 | PASS |
+| M-005 retained | 92 | PASS |
+| M-006 | 37 | PASS |
+| Total | 273 | PASS |
 
 M-005's appended acceptance reconciliation separately preserves the accepted
 historical count of 87 and explains the four later build-progression tests.
@@ -171,8 +199,12 @@ historical count of 87 and explains the four later build-progression tests.
 - `VF-REL-004 SBOM/DependencyRegistry`: `NOT_STARTED` → `IMPLEMENTED`
 - `VF-REL-005 SBOM/Dependency Evidence`: `NOT_STARTED` → `IN_PROGRESS`
 
-None is marked `VERIFIED` or `COMPLETE`. Repository-level CycloneDX evidence is
-not mobile/APK release evidence. All `VF-ENV-*` rows remain `NOT_STARTED`.
+None is marked `VERIFIED` or `COMPLETE` in the M-006 snapshot. Repository-level
+CycloneDX evidence is not mobile/APK release evidence. Active M-006 requires all
+`VF-ENV-*` rows to remain `NOT_STARTED`. Durable mode instead enforces only that
+the four accepted REL baselines do not regress and permits a successor-selected
+ENV row to progress. A real M-007 REVIEW fixture advancing `VF-ENV-001` to
+`IN_PROGRESS` passes CSV/YAML coherence and the retained M-006 validator.
 
 ## Authoritative pack changes
 
@@ -180,10 +212,10 @@ not mobile/APK release evidence. All `VF-ENV-*` rows remain `NOT_STARTED`.
 | --- | --- | --- |
 | `01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv` | `436f0fae02c5eb5a51ebb3819dc09f831d4d58baa3fb145fa3141706105a5036` | `5c4324f418afb6b7d069e103007d05e79b5bdb9c0e21ad5253cd9b37c7c92a79` |
 | `01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml` | `79a7eb8bc5ed7d9b154ddcb5068bfcca5d86c52b0543167a606db642fa74650c` | `a1907508cc5ecd40d779cfac843f47868a1f1fd307684a7f26aa640fdab3d40b` |
-| `06_HARVEST/OSS_HARVEST_REGISTRY.yaml` | `8a1611047b7584160350e47c29539670b10a9bcf97f2fd47a701f799bdd27351` | `d8edb9877a018223c5b9f633e3a78b8c63d7bba86ee83d3dcd85a4f89217827b` |
+| `06_HARVEST/OSS_HARVEST_REGISTRY.yaml` | `8a1611047b7584160350e47c29539670b10a9bcf97f2fd47a701f799bdd27351` | `79b491bba51ee91bdc107c67af35537b9673ff308204678cad227991c5687d60` |
 | `10_IMPLEMENTATION/MISSION_DAG.yaml` | `8392c8df62225a3253027581417c361a5d459780c816661324dc3c79e4cdf6de` | `afd8e637ec0f96c8aedc748bf196dbf8d1b3977fb28ebd9f0bbbd8655491ac2a` |
 | `10_IMPLEMENTATION/MISSION_REGISTER.csv` | `4dc3fc8a477711de89bd7b3fa4ab143584543e4ba3242b70b1ca1a0b6e65e3fc` | `8970ef31164ba8dbfd47d102e44fe151a6c44dcc493af7d35787d15b537e66f6` |
-| `SHA256SUMS.txt` | `eea08a123e0b0db79cedcb1c57380c4c612e687eb5b29e30ba652d28a618f474` | `1bb3a8e4784c05f0d8320277e8ce5148bce3496c2edb62671242707da351647c` |
+| `SHA256SUMS.txt` | `eea08a123e0b0db79cedcb1c57380c4c612e687eb5b29e30ba652d28a618f474` | `d3b0d74faab2db2744c26e6ab6b1983531683f86ba2454a643bb175ee91117bb` |
 
 All 72 authoritative pack hashes verify.
 

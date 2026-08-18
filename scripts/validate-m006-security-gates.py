@@ -33,9 +33,9 @@ EXPECTED_TOOLS = {
     "semgrep": ("H-032", "1.172.0"),
 }
 EXPECTED_ACTIONS = {
-    "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",  # v7.0.1
-    "actions/setup-node": "820762786026740c76f36085b0efc47a31fe5020",  # v7.0.0
-    "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",  # v7.0.1
+    "actions/checkout": ("7.0.1", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
+    "actions/setup-node": ("7.0.0", "820762786026740c76f36085b0efc47a31fe5020"),
+    "actions/upload-artifact": ("7.0.1", "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"),
 }
 REQUIRED_WORKFLOW_JOBS = (
     "dependency-policy",
@@ -58,6 +58,27 @@ CAPABILITY_EXPECTED = {
     "VF-REL-003": "IMPLEMENTED",
     "VF-REL-004": "IMPLEMENTED",
     "VF-REL-005": "IN_PROGRESS",
+}
+CAPABILITY_STATUS_RANK = {
+    "NOT_STARTED": 0,
+    "IN_PROGRESS": 1,
+    "IMPLEMENTED": 2,
+    "VERIFIED": 3,
+    "COMPLETE": 4,
+}
+ACTIVE_BASELINE_WORKFLOWS = {
+    ".github/workflows/master-build-system-integrity.yml",
+    ".github/workflows/repo-sanitation.yml",
+    ".github/workflows/repository-foundation.yml",
+    ".github/workflows/security-and-dependency-gates.yml",
+}
+ACTIVE_POSITIVE_FIXTURES = {
+    "tests/security/fixtures/semgrep/positive/dangerous.py",
+    "tests/security/fixtures/semgrep/positive/dangerous.ts",
+}
+ACTIVE_NEGATIVE_FIXTURES = {
+    "tests/security/fixtures/semgrep/negative/safe.py",
+    "tests/security/fixtures/semgrep/negative/safe.ts",
 }
 IGNORED_PARTS = {
     ".git", "node_modules", "dist", "build", "out", ".turbo", ".cache",
@@ -180,7 +201,7 @@ class Validator:
             for item in harvest_result.get("package_coordinates", [])
         }
         approvals = {
-            (item["ecosystem"], item["package"].lower()): item
+            (item["ecosystem"], item["pnpm_matcher"].lower()): item
             for item in harvest_result.get("install_build_script_approvals", [])
         }
 
@@ -210,6 +231,7 @@ class Validator:
 
         direct_external = 0
         internal_edges = 0
+        direct_versions: dict[str, set[str]] = {}
         for owner, (manifest, package) in packages.items():
             seen_in_fields: set[str] = set()
             for field in DEPENDENCY_FIELDS:
@@ -234,6 +256,7 @@ class Validator:
                         continue
 
                     direct_external += 1
+                    direct_versions.setdefault(name.lower(), set()).add(spec)
                     coordinate = coordinates.get(("npm", name.lower()))
                     if coordinate is None:
                         self.err("dependency", f"unregistered external direct dependency {name!r} in {owner}")
@@ -251,6 +274,49 @@ class Validator:
                             f"review-required license for {name!r} cannot silently become a production dependency",
                         )
 
+        # Resolve package versions from the authoritative pnpm lock packages
+        # section. A plain package matcher may only approve one exact resolved
+        # version; package@version matchers bind that selector explicitly.
+        resolved_versions: dict[str, set[str]] = {}
+        lock_text = self.read("pnpm-lock.yaml", "build-policy") or ""
+        packages_section = lock_text.split("\npackages:\n", 1)
+        if len(packages_section) == 2:
+            package_body = packages_section[1].split("\nsnapshots:\n", 1)[0]
+            for match in re.finditer(r"(?m)^  (['\"]?)(.+?)\1:\s*(?:\{\})?\s*$", package_body):
+                coordinate_key = match.group(2)
+                split_at = coordinate_key.rfind("@")
+                if split_at <= 0:
+                    continue
+                package_name = coordinate_key[:split_at].lower()
+                version = coordinate_key[split_at + 1 :].split("(", 1)[0]
+                if version:
+                    resolved_versions.setdefault(package_name, set()).add(version)
+
+        for (_ecosystem, _matcher), approval in approvals.items():
+            package_name = approval["package"].lower()
+            version = approval["version"]
+            matcher = approval["pnpm_matcher"]
+            direct = direct_versions.get(package_name, set())
+            if direct and direct != {version}:
+                self.err(
+                    "build-policy",
+                    f"stale install/build approval for {approval['package']!r}@{version}: "
+                    f"direct dependency version(s) are {sorted(direct)}",
+                )
+            resolved = resolved_versions.get(package_name, set())
+            if matcher == approval["package"]:
+                if resolved != {version}:
+                    self.err(
+                        "build-policy",
+                        f"stale install/build approval for matcher {matcher!r}@{version}: "
+                        f"resolved lockfile version(s) are {sorted(resolved)}",
+                    )
+            elif version not in resolved:
+                self.err(
+                    "build-policy",
+                    f"install/build matcher {matcher!r} has no matching {version} in pnpm-lock.yaml",
+                )
+
         workspace_text = self.read("pnpm-workspace.yaml", "build-policy")
         if workspace_text is not None:
             try:
@@ -265,16 +331,28 @@ class Validator:
                 if not isinstance(allowed, dict) or not allowed:
                     self.err("build-policy", "allowBuilds must be a non-empty per-package mapping")
                 else:
-                    for package, approved in allowed.items():
-                        key = ("npm", str(package).lower())
+                    for matcher, approved in allowed.items():
+                        approval_key = ("npm", str(matcher).lower())
+                        approval = approvals.get(approval_key)
                         if approved is not True:
-                            self.err("build-policy", f"allowBuilds[{package!r}] must be boolean true")
-                        if key not in coordinates:
-                            self.err("build-policy", f"allowBuilds package {package!r} is not a ratified coordinate")
-                        if key not in approvals:
+                            self.err("build-policy", f"allowBuilds[{matcher!r}] must be boolean true")
+                        if approval is None:
                             self.err(
                                 "build-policy",
-                                f"allowBuilds package {package!r} lacks explicit harvest-side approval and rationale",
+                                f"allowBuilds matcher {matcher!r} lacks exact harvest-side approval, version and rationale",
+                            )
+                            continue
+                        coordinate_key = ("npm", approval["package"].lower())
+                        coordinate = coordinates.get(coordinate_key)
+                        if coordinate is None:
+                            self.err(
+                                "build-policy",
+                                f"allowBuilds matcher {matcher!r} references an unratified package coordinate",
+                            )
+                        elif coordinate["harvest_id"] != approval["harvest_id"]:
+                            self.err(
+                                "build-policy",
+                                f"allowBuilds matcher {matcher!r} harvest mapping disagrees with its coordinate",
                             )
         self.counts["workspace_manifests"] = len(manifests)
         self.counts["external_direct_dependencies"] = direct_external
@@ -294,68 +372,142 @@ class Validator:
             jobs[match.group(1)] = body[match.end():end]
         return jobs
 
+    @staticmethod
+    def top_permissions(text: str) -> dict[str, str] | None:
+        match = re.search(r"(?m)^permissions:\s*$", text)
+        if not match:
+            return None
+        permissions: dict[str, str] = {}
+        for line in text[match.end():].splitlines():
+            if not line.strip():
+                continue
+            item = re.match(r"^  ([a-zA-Z0-9_-]+):\s*([a-z-]+)\s*$", line)
+            if item:
+                permissions[item.group(1)] = item.group(2)
+                continue
+            break
+        return permissions
+
     def check_workflows(self) -> None:
+        lock = self.read_json("security/ci-toolchain.lock.json", "workflow") or {}
+        action_lock = lock.get("github_actions") or {}
+        workflow_lock = lock.get("workflow_policy") or {}
+        baseline = workflow_lock.get("baseline_workflows") or {}
+        additional = workflow_lock.get("additional_workflows") or {}
+        if not isinstance(baseline, dict) or not isinstance(additional, dict):
+            self.err("workflow", "workflow_policy baseline/additional entries must be mappings")
+            baseline, additional = {}, {}
+        if set(baseline) != ACTIVE_BASELINE_WORKFLOWS:
+            self.err("workflow", "workflow lock must retain the four M-006 baseline workflows")
+        if self.m006_active and additional:
+            self.err("workflow", "M-006 active snapshot forbids additional workflow registrations")
+
+        registered: dict[str, Any] = {**baseline, **additional}
         workflow_dir = self.root / ".github/workflows"
         paths = sorted(workflow_dir.glob("*.yml")) + sorted(workflow_dir.glob("*.yaml"))
-        if not paths:
-            self.err("workflow", "no GitHub Actions workflows found")
-            return
+        actual = {path.relative_to(self.root).as_posix() for path in paths}
+        expected = set(registered)
+        if actual != expected:
+            self.err(
+                "workflow",
+                f"workflow files must match the policy lock (missing={sorted(expected-actual)}, unregistered={sorted(actual-expected)})",
+            )
+        if self.m006_active and actual != ACTIVE_BASELINE_WORKFLOWS:
+            self.err("workflow", "M-006 active snapshot requires exactly its four baseline workflows")
+
         action_uses = 0
         for path in paths:
             rel = path.relative_to(self.root).as_posix()
             text = path.read_text(encoding="utf-8")
+            policy = registered.get(rel)
+            if not isinstance(policy, dict):
+                self.err("workflow", f"{rel} has no structured workflow policy registration")
+                policy = {}
+            rationale = str(policy.get("rationale") or "").strip()
+            if not rationale:
+                self.err("workflow", f"{rel} policy registration needs a rationale")
+            declared_name = re.search(r"(?m)^name:\s*(.+?)\s*$", text)
+            if declared_name and policy.get("name") != declared_name.group(1):
+                self.err("workflow", f"{rel} name disagrees with workflow policy lock")
+
+            is_baseline = rel in baseline
             if re.search(r"(?m)^\s*pull_request_target\s*:", text):
                 self.err("workflow", f"{rel} uses forbidden pull_request_target")
-            if re.search(r"(?m)^\s*paths(?:-ignore)?\s*:", text):
-                self.err("workflow", f"{rel} must not use path filters")
-            if not re.search(r"(?m)^\s*pull_request\s*:\s*$", text):
-                self.err("workflow", f"{rel} must run on every pull_request")
-            if not re.search(r"(?ms)^\s*push\s*:\s*\n\s*branches:\s*\[?main\]?", text):
-                self.err("workflow", f"{rel} must run on pushes to main")
-            if not re.search(r"(?m)^permissions:\s*\n\s{2}contents:\s*read\s*$", text):
-                self.err("workflow", f"{rel} top-level permissions must be contents: read only")
-            if re.search(r"(?m)^\s+[A-Za-z_-]+:\s*write\s*$", text):
-                self.err("workflow", f"{rel} requests a write permission")
-            if "${{ secrets." in text:
-                self.err("workflow", f"{rel} references an unnecessary secret")
-            if re.search(r"(?m)^\s*continue-on-error:\s*true\s*$", text):
-                self.err("workflow", f"{rel} contains fail-open continue-on-error")
-            if re.search(r"(?m)^\s*(?:git\s+push|gh\s+pr|gh\s+api).*", text):
-                self.err("workflow", f"{rel} contains a repository-writing command")
+            if is_baseline:
+                if re.search(r"(?m)^\s*paths(?:-ignore)?\s*:", text):
+                    self.err("workflow", f"baseline workflow {rel} must not use path filters")
+                if not re.search(r"(?m)^\s*pull_request\s*:\s*$", text):
+                    self.err("workflow", f"baseline workflow {rel} must run on every pull_request")
+                if not re.search(r"(?ms)^\s*push\s*:\s*\n\s*branches:\s*\[?main\]?", text):
+                    self.err("workflow", f"baseline workflow {rel} must run on pushes to main")
+
+            expected_permissions = policy.get("permissions")
+            actual_permissions = self.top_permissions(text)
+            if not isinstance(expected_permissions, dict) or not expected_permissions:
+                self.err("workflow", f"{rel} policy must declare exact least-privilege permissions")
+            elif actual_permissions != expected_permissions:
+                self.err(
+                    "workflow",
+                    f"{rel} permissions {actual_permissions!r} != registered least privilege {expected_permissions!r}",
+                )
+            has_write = any(value == "write" for value in (actual_permissions or {}).values())
+            if has_write and policy.get("allow_repository_write") is not True:
+                self.err("workflow", f"{rel} requests unapproved write permission")
+
+            secret_names = set(re.findall(r"\$\{\{\s*secrets\.([A-Za-z0-9_]+)", text))
+            allowed_secrets = set(policy.get("allowed_secrets") or [])
+            if secret_names - allowed_secrets:
+                self.err("workflow", f"{rel} references unapproved secrets {sorted(secret_names-allowed_secrets)}")
+            if re.search(r"(?m)^\s*continue-on-error:\s*true\s*$", text) and policy.get("allow_continue_on_error") is not True:
+                self.err("workflow", f"{rel} contains unapproved continue-on-error")
+            writes_repository = bool(re.search(r"(?m)^\s*(?:git\s+push|gh\s+pr|gh\s+api).*", text))
+            if writes_repository and policy.get("allow_repository_write") is not True:
+                self.err("workflow", f"{rel} contains an unapproved repository-writing command")
 
             jobs = self.workflow_jobs(text)
             if not jobs:
                 self.err("workflow", f"{rel} has no parseable jobs")
+            required_jobs = set(policy.get("required_jobs") or [])
+            if not required_jobs or not required_jobs.issubset(jobs):
+                self.err("workflow", f"{rel} is missing registered required jobs {sorted(required_jobs-set(jobs))}")
             for job, block in jobs.items():
                 if not re.search(r"(?m)^    timeout-minutes:\s*[1-9][0-9]*\s*$", block):
                     self.err("workflow", f"{rel} job {job!r} lacks finite timeout-minutes")
 
             for match in re.finditer(r"(?m)^\s*-\s+uses:\s*([^\s#]+)(?:\s+#\s*(.*))?$", text):
-                action_uses += 1
                 reference = match.group(1)
                 comment = match.group(2) or ""
+                if reference.startswith("./"):
+                    continue
+                action_uses += 1
                 if "@" not in reference:
-                    self.err("workflow", f"{rel} malformed uses reference {reference!r}")
+                    self.err("workflow", f"{rel} malformed external uses reference {reference!r}")
                     continue
                 action, pin = reference.rsplit("@", 1)
-                if action not in EXPECTED_ACTIONS:
-                    self.err("workflow", f"{rel} uses unapproved third-party or unnecessary Action {action!r}")
+                locked_action = action_lock.get(action)
+                if not isinstance(locked_action, dict):
+                    self.err("workflow", f"{rel} uses Action {action!r} absent from the action lock")
                     continue
+                locked_pin = str(locked_action.get("commit_sha") or "")
+                version = str(locked_action.get("version") or "")
                 if not re.fullmatch(r"[0-9a-f]{40}", pin):
                     self.err("workflow", f"{rel} Action {action} must use a full 40-hex commit SHA")
-                elif pin != EXPECTED_ACTIONS[action]:
-                    self.err("workflow", f"{rel} Action {action} uses unapproved commit {pin}")
-                if not re.search(r"v\d+\.\d+\.\d+", comment):
-                    self.err("workflow", f"{rel} Action {action} pin needs a human-readable release comment")
+                elif pin != locked_pin:
+                    self.err("workflow", f"{rel} Action {action} pin disagrees with action lock")
+                if f"v{version}" not in comment:
+                    self.err("workflow", f"{rel} Action {action} pin needs locked release comment v{version}")
 
-                # Inspect the complete YAML step for action-specific hardening.
                 step_start = match.start()
                 next_step = re.search(r"(?m)^\s*-\s+(?:name|uses|run):", text[match.end():])
                 step_end = match.end() + next_step.start() if next_step else len(text)
                 step = text[step_start:step_end]
                 if action == "actions/checkout" and not re.search(r"persist-credentials:\s*false", step):
                     self.err("workflow", f"{rel} checkout must set persist-credentials: false")
-                if action == "actions/setup-node" and not re.search(r"package-manager-cache:\s*false", step):
+                if (
+                    action == "actions/setup-node"
+                    and policy.get("allow_package_manager_cache") is not True
+                    and not re.search(r"package-manager-cache:\s*false", step)
+                ):
                     self.err("workflow", f"{rel} setup-node must explicitly disable package-manager caching")
 
         security_rel = ".github/workflows/security-and-dependency-gates.yml"
@@ -365,9 +517,10 @@ class Validator:
             missing = sorted(set(REQUIRED_WORKFLOW_JOBS) - set(jobs))
             if missing:
                 self.err("workflow", f"security workflow missing required scanner job(s): {missing}")
-            extras = sorted(set(jobs) - set(REQUIRED_WORKFLOW_JOBS))
-            if extras:
-                self.err("workflow", f"security workflow has unexpected jobs: {extras}")
+            if self.m006_active:
+                extras = sorted(set(jobs) - set(REQUIRED_WORKFLOW_JOBS))
+                if extras:
+                    self.err("workflow", f"M-006 active security workflow has unexpected jobs: {extras}")
             gate = jobs.get("security-gate", "")
             if "if: always()" not in gate:
                 self.err("workflow", "security-gate must use if: always()")
@@ -383,7 +536,7 @@ class Validator:
                 self.err("workflow", f"security-gate needs must be {sorted(needed)}, got {sorted(actual_needs)}")
             required_commands = {
                 "dependency-policy": "pnpm run security:validate",
-                "secrets": "scripts/security/run-gitleaks.sh",
+                "secrets": "scripts/security/test-gitleaks.sh",
                 "vulnerabilities": "scripts/security/run-osv-scanner.sh",
                 "sast": "scripts/security/run-semgrep.sh",
                 "sbom": "scripts/security/generate-sbom.sh",
@@ -391,6 +544,8 @@ class Validator:
             for job, command in required_commands.items():
                 if command not in jobs.get(job, ""):
                     self.err("workflow", f"security workflow job {job!r} missing {command!r}")
+            if "scripts/security/run-gitleaks.sh" not in jobs.get("secrets", ""):
+                self.err("workflow", "security workflow secrets job must scan repository history")
         self.counts["workflows"] = len(paths)
         self.counts["action_uses"] = action_uses
 
@@ -398,53 +553,106 @@ class Validator:
         lock = self.read_json("security/ci-toolchain.lock.json", "toolchain")
         if lock is None:
             return
-        if lock.get("schema_version") != 1 or lock.get("platform") != "linux-amd64":
-            self.err("toolchain", "lock schema/platform must be schema 1, linux-amd64")
+        if lock.get("schema_version") != 2 or lock.get("platform") != "linux-amd64":
+            self.err("toolchain", "lock schema/platform must be schema 2, linux-amd64")
         tools = lock.get("tools")
-        if not isinstance(tools, dict) or set(tools) != set(EXPECTED_TOOLS):
-            self.err("toolchain", f"tool set must be exactly {sorted(EXPECTED_TOOLS)}")
+        if not isinstance(tools, dict):
+            self.err("toolchain", "tools lock must be a mapping")
             return
+        if self.m006_active and set(tools) != set(EXPECTED_TOOLS):
+            self.err("toolchain", f"M-006 active tool set must be exactly {sorted(EXPECTED_TOOLS)}")
+        if not set(EXPECTED_TOOLS).issubset(tools):
+            self.err("toolchain", f"durable tool lock lost M-006 scanners {sorted(set(EXPECTED_TOOLS)-set(tools))}")
+
         registry = self.master.load_yaml_file(
             self.root / "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml"
         )
-        harvest_versions = {
-            str(entry.get("id")): str(entry.get("version"))
-            for entry in registry.get("entries") or []
+        harvest_entries = {
+            str(entry.get("id")): entry for entry in registry.get("entries") or []
         }
-        for name, (harvest_id, version) in EXPECTED_TOOLS.items():
-            item = tools.get(name, {})
-            if item.get("harvest_id") != harvest_id:
-                self.err("toolchain", f"{name} must map to {harvest_id}")
-            if item.get("version") != version or harvest_versions.get(harvest_id) != version:
-                self.err("toolchain", f"{name} version must be exactly {version} in lock and harvest registry")
-            source = str(item.get("official_upstream_source") or "")
-            coordinate = str(item.get("distribution_coordinate") or "")
-            if not source.startswith("https://github.com/"):
-                self.err("toolchain", f"{name} official upstream source is not GitHub HTTPS")
-            if re.search(r"(?:^|[:/@-])latest(?:$|[:/@-])", coordinate, re.I):
-                self.err("toolchain", f"{name} distribution coordinate uses a floating latest tag")
-            if name == "semgrep":
-                digest = str(item.get("immutable_container_digest") or "")
-                if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
-                    self.err("toolchain", "semgrep immutable container digest is malformed")
-                if not coordinate.endswith("@" + digest):
-                    self.err("toolchain", "semgrep coordinate must be pinned to its full digest")
+        for name, item in tools.items():
+            if not isinstance(item, dict):
+                self.err("toolchain", f"{name} lock entry must be a mapping")
+                continue
+            harvest_id = str(item.get("harvest_id") or "")
+            version = str(item.get("version") or "")
+            harvest = harvest_entries.get(harvest_id)
+            if harvest is None:
+                self.err("toolchain", f"{name} maps to unknown harvest ID {harvest_id!r}")
             else:
-                digest = str(item.get("immutable_sha256") or "")
-                if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                if harvest.get("integration") != "CI_TOOL":
+                    self.err("toolchain", f"{name} harvest entry {harvest_id} is not a CI_TOOL")
+                if str(harvest.get("version")) != version:
+                    self.err("toolchain", f"{name} version disagrees with harvest registry")
+                if item.get("official_upstream_source") != harvest.get("source"):
+                    self.err("toolchain", f"{name} upstream source disagrees with harvest registry")
+            if self.m006_active:
+                expected_hid, expected_version = EXPECTED_TOOLS.get(name, (None, None))
+                if harvest_id != expected_hid or version != expected_version:
+                    self.err(
+                        "toolchain",
+                        f"M-006 active {name} must remain {expected_hid}@{expected_version}",
+                    )
+
+            coordinate = str(item.get("distribution_coordinate") or "")
+            if re.search(r"(?:^|[:/@-])latest(?:$|[:/@-])", coordinate, re.I):
+                self.err("toolchain", f"{name} distribution coordinate uses floating latest")
+            container_digest = item.get("immutable_container_digest")
+            archive_digest = item.get("immutable_sha256")
+            if container_digest is not None:
+                digest = str(container_digest)
+                if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                    self.err("toolchain", f"{name} immutable container digest is malformed")
+                if not coordinate.endswith("@" + digest):
+                    self.err("toolchain", f"{name} container coordinate must end in its digest")
+            elif archive_digest is not None:
+                if not re.fullmatch(r"[0-9a-f]{64}", str(archive_digest)):
                     self.err("toolchain", f"{name} immutable sha256 is malformed")
-                if f"{version}" not in coordinate:
-                    self.err("toolchain", f"{name} coordinate does not contain exact version {version}")
-        trivy = tools["trivy"]
+                if version not in coordinate:
+                    self.err("toolchain", f"{name} coordinate omits locked version {version}")
+            else:
+                self.err("toolchain", f"{name} needs immutable sha256 or container digest")
+
+        trivy = tools.get("trivy", {})
         for field in ("checksum_manifest_sha256", "sigstore_bundle_sha256"):
             if not re.fullmatch(r"[0-9a-f]{64}", str(trivy.get(field) or "")):
                 self.err("toolchain", f"Trivy provenance field {field} is malformed")
+
+        actions = lock.get("github_actions")
+        if not isinstance(actions, dict):
+            self.err("toolchain", "github_actions lock must be a mapping")
+            actions = {}
+        if self.m006_active and set(actions) != set(EXPECTED_ACTIONS):
+            self.err("toolchain", "M-006 active Action lock must contain exactly the three ratified Actions")
+        for action, item in actions.items():
+            if not isinstance(item, dict):
+                self.err("toolchain", f"Action {action} lock entry must be a mapping")
+                continue
+            version = str(item.get("version") or "")
+            pin = str(item.get("commit_sha") or "")
+            if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+                self.err("toolchain", f"Action {action} version is malformed")
+            if not re.fullmatch(r"[0-9a-f]{40}", pin):
+                self.err("toolchain", f"Action {action} commit SHA is malformed")
+            if item.get("official_upstream_source") != f"https://github.com/{action}":
+                self.err("toolchain", f"Action {action} official source is malformed")
+            if not str(item.get("rationale") or "").strip():
+                self.err("toolchain", f"Action {action} needs approval rationale")
+            if self.m006_active and action in EXPECTED_ACTIONS:
+                expected_version, expected_pin = EXPECTED_ACTIONS[action]
+                if (version, pin) != (expected_version, expected_pin):
+                    self.err("toolchain", f"M-006 active Action {action} lock drifted")
 
         required_wrapper_content = {
             "scripts/security/install-ci-tool.py": (
                 "distribution checksum mismatch",
                 "Trivy official checksum manifest identity mismatch",
                 "Trivy Sigstore bundle subject does not match archive checksum",
+            ),
+            "scripts/security/test-gitleaks.sh": (
+                "expected_version",
+                "negative clean",
+                "positive detected and redacted",
             ),
             "scripts/security/run-gitleaks.sh": ("--redact=100", '--log-opts="--all"'),
             "scripts/security/run-osv-scanner.sh": ("scan source --recursive .",),
@@ -463,40 +671,87 @@ class Validator:
                 if snippet not in text:
                     self.err("toolchain", f"{rel} missing required policy argument {snippet!r}")
         self.counts["locked_security_tools"] = len(tools)
+        self.counts["locked_github_actions"] = len(actions)
 
     def check_semgrep(self) -> None:
-        config = self.read("security/semgrep.yml", "semgrep")
+        lock = self.read_json("security/ci-toolchain.lock.json", "semgrep") or {}
+        policy = lock.get("semgrep_policy")
+        if not isinstance(policy, dict):
+            self.err("semgrep", "semgrep_policy lock must be a mapping")
+            return
+        config_rel = str(policy.get("config") or "")
+        if (
+            not config_rel.startswith("security/")
+            or config_rel.startswith("/")
+            or ".." in Path(config_rel).parts
+            or config_rel.startswith(("p/", "r/", "http://", "https://"))
+        ):
+            self.err("semgrep", f"Semgrep config must be repository-owned under security/, got {config_rel!r}")
+        config = self.read(config_rel, "semgrep")
         if config is None:
             return
-        # Repository-owned local rules only: no Registry packs or URL configs.
         if re.search(r"(?m)^\s*(?:config|extends):\s*(?:p/|r/|https?://)", config):
             self.err("semgrep", "remote Semgrep config is forbidden")
-        ids = set(re.findall(r"(?m)^\s*-\s+id:\s*([\w.-]+)\s*$", config))
-        if ids != REQUIRED_SEMGREP_RULES:
-            self.err("semgrep", f"local rule IDs differ: expected {sorted(REQUIRED_SEMGREP_RULES)}, got {sorted(ids)}")
-        if len(re.findall(r"(?m)^\s+severity:\s*ERROR\s*$", config)) != len(REQUIRED_SEMGREP_RULES):
-            self.err("semgrep", "every local rule must use gated severity ERROR")
-        for rel in (
-            "tests/security/fixtures/semgrep/positive/dangerous.py",
-            "tests/security/fixtures/semgrep/positive/dangerous.ts",
-            "tests/security/fixtures/semgrep/negative/safe.py",
-            "tests/security/fixtures/semgrep/negative/safe.ts",
-            "scripts/security/test-semgrep-rules.sh",
-        ):
+
+        raw_rules = policy.get("rules")
+        if not isinstance(raw_rules, list) or not raw_rules:
+            self.err("semgrep", "semgrep_policy.rules must be a non-empty list")
+            raw_rules = []
+        locked_rules: dict[str, str] = {}
+        for index, item in enumerate(raw_rules):
+            if not isinstance(item, dict):
+                self.err("semgrep", f"semgrep_policy.rules[{index}] must be a mapping")
+                continue
+            rule_id = str(item.get("id") or "")
+            severity = str(item.get("severity") or "")
+            if not rule_id or rule_id in locked_rules:
+                self.err("semgrep", f"duplicate or empty locked Semgrep rule ID {rule_id!r}")
+            locked_rules[rule_id] = severity
+        gated = str(policy.get("gated_severity") or "")
+        for rule_id, severity in locked_rules.items():
+            if severity != gated:
+                self.err("semgrep", f"locked rule {rule_id} severity {severity!r} != gated {gated!r}")
+        if self.m006_active and set(locked_rules) != REQUIRED_SEMGREP_RULES:
+            self.err("semgrep", "M-006 active rule lock must retain the exact six snapshot rules")
+
+        configured_rules: dict[str, str] = {}
+        blocks = re.findall(r"(?ms)^  - id:\s*([\w.-]+)\s*$\n(.*?)(?=^  - id:|\Z)", config)
+        for rule_id, block in blocks:
+            severity_match = re.search(r"(?m)^    severity:\s*([A-Z]+)\s*$", block)
+            configured_rules[rule_id] = severity_match.group(1) if severity_match else ""
+        if configured_rules != locked_rules:
+            self.err(
+                "semgrep",
+                f"local configured rules {configured_rules!r} != rule lock {locked_rules!r}",
+            )
+
+        positive = policy.get("positive_fixtures")
+        negative = policy.get("negative_fixtures")
+        if not isinstance(positive, list) or not positive:
+            self.err("semgrep", "Semgrep positive fixture lock must be a non-empty list")
+            positive = []
+        if not isinstance(negative, list) or not negative:
+            self.err("semgrep", "Semgrep negative fixture lock must be a non-empty list")
+            negative = []
+        if self.m006_active:
+            if set(positive) != ACTIVE_POSITIVE_FIXTURES or set(negative) != ACTIVE_NEGATIVE_FIXTURES:
+                self.err("semgrep", "M-006 active fixture lock drifted from snapshot")
+        for rel in [*positive, *negative, "scripts/security/test-semgrep-rules.sh"]:
+            if not isinstance(rel, str) or rel.startswith("/") or ".." in Path(rel).parts:
+                self.err("semgrep", f"invalid repository fixture path {rel!r}")
+                continue
             self.read(rel, "semgrep")
         test_script = self.read("scripts/security/test-semgrep-rules.sh", "semgrep") or ""
-        for rule_id in REQUIRED_SEMGREP_RULES:
-            if rule_id not in test_script:
-                self.err("semgrep", f"fixture test does not assert rule ID {rule_id}")
-        if "negative.get(\"results\")" not in test_script:
-            self.err("semgrep", "fixture test does not assert zero negative findings")
+        for snippet in ("semgrep_policy", "positive_fixtures", "negative_fixtures", 'negative.get("results")'):
+            if snippet not in test_script:
+                self.err("semgrep", f"fixture test is not lock-driven; missing {snippet!r}")
         for path in (self.root / ".github/workflows").glob("*.y*ml"):
             text = path.read_text(encoding="utf-8")
             for match in re.finditer(r"--config\s+([^\s\\]+)", text):
                 value = match.group(1).strip("'\"")
                 if value.startswith(("p/", "r/", "http://", "https://")):
                     self.err("semgrep", f"{path.name} uses remote Semgrep config {value!r}")
-        self.counts["semgrep_rules"] = len(ids)
+        self.counts["semgrep_rules"] = len(locked_rules)
 
     def check_root_scripts(self) -> None:
         package = self.read_json("package.json", "root")
@@ -522,15 +777,43 @@ class Validator:
             str(item.get("vf_id")): str(item.get("status"))
             for item in yaml_doc.get("capabilities") or []
         }
-        for vf_id, expected in CAPABILITY_EXPECTED.items():
-            if csv_statuses.get(vf_id) != expected or yaml_statuses.get(vf_id) != expected:
+        for vf_id in sorted(set(csv_statuses) | set(yaml_statuses)):
+            csv_status = csv_statuses.get(vf_id)
+            yaml_status = yaml_statuses.get(vf_id)
+            if csv_status != yaml_status:
                 self.err(
                     "capability",
-                    f"{vf_id} must be {expected} coherently in CSV/YAML, got {csv_statuses.get(vf_id)!r}/{yaml_statuses.get(vf_id)!r}",
+                    f"{vf_id} status disagrees between CSV ({csv_status!r}) and YAML ({yaml_status!r})",
                 )
-        for vf_id in yaml_statuses:
-            if vf_id.startswith("VF-ENV-") and yaml_statuses[vf_id] != "NOT_STARTED":
-                self.err("capability", f"{vf_id} ENV status must remain NOT_STARTED in M-006")
+            if csv_status not in CAPABILITY_STATUS_RANK:
+                self.err("capability", f"{vf_id} has unknown capability status {csv_status!r}")
+
+        for vf_id, snapshot_status in CAPABILITY_EXPECTED.items():
+            actual = csv_statuses.get(vf_id)
+            if self.m006_active:
+                if actual != snapshot_status:
+                    self.err(
+                        "capability",
+                        f"M-006 active snapshot requires {vf_id}={snapshot_status}, got {actual!r}",
+                    )
+            elif actual in CAPABILITY_STATUS_RANK and (
+                CAPABILITY_STATUS_RANK[actual] < CAPABILITY_STATUS_RANK[snapshot_status]
+            ):
+                self.err(
+                    "capability",
+                    f"durable {vf_id} regressed below M-006 baseline {snapshot_status} to {actual}",
+                )
+
+        if self.m006_active:
+            for vf_id, status in csv_statuses.items():
+                if vf_id.startswith("VF-ENV-") and status != "NOT_STARTED":
+                    self.err(
+                        "capability",
+                        f"M-006 active snapshot requires {vf_id} ENV status NOT_STARTED, got {status}",
+                    )
+        # Durable mode intentionally does not freeze ENV rows. M-007 and later
+        # missions may advance their selected capabilities while the accepted
+        # M-006 REL baseline remains non-regressing.
 
     def run(self) -> dict[str, Any]:
         self.check_mission_progression()

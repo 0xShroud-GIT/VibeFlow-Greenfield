@@ -164,7 +164,7 @@ class Sandbox:
         self.patch(
             REGISTRY,
             "  approvals: []",
-            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n"
+            "  approvals:\n  - ecosystem: npm\n    package: typebox\n    harvest_id: H-025\n    pnpm_matcher: typebox\n    version: 1.3.6\n"
             "    approved: true\n    rationale: Deterministic retained M-005 progression fixture.",
         )
         self.write(
@@ -601,6 +601,16 @@ class BuildScriptProgressionTests(M005TestCase):
         box = self.durable()
         box.approve_typebox_build()
         self.assert_accepted(box)
+
+    def test_durable_dependency_version_drift_invalidates_approval(self) -> None:
+        box = self.durable()
+        box.approve_typebox_build()
+        box.patch(
+            "packages/contracts/package.json",
+            '"typebox": "1.3.6"',
+            '"typebox": "1.3.7"',
+        )
+        self.assert_rejected(box, "stale approval version")
 
     def test_durable_unapproved_allow_builds_fails(self) -> None:
         box = self.durable()

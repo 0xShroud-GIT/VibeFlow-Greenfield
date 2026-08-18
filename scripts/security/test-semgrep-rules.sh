@@ -7,6 +7,9 @@ image=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tools"]
 temp=${RUNNER_TEMP:-/tmp}/vibeflow-semgrep-fixtures
 mkdir -p "$temp"
 
+mapfile -t positive_targets < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print("\n".join(sys.argv[2]+p for p in x["semgrep_policy"]["positive_fixtures"]))' "$lock" "$root/")
+mapfile -t negative_targets < <(python3 -c 'import json,sys; x=json.load(open(sys.argv[1])); print("\n".join(sys.argv[2]+p for p in x["semgrep_policy"]["negative_fixtures"]))' "$lock" "$root/")
+
 scan_json() {
   local output=$1
   shift
@@ -30,26 +33,16 @@ scan_json() {
 
 positive_json="$temp/positive.json"
 negative_json="$temp/negative.json"
-scan_json "$positive_json" \
-  "$root/tests/security/fixtures/semgrep/positive/dangerous.py" \
-  "$root/tests/security/fixtures/semgrep/positive/dangerous.ts"
-scan_json "$negative_json" \
-  "$root/tests/security/fixtures/semgrep/negative/safe.py" \
-  "$root/tests/security/fixtures/semgrep/negative/safe.ts"
-python3 - "$positive_json" "$negative_json" <<'PY'
+scan_json "$positive_json" "${positive_targets[@]}"
+scan_json "$negative_json" "${negative_targets[@]}"
+python3 - "$lock" "$positive_json" "$negative_json" <<'PY'
 import json
 import sys
 
-expected = {
-    "vibeflow.python.dynamic-eval",
-    "vibeflow.python.dynamic-exec",
-    "vibeflow.python.os-system",
-    "vibeflow.python.subprocess-shell-true",
-    "vibeflow.javascript.dynamic-eval",
-    "vibeflow.javascript.child-process-exec",
-}
-positive = json.load(open(sys.argv[1], encoding="utf-8"))
-negative = json.load(open(sys.argv[2], encoding="utf-8"))
+lock = json.load(open(sys.argv[1], encoding="utf-8"))
+expected = {item["id"] for item in lock["semgrep_policy"]["rules"]}
+positive = json.load(open(sys.argv[2], encoding="utf-8"))
+negative = json.load(open(sys.argv[3], encoding="utf-8"))
 found = {item["check_id"].removeprefix("security.") for item in positive.get("results", [])}
 if found != expected:
     raise SystemExit(f"positive fixture rule IDs differ: expected={sorted(expected)} found={sorted(found)}")

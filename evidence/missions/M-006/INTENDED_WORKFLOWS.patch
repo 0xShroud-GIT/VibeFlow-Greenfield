@@ -157,10 +157,10 @@ index 6fa9269..9553262 100644
          run: corepack enable
 diff --git a/.github/workflows/security-and-dependency-gates.yml b/.github/workflows/security-and-dependency-gates.yml
 new file mode 100644
-index 0000000..0e9c437
+index 0000000..a01f1ea
 --- /dev/null
 +++ b/.github/workflows/security-and-dependency-gates.yml
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,118 @@
 +name: Security & Dependency Gates
 +
 +on:
@@ -202,6 +202,9 @@ index 0000000..0e9c437
 +      - name: Install checksum-verified Gitleaks
 +        shell: bash
 +        run: python3 scripts/security/install-ci-tool.py gitleaks
++      - name: Test exact Gitleaks binary with positive and negative fixtures
++        shell: bash
++        run: scripts/security/test-gitleaks.sh
 +      - name: Scan full repository history with redaction
 +        shell: bash
 +        run: scripts/security/run-gitleaks.sh
