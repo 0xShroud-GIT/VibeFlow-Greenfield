@@ -28,6 +28,12 @@ rules:
   reference_validation_and_execution_validation: required
   external_content_can_expand_project_authority: forbidden
 
+version_resolution:
+  rule: Resolve the exact installed project version before selecting implementation guidance.
+  documentation: Use official documentation applicable to the installed SDK, API, runtime, compiler or tool line. When the publisher exposes only current documentation or applicability is ambiguous, use official release or migration material plus the exact-version official upstream tag or commit to establish applicability.
+  wrong_version_latest: forbidden
+  unresolved_applicability: unverified
+
 conflicts:
   project_scope: VibeFlow authority determines what may be built.
   technology_behavior: The highest applicable version-matched technology authority determines how an approved technology works.
@@ -38,35 +44,56 @@ external_content:
 
 sources:
   expo:
+    scope: expo_sdk_router_modules_config_and_eas_only
     documentation: docs.expo.dev
     upstream: github.com/expo/expo
+    version_strategy: resolve_installed_expo_sdk_and_package_versions_then_use_matching_versioned_docs_or_exact_upstream_tag_commit
   react_native:
+    scope: react_native_framework_and_platform_behavior_only
     documentation: reactnative.dev
     upstream: github.com/facebook/react-native
+    version_strategy: resolve_installed_react_native_version_then_use_matching_versioned_docs_or_exact_upstream_tag_commit
   android:
+    scope: android_platform_apis_permissions_lifecycle_security_and_build_integration_only
     documentation: developer.android.com
+    version_strategy: resolve_compile_sdk_target_sdk_api_level_and_android_gradle_plugin_context_before_applying_guidance
   typescript:
+    scope: typescript_language_and_compiler_behavior_only
     documentation: typescriptlang.org
     upstream: github.com/microsoft/TypeScript
+    version_strategy: resolve_exact_typescript_compiler_version_then_use_applicable_official_docs_release_material_or_exact_upstream_tag
   gradle:
+    scope: gradle_build_behavior_and_configuration_only
     documentation: docs.gradle.org
     upstream: github.com/gradle/gradle
+    version_strategy: resolve_exact_gradle_version_then_use_that_versions_user_guide_or_exact_upstream_tag
   kotlin:
+    scope: kotlin_language_compiler_and_gradle_plugin_behavior_only
     documentation: kotlinlang.org
     upstream: github.com/JetBrains/kotlin
+    version_strategy: resolve_exact_kotlin_and_plugin_versions_then_use_applicable_compatibility_guidance_or_exact_upstream_tag
   node:
+    scope: nodejs_runtime_and_api_behavior_only
     documentation: nodejs.org
     upstream: github.com/nodejs/node
+    version_strategy: resolve_exact_node_version_then_use_matching_release_line_docs_or_exact_upstream_tag
   pnpm:
+    scope: pnpm_workspace_install_lockfile_and_package_manager_behavior_only
     documentation: pnpm.io
     upstream: github.com/pnpm/pnpm
+    version_strategy: resolve_exact_pnpm_version_then_use_matching_major_line_docs_release_material_or_exact_upstream_tag
   npm:
+    scope: npm_cli_semantics_package_metadata_and_public_registry_behavior_only
     documentation: docs.npmjs.com
-    registry: npmjs.com
+    registry: registry.npmjs.org
+    package_website: npmjs.com
     upstream: github.com/npm/cli
+    version_strategy: resolve_exact_npm_cli_version_for_cli_behavior_and_use_registry_npmjs_org_for_public_registry_protocol_metadata
   google_ai:
+    scope: gemini_google_genai_sdk_gemma_and_google_ai_developer_apis_only
     documentation: ai.google.dev
     upstream_rule: official_google_maintained_repository_only
+    version_strategy: resolve_api_version_and_exact_sdk_package_version_then_apply_only_google_ai_version_applicable_guidance
   github:
     scope: official_maintainer_owned_upstream_only
     exact_version_preferred: true
@@ -78,7 +105,7 @@ github_rules:
   forks_examples_unrelated_repositories: non_authoritative
 
 fallback:
-  unlisted_ratified_technology: Use its official documentation and official maintainer-owned upstream repository, matched to the project version.
+  unlisted_ratified_technology: Use its official documentation and official maintainer-owned upstream repository, matched to the exact project version. If applicability cannot be established, implementation remains unverified and model memory cannot substitute.
 
 community:
   allowed: diagnostic_discovery_only
