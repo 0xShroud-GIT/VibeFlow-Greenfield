@@ -12,15 +12,15 @@
     },
     "trivy": {
       "harvest_id": "H-030",
-      "version": "0.72.0",
+      "version": "0.74.0",
       "official_upstream_source": "https://github.com/aquasecurity/trivy",
-      "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz",
-      "immutable_sha256": "bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea",
+      "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+      "immutable_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
       "archive_member": "trivy",
-      "official_checksum_manifest": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_checksums.txt",
-      "checksum_manifest_sha256": "ebe9d19a774b950e240b1017a038e9b5a002ea068e02023369ff6d241c10c580",
-      "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz.sigstore.json",
-      "sigstore_bundle_sha256": "fccbe7d4877af44f27e205528626dfeb3ff6efac57c22061f1fccb59e8a80007"
+      "official_checksum_manifest": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt",
+      "checksum_manifest_sha256": "bc701c3c3ee8b9acbea2c23257e41381e3854888f51281616a6ba5dc96963821",
+      "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz.sigstore.json",
+      "sigstore_bundle_sha256": "da49092f6909bbbe943255ac8ec4c4cee503a05576c5dd20dc2fd9fc49c07779"
     },
     "osv-scanner": {
       "harvest_id": "H-031",

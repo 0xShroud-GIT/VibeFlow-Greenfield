@@ -413,7 +413,7 @@ entries:
 - id: H-030
   capability: container_scan
   name: Trivy
-  version: 0.72.0
+  version: 0.74.0
   decision: ADOPT
   integration: CI_TOOL
   license: Apache-2.0
@@ -422,7 +422,7 @@ entries:
     (upstream disclosed a malicious v0.69.4 release incident, March 2026, since remediated).
   use: Container/dependency/misconfiguration scanning in CI.
   ownership: Trivy owns scanning mechanics; VibeFlow owns security gates and evidence.
-  upgrade_policy: Current stable (0.72.x+); verify release provenance/checksums at adoption.
+  upgrade_policy: Current stable (0.74.x); verify release provenance/checksums at adoption.
   replacement_strategy: Alternative scanner behind the same CI gate.
 - id: H-031
   capability: dependency_vulnerability

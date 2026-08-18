@@ -325,6 +325,36 @@ class M006Tests(unittest.TestCase):
         box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
         self.assert_rejected(box, "version disagrees with harvest registry")
 
+    def test_active_snapshot_rejects_stale_trivy_0720(self) -> None:
+        box = self.box()
+        box.patch(
+            REGISTRY,
+            "  name: Trivy\n  version: 0.74.0",
+            "  name: Trivy\n  version: 0.72.0",
+        )
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        trivy = lock["tools"]["trivy"]
+        trivy.update(
+            {
+                "version": "0.72.0",
+                "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz",
+                "immutable_sha256": "bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea",
+                "official_checksum_manifest": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_checksums.txt",
+                "checksum_manifest_sha256": "ebe9d19a774b950e240b1017a038e9b5a002ea068e02023369ff6d241c10c580",
+                "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz.sigstore.json",
+                "sigstore_bundle_sha256": "fccbe7d4877af44f27e205528626dfeb3ff6efac57c22061f1fccb59e8a80007",
+            }
+        )
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        self.assert_rejected(box, "M-006 active trivy must remain H-030@0.74.0")
+
+    def test_active_trivy_provenance_digest_drift_fails(self) -> None:
+        box = self.box()
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        lock["tools"]["trivy"]["sigstore_bundle_sha256"] = "a" * 64
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        self.assert_rejected(box, "M-006 active Trivy provenance sigstore_bundle_sha256")
+
     def test_remote_semgrep_config_fails(self) -> None:
         box = self.box()
         box.write("security/semgrep.yml", "config: p/python\n" + box.read("security/semgrep.yml"))

@@ -28,9 +28,17 @@ DEPENDENCY_FIELDS = (
 PRODUCTION_FIELDS = {"dependencies", "optionalDependencies", "peerDependencies"}
 EXPECTED_TOOLS = {
     "gitleaks": ("H-029", "8.30.1"),
-    "trivy": ("H-030", "0.72.0"),
+    "trivy": ("H-030", "0.74.0"),
     "osv-scanner": ("H-031", "2.4.0"),
     "semgrep": ("H-032", "1.172.0"),
+}
+EXPECTED_TRIVY_PROVENANCE = {
+    "distribution_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+    "immutable_sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a",
+    "official_checksum_manifest": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_checksums.txt",
+    "checksum_manifest_sha256": "bc701c3c3ee8b9acbea2c23257e41381e3854888f51281616a6ba5dc96963821",
+    "sigstore_bundle_coordinate": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz.sigstore.json",
+    "sigstore_bundle_sha256": "da49092f6909bbbe943255ac8ec4c4cee503a05576c5dd20dc2fd9fc49c07779",
 }
 EXPECTED_ACTIONS = {
     "actions/checkout": ("7.0.1", "3d3c42e5aac5ba805825da76410c181273ba90b1"),
@@ -617,6 +625,13 @@ class Validator:
         for field in ("checksum_manifest_sha256", "sigstore_bundle_sha256"):
             if not re.fullmatch(r"[0-9a-f]{64}", str(trivy.get(field) or "")):
                 self.err("toolchain", f"Trivy provenance field {field} is malformed")
+        if self.m006_active:
+            for field, expected in EXPECTED_TRIVY_PROVENANCE.items():
+                if trivy.get(field) != expected:
+                    self.err(
+                        "toolchain",
+                        f"M-006 active Trivy provenance {field} must match the 0.74.0 snapshot",
+                    )
 
         actions = lock.get("github_actions")
         if not isinstance(actions, dict):
