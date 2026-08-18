@@ -19,8 +19,10 @@
     "registry_published": "2026-08-05",
     "node_version": "24.19.0",
     "os": "Debian trixie-slim (13), snapshot 2026-08-01",
-    "dockerfile": false,
-    "dockerfile_authority_reason": "Round-5 review (4964882866) correction: the frozen M-007 Dockerfile trigger ('Add one only if the official digest-pinned image cannot meet the required runtime using its existing contents') is not met by a security-only removal Dockerfile. Probe uses the official slim image directly with only the already-pinned Python Feature plus the official digest-pinned Git Feature (git is a packet-required environment element, provided here through the ratified Dev Containers Feature mechanism).",
+    "dockerfile": true,
+    "remediation_dockerfile": ".devcontainer/Dockerfile",
+    "remediation": "Deterministic filesystem-only removal of unused bundled npm and yarn from the immutable official Node 24.19.0 trixie-slim base. No apt/apk install or upgrade, no download, no floating reference, no new tool, and no security-threshold change.",
+    "dockerfile_authority_reason": "Owner-integrator authorization after Arena Round-5 stop-report: all tested packet-compliant official Node 24.19.0 Debian variants retained the same 7 bundled-npm HIGH/CRITICAL findings. Packet section 8 requires selecting/remediating the image without weakening thresholds. The owner therefore authorizes only this exact deterministic filesystem-only remediation on the already-selected immutable trixie-slim base; mutable package installation, downloads, new tools and broader Dockerfile use remain outside M-007 authority.",
     "contains": [
       "node 24.19.0",
       "corepack (bundled with the Node.js distribution)",
@@ -106,7 +108,7 @@
     }
   },
   "durable_extension_policy": {
-    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume and initializeCommand, the digest-pinned slim base, and the python+git registered features are retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
+    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume and initializeCommand, the immutable trixie-slim base plus exact deterministic remediation Dockerfile, and the python+git registered features are retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
     "extensions": []
   }
 }
