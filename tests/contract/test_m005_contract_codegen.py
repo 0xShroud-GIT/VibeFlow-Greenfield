@@ -145,7 +145,11 @@ class Sandbox:
     def as_historical_m005(self, status: str = "REVIEW") -> "Sandbox":
         """Reconstruct M-005's accepted historical snapshot from a later repo."""
         self.set_mission_status("M-005", status)
-        self.set_mission_status("M-006", "LOCKED")
+        # Explicitly lock every successor (M-006..M-151) so the historical
+        # reconstruction is valid on any successor tree (e.g. after M-007
+        # consumes M-006 acceptance and M-007 is REVIEW).
+        for index in range(6, 152):
+            self.set_mission_status(f"M-{index:03d}", "LOCKED")
         self.write(
             ".ai/ACTIVE_MISSION.md",
             f"# Active Mission\n\n**Mission:** M-005 — historical snapshot\n\n**Status:** {status}\n",
@@ -661,20 +665,25 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_current_branch_records_m005_accepted_and_m006_review(self) -> None:
-        """The retained gate must accept, but never invent, M-005 acceptance."""
+    def test_current_branch_records_m006_accepted_and_m007_review(self) -> None:
+        """The retained gate must accept, but never invent, acceptance.
+
+        Successor consumption: M-006 acceptance was consumed by M-007, so the
+        branch records M-001..M-006 DONE, M-007 REVIEW, M-008+ LOCKED.
+        """
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        m005 = dag.split("- mission_id: M-005", 1)[1].split("- mission_id:", 1)[0]
         m006 = dag.split("- mission_id: M-006", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: DONE", m005)
-        self.assertIn("status: REVIEW", m006)
+        m007 = dag.split("- mission_id: M-007", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: DONE", m006)
+        self.assertIn("status: REVIEW", m007)
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
         self.assertEqual(rows["M-004"], "DONE")
         self.assertEqual(rows["M-005"], "DONE")
-        self.assertEqual(rows["M-006"], "REVIEW")
-        for index in range(7, 152):
+        self.assertEqual(rows["M-006"], "DONE")
+        self.assertEqual(rows["M-007"], "REVIEW")
+        for index in range(8, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:

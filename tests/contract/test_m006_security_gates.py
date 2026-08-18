@@ -163,6 +163,25 @@ class M006Tests(unittest.TestCase):
         box.point_to("M-007", "REVIEW")
         return box
 
+    def m006_active_box(self) -> Sandbox:
+        """Reconstruct the historical M-006-active tree.
+
+        After M-007 consumes M-006 acceptance, the repository tree carries
+        M-006 = DONE and the M-007 action lock (fourth Action registered).
+        These tests exercise the accepted historical M-006 active snapshot,
+        so the box explicitly restores M-006 = REVIEW, M-007 = LOCKED, the
+        M-006 pointers, and the exact three-Action lock.
+        """
+        box = self.box()
+        box.set_status("M-006", "REVIEW")
+        box.set_status("M-007", "LOCKED")
+        box.point_to("M-006", "REVIEW")
+        lock = json.loads(box.read("security/ci-toolchain.lock.json"))
+        lock["github_actions"].pop("devcontainers/ci", None)
+        box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
+        box.set_capability_status("VF-ENV-005", "NOT_STARTED")
+        return box
+
     # Dependency/harvest and build-script reconciliation.
 
     def test_real_repository_and_direct_approved_coordinates_pass(self) -> None:
@@ -326,7 +345,7 @@ class M006Tests(unittest.TestCase):
         self.assert_rejected(box, "version disagrees with harvest registry")
 
     def test_active_snapshot_rejects_stale_trivy_0720(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         box.patch(
             REGISTRY,
             "  name: Trivy\n  version: 0.74.0",
@@ -349,7 +368,7 @@ class M006Tests(unittest.TestCase):
         self.assert_rejected(box, "M-006 active trivy must remain H-030@0.74.0")
 
     def test_active_trivy_provenance_digest_drift_fails(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         lock = json.loads(box.read("security/ci-toolchain.lock.json"))
         lock["tools"]["trivy"]["sigstore_bundle_sha256"] = "a" * 64
         box.write("security/ci-toolchain.lock.json", json.dumps(lock, indent=2) + "\n")
@@ -454,7 +473,7 @@ class M006Tests(unittest.TestCase):
         self.assert_rejected(box, "M-005 must be DONE")
 
     def test_m006_review_with_m007_active_fails(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         box.set_status("M-007", "REVIEW")
         self.assert_rejected(box, "M-007 must remain LOCKED")
 
@@ -482,17 +501,17 @@ class M006Tests(unittest.TestCase):
         self.assertEqual(master.returncode, 0, master.stdout + master.stderr)
 
     def test_m006_active_snapshot_rejects_env_progression(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         box.set_capability_status("VF-ENV-001", "IN_PROGRESS")
         self.assert_rejected(box, "M-006 active snapshot requires VF-ENV-001")
 
     def test_dag_register_desync_fails(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         box.set_status("M-006", "DONE", register=False)
         self.assert_rejected(box, "status disagrees between DAG")
 
     def test_pointer_desync_fails(self) -> None:
-        box = self.box()
+        box = self.m006_active_box()
         box.write("README.md", "# VibeFlow\n\nThe active mission is M-005.\n")
         self.assert_rejected(box, "does not name active mission M-006")
 

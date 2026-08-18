@@ -5271,7 +5271,7 @@ capabilities:
   authority_rule: External/provider implementation remains authoritative; VibeFlow owns binding, grants, policy, normalized
     state and evidence for Environment Definition.
   verification_gate: Environment parsing/port/dependency reproducibility tests
-  status: NOT_STARTED
+  status: IN_PROGRESS
 - vf_id: VF-GRO-001
   domain: 23 Growth, feedback, discovery and SEO
   domain_code: GRO

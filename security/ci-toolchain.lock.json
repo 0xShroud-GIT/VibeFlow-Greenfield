@@ -55,6 +55,12 @@
       "commit_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
       "official_upstream_source": "https://github.com/actions/upload-artifact",
       "rationale": "Required GitHub-owned upload for ephemeral CycloneDX CI evidence."
+    },
+    "devcontainers/ci": {
+      "version": "0.3.1900000450",
+      "commit_sha": "513af61f4de4f75d37e4438f184ba4358f0fc1ca",
+      "official_upstream_source": "https://github.com/devcontainers/ci",
+      "rationale": "M-007 requires the official Dev Containers CI action to build the digest-pinned dev container and run the runtime smoke inside the exact image. Registered per M-007 intended workflow evidence; push: never, no secrets used."
     }
   },
   "semgrep_policy": {

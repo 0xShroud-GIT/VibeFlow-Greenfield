@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "vibeflow-dev-environment-policy",
+  "adopted_environment_descriptor": "devcontainers",
+  "adopted_descriptor_harvest_id": "H-023",
+  "purpose": "Immutable provenance and security policy lock for the M-007 repository development environment. This is a provenance/policy lock, not a second environment-description protocol; devcontainer.json remains the single portable environment description.",
+  "base_image": {
+    "semantic_reference": "docker.io/library/node:24.19.0",
+    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "media_type": "application/vnd.oci.image.index.v1+json",
+    "architectures": {
+      "amd64": "sha256:f6d02cf1353049cf3658e6ce9ec03c6877a6479495f122062d195e2279d01055",
+      "arm64": "sha256:7e4b2953088599075c288871d109e23bc7a33384b96ca443a7cfb7b5c318b099",
+      "ppc64le": "sha256:56c4cadee33f1eff8ace75854383652bcf9584319747bb2373e010ce86e00989"
+    },
+    "upstream_source": "https://github.com/nodejs/docker-node",
+    "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
+    "registry_published": "2026-08-05",
+    "node_version": "24.19.0",
+    "contains": [
+      "node 24.19.0",
+      "corepack (bundled with the Node.js distribution)",
+      "git",
+      "yarn 1.22.22 (present but unused by the repository)"
+    ]
+  },
+  "features": [
+    {
+      "id": "python",
+      "version": "1.8.0",
+      "semantic_tag": "ghcr.io/devcontainers/features/python:1",
+      "digest_reference": "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511",
+      "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
+      "project_license": "MIT",
+      "options": {
+        "version": "os-provided",
+        "installTools": false
+      },
+      "purpose": "Provides python3 (Debian bookworm os-provided) required to run all repository-owned stdlib validators and tests. Feature release is immutable by digest; install behavior is fixed by that release."
+    }
+  ],
+  "toolchain": {
+    "node": "24.19.0",
+    "pnpm": "11.4.0",
+    "typescript": "6.0.3",
+    "turborepo": "2.10.6",
+    "vitest": "4.1.7",
+    "typebox": "1.3.6",
+    "corepack": "required",
+    "python3": "required (os-provided via pinned feature)",
+    "git": "required"
+  },
+  "bootstrap": {
+    "command": "python3 scripts/dev-bootstrap.py",
+    "doctor": "python3 scripts/dev-doctor.py",
+    "runtime_smoke": "python3 scripts/dev-runtime-smoke.py",
+    "static_validator": "python3 scripts/validate-m007-local-dev.py",
+    "frozen_lockfile": true
+  },
+  "security_posture": {
+    "non_root_user": "node",
+    "privileged": false,
+    "host_network": false,
+    "docker_socket_mount": false,
+    "docker_in_docker": false,
+    "host_credential_mounts": false,
+    "raw_secrets_in_env_or_committed_examples": false,
+    "ssh_agent_or_cloud_credential_forwarding": false,
+    "extra_capabilities": [],
+    "security_opt": [],
+    "forwarded_ports": [],
+    "product_services": [],
+    "permanently_banned": [
+      "privileged",
+      "docker socket mount",
+      "host network",
+      "raw secret material in committed/client-readable configuration",
+      "silent expansion without an owning later mission declaration"
+    ]
+  },
+  "durable_extension_policy": {
+    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, or service containers) only by recording an explicit extension entry here with mission ownership, rationale, and exact values. Privileged mode, docker-socket mounts, host networking, and raw secret material remain permanently banned unless a later mission amends this lock through explicit reviewed authority.",
+    "extensions": []
+  }
+}

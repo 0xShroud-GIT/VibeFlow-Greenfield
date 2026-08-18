@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "mission": "M-007",
+  "mission_status": "REVIEW",
+  "mission_title": "Establish local dev environment",
+  "phase": "1 - Repository Foundation",
+  "starting_main_sha": "f8b214a687944eb44b148997e6028044baf8b6b8",
+  "branch": "arena/01a01576-vibeflow-greenfield",
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "mission_states": {
+    "M-001..M-006": "DONE",
+    "M-007": "REVIEW",
+    "M-008..M-151": "LOCKED"
+  },
+  "environment_descriptor": {
+    "adopted": "devcontainers",
+    "harvest_id": "H-023",
+    "canonical_file": ".devcontainer/devcontainer.json",
+    "policy_lock": "infrastructure/dev/dev-environment-policy.json",
+    "policy_lock_is_provenance_not_protocol": true
+  },
+  "base_image": {
+    "semantic_reference": "docker.io/library/node:24.19.0",
+    "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "media_type": "application/vnd.oci.image.index.v1+json",
+    "architectures": {
+      "amd64": "sha256:f6d02cf1353049cf3658e6ce9ec03c6877a6479495f122062d195e2279d01055",
+      "arm64": "sha256:7e4b2953088599075c288871d109e23bc7a33384b96ca443a7cfb7b5c318b099",
+      "ppc64le": "sha256:56c4cadee33f1eff8ace75854383652bcf9584319747bb2373e010ce86e00989"
+    },
+    "upstream_source": "https://github.com/nodejs/docker-node",
+    "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
+    "registry_published": "2026-08-05",
+    "node_version": "24.19.0"
+  },
+  "features": [
+    {
+      "id": "python",
+      "version": "1.8.0",
+      "semantic_tag": "ghcr.io/devcontainers/features/python:1",
+      "digest_reference": "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511",
+      "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
+      "project_license": "MIT",
+      "options": {
+        "version": "os-provided",
+        "installTools": false
+      },
+      "purpose": "Provides python3 (Debian bookworm os-provided) required by repository-owned stdlib validators/tests."
+    }
+  ],
+  "toolchain": {
+    "node": "24.19.0",
+    "pnpm": "11.4.0",
+    "typescript": "6.0.3",
+    "turborepo": "2.10.6",
+    "vitest": "4.1.7",
+    "typebox": "1.3.6",
+    "corepack": "required",
+    "python3": "required",
+    "git": "required"
+  },
+  "bootstrap": {
+    "command": "python3 scripts/dev-bootstrap.py",
+    "doctor": "python3 scripts/dev-doctor.py",
+    "runtime_smoke": "python3 scripts/dev-runtime-smoke.py",
+    "static_validator": "python3 scripts/validate-m007-local-dev.py",
+    "frozen_lockfile": true,
+    "check_network_free": true
+  },
+  "security_posture": {
+    "non_root_user": "node",
+    "privileged": false,
+    "host_network": false,
+    "docker_socket_mount": false,
+    "docker_in_docker": false,
+    "host_credential_mounts": false,
+    "raw_secrets_in_env_or_committed_examples": false,
+    "ssh_agent_or_cloud_credential_forwarding": false,
+    "extra_capabilities": [],
+    "security_opt": [],
+    "forwarded_ports": [],
+    "product_services": []
+  },
+  "capability_status": {
+    "VF-ENV-005": "IN_PROGRESS",
+    "vf_env_001_004": "NOT_STARTED (unchanged)",
+    "vf_rel_006_011": "NOT_STARTED (unchanged)",
+    "vf_rel_002_005": "M-006 baselines unchanged (IMPLEMENTED/IMPLEMENTED/IMPLEMENTED/IN_PROGRESS)",
+    "overclaim": "none claimed IMPLEMENTED/VERIFIED/COMPLETE"
+  },
+  "ci_evidence": {
+    "required_contexts": [
+      "Master Build System Integrity / verify",
+      "Repository Foundation / foundation",
+      "Repository Sanitation / sanitize",
+      "Security & Dependency Gates / security-gate"
+    ],
+    "intended_workflow_patch": "evidence/missions/M-007/INTENDED_WORKFLOWS.patch",
+    "intended_workflow_patch_sha256": "ebdef32cbea14ec1f169d6ae67059cf32f6be3597f401b18debf5586264e42ab",
+    "devcontainers_ci_action": {
+      "reference": "devcontainers/ci",
+      "version": "0.3.1900000450",
+      "commit_sha": "513af61f4de4f75d37e4438f184ba4358f0fc1ca",
+      "push": "never"
+    },
+    "dev_image_trivy_wrapper": "scripts/security/scan-dev-image.sh",
+    "dev_image_sbom_wrapper": "scripts/security/generate-dev-image-sbom.sh"
+  },
+  "intended_workflow_content": {
+    "pull_by_digest": "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+    "runtime_smoke_inside_image": "python3 scripts/dev-runtime-smoke.py",
+    "dev_image_scan": "scripts/security/scan-dev-image.sh",
+    "dev_image_sbom": "scripts/security/generate-dev-image-sbom.sh",
+    "sbom_artifact": "vibeflow-dev-image-cyclonedx"
+  },
+  "validator_design": {
+    "mode_selection": "auto: active while M-007 is READY/IN_PROGRESS/REVIEW; durable once M-007 is DONE",
+    "active_snapshot": "exact accepted environment shape, provenance, toolchain, capability snapshot, mission/ledger sync, master hash integrity",
+    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions; privileged/docker-socket/host-network/raw-secrets permanently banned",
+    "forward_compatible": "positive durable-extension test included in the M-007 mutation suite"
+  },
+  "adr_required": false,
+  "non_goals_respected": [
+    "no M-008 identity/account persistence",
+    "no PostgreSQL/Temporal/object-storage local services",
+    "no Expo/React Native product packages",
+    "no Fastify/Drizzle/Better Auth/Temporal SDK/provider SDKs/MCP/ACP/A2A SDKs",
+    "no VibeFlow workspace provider or sandbox",
+    "no product ports or .env product configuration",
+    "no raw/example provider secrets",
+    "no OSS research mapped into implementation",
+    "no branch-protection or required-check changes",
+    "no security-tool or GitHub Action upgrades",
+    "no architecture/resource/state/event changes",
+    "no custom environment-description protocol",
+    "no ADR required"
+  ]
+}
