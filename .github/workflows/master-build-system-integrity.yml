@@ -21,20 +21,11 @@ jobs:
         id: scope
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          full=true
-          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
-            if changed="$(git diff --name-only "$BASE_SHA"...HEAD)"; then
-              full=false
-              if printf '%s\n' "$changed" | grep -Eq '^(\.ai/(INDEX\.yaml$|CONTEXT_POLICY\.md$)|AGENTS\.md$|master-build-system/(\.ai/|00_MASTER/|04_AI_AGENT/|06_HARVEST/|08_SECURITY/|11_VERIFICATION/|AGENTS\.md$|10_IMPLEMENTATION/(STATUS_PROTOCOL\.md$|MISSION_PACKET_TEMPLATE\.md$|CONTEXT_ASSEMBLY_RULES\.md$))|scripts/(validate-master-contracts|validate-harvest-registry|validate-threat-model|validate-implementation-reference-policy|validate-m004-foundation|validate-m005-contract-codegen|validate-m006-security-gates|validate-m007-local-dev|_validate_m007_core|generate-contracts)\.py$|scripts/security/|tests/contract/(test_implementation_reference_policy\.py$|test_m00[2-7][^/]*\.py$)|security/|infrastructure/dev/|\.devcontainer/|\.github/workflows/(master-build-system-integrity|repository-foundation|repository-sanitation|security-and-dependency-gates)\.yml$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig(\..*)?\.json$)'; then
-                full=true
-              fi
-            fi
-          fi
-          echo "full=$full" >> "$GITHUB_OUTPUT"
-          echo "Full historical mutation regression: $full"
+        run: python3 scripts/ci/classify-verification-scope.py --base "$BASE_SHA" --head HEAD --github-output "$GITHUB_OUTPUT"
+      - name: Test verification scope classifier
+        shell: bash
+        run: python3 tests/contract/test_verification_scope_classifier.py
       - name: Verify authoritative pack hashes
         shell: bash
         run: |
@@ -53,42 +44,42 @@ jobs:
         shell: bash
         run: python3 scripts/validate-implementation-reference-policy.py
       - name: Run implementation reference policy mutation tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_implementation_reference_policy.py
       - name: Run M-002 contract validator tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m002_validators.py
       - name: Run M-003 security contract tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m003_security_contracts.py
       - name: Validate M-004 foundation
         shell: bash
         run: python3 scripts/validate-m004-foundation.py
       - name: Run M-004 foundation mutation tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m004_foundation.py
       - name: Validate M-005 contract codegen pipeline
         shell: bash
         run: python3 scripts/validate-m005-contract-codegen.py
       - name: Run M-005 contract codegen mutation tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m005_contract_codegen.py
       - name: Validate M-006 security gates
         shell: bash
         run: python3 scripts/validate-m006-security-gates.py
       - name: Run M-006 security gate mutation tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m006_security_gates.py
       - name: Validate M-007 local dev environment
         shell: bash
         run: python3 scripts/validate-m007-local-dev.py
       - name: Run M-007 local dev mutation tests
-        if: ${{ steps.scope.outputs.full == 'true' }}
+        if: ${{ steps.scope.outputs.full_mutations == 'true' }}
         shell: bash
         run: python3 tests/contract/test_m007_local_dev.py
