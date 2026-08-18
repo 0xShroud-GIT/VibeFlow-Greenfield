@@ -138,8 +138,9 @@ package manager or application dependency.
   initial environment shape — both `remoteUser == "node"` and
   `containerUser == "node"` are **required** (missing or wrong value fails),
   the canonical node_modules volume is **required** (its removal or any extra
-  mount fails), zero durable extensions allowed, exactly the python feature,
-  exact image/feature/toolchain provenance, no ports/privilege/host-network,
+  mount fails), zero durable extensions allowed, exactly the python+git
+  registered features (exact digests/options), exact image/feature/toolchain
+  provenance, no ports/privilege/host-network,
   exact 405-capability status snapshot (only `VF-ENV-005` advances),
   mission/ledger synchronization (M-001..M-006 DONE, M-007 active, M-008+
   LOCKED), master-pack hash integrity.
@@ -352,7 +353,7 @@ HIGH/CRITICAL findings in the exact `node:24.19.0` bookworm image.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `node:24.19.0` (bookworm, previous) | `sha256:934240a1…e6584` | `sha256:f6d02cf1…1055` | `sha256:7e4b2953…8099` | yes | 5 (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2025-8714, CVE-2026-6473) | 7 | tested → FAIL |
 | `node:24.19.0-bookworm-slim` | `sha256:3638d9a6…fc03` | `sha256:65932751…4848` | `sha256:c133efe2…bb03` | **no** | ~0 (minimal base) | 7 | not eligible (no git; git unaddable without apt) |
-| `node:24.19.0-trixie` | `sha256:66bb8d36…75c1` | `sha256:05c60dce…2ad3` | `sha256:3f734716…65c` | yes | 3 (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2026-6473) — CVE-2025-8714 fixed by trixie main 17.10 | 7 → 0 after npm removal | **selected** |
+| `node:24.19.0-trixie` | `sha256:66bb8d36…75c1` | `sha256:05c60dce…2ad3` | `sha256:3f734716…65c` | no | 3 (libaprutil1 CVE-2026-34191; libpq-dev/libpq5 CVE-2026-6473) — CVE-2025-8714 fixed by trixie main 17.10 | 7 | REJECT in round 5 (round-4 Dockerfile removal design superseded; see Round-5 matrix) |
 | `node:24.19.0-trixie-slim` | `sha256:0711b541…74d` | `sha256:f2925910…b486` | `sha256:8525258f…e9e` | **no** | ~0 | 7 | not eligible (no git) |
 | `node:24.19.0-alpine` (3.24) | `sha256:d32cdf61…ad43` | `sha256:2a49bdf7…b43` | `sha256:0e6f1567…082` | **no** | ~0 (musl/apk base) | 7 | not eligible (no git; apk package manager; musl) |
 | `node:24.19.0-forky` (Debian 14) | N/A | N/A | N/A | — | — | — | **not published** for Node 24 (docker-node `24/` contains only alpine3.23, alpine3.24, bookworm, bookworm-slim, bullseye, bullseye-slim, trixie, trixie-slim) |
@@ -500,6 +501,95 @@ digest-pinned coordinate in `repository-foundation.yml` and
 SHA-256: `e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94`
 (`git apply --check` clean). GPT applies only those workflow files on the same
 branch; exact-head CI then reruns the four protected contexts.
+
+## Round 5 — packet-authority correction + slim-image / registered-feature probe (review ID 4964882866)
+
+### Authority correction applied
+
+The round-4 Dockerfile is **removed**. Per the frozen packet ("A Dockerfile is
+not preferred. Add one only if the official digest-pinned image cannot meet
+the required runtime using its existing contents"), a security-only removal
+Dockerfile is not clearly permitted when the image meets runtime parity. The
+round-5 configuration therefore uses **no Dockerfile**: the official slim
+image plus the already-pinned Python Feature and the official digest-pinned
+Git Feature (git is a packet-required environment element, provided through
+the ratified Dev Containers Feature mechanism; H-023 + DO_NOT_INVENT
+"environment descriptor: use Dev Containers specification; VibeFlow owns
+policy around allowed environment features").
+
+### Registered Git Feature (probe + final)
+
+- Coordinate: `ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2`
+- Version: `1.3.8` (semantic tag `:1`); resolved from the official
+  `devcontainers/images` `devcontainer-lock.json` (the canonical provenance
+  record the official devcontainers images consume); upstream source
+  https://github.com/devcontainers/features/tree/main/src/git; license MIT.
+- Options (locked): `{"version": "os-provided", "ppa": false}` — install.sh
+  proves `os-provided` detects an existing git and exits, otherwise
+  `apt-get install -y --no-install-recommends git` (CI log shows git
+  `2.47.3-0+deb13u1` installed from the trixie-security pocket).
+- Authority disposition: **authorized as a registered feature**. The frozen
+  M-007 mutation requirement is "unregistered feature in active M-007" must
+  fail — it prohibits *unregistered* features, not registered digest-pinned
+  ones; the packet §4.2 requires git; and the adopted Dev Containers
+  specification (H-023) defines Features as the mechanism for adding tools.
+  The active snapshot now requires exactly python+git with exact locked
+  options; any unregistered/unauthorized feature still fails.
+
+### Candidate matrix (all digests immutable OCI; all rows built/scanned in CI unless noted)
+
+| # | Candidate | OCI index digest | amd64 / arm64 | Dockerfile | Features | Debian HIGH/CRIT | node-pkg | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A | `node:24.19.0` bookworm full (baseline) | `sha256:934240a1…e6584` | `f6d02cf1…` / `7e4b2953…` | no | python | 5 / 0 | 7 | REJECT — 5 Debian HIGH + 7 node-pkg (CI round 3) |
+| B | `node:24.19.0-trixie` full | `sha256:66bb8d36…75c1` | `05c60dce…` / `3f734716…` | no | python | 35 / 0 | 7 | REJECT — 35 Debian HIGH in buildpack-deps dev packages (round-4 CI without removal) |
+| C | **`node:24.19.0-trixie-slim` + python + git** | `sha256:0711b541…74d` | `f2925910…` / `8525258f…` | **no** | python 1.8.0 + git 1.3.8 (both digest-pinned) | **0 / 0** | **7** | **SELECTED** — OS surface proven clean; fails only on bundled npm node-pkg |
+| D | `node:24.19.0-bookworm-slim` + python + git | `sha256:3638d9a6…fc03` | `65932751…` / `c133efe2…` | no | python 1.8.0 + git 1.3.8 | **0 / 0** | **7** | REJECT — identical npm blocker; older base (trixie selected as newer) |
+
+Empirical probe CI: trixie-slim head `15ed549` (run `32176814993`): Debian
+13.6 pkg_num 290 → **0** findings; node-pkg 7 (6 HIGH + 1 CRITICAL) all in
+`/usr/local/lib/node_modules/npm`. bookworm-slim head `077fc39` (run
+`32178600049`): Debian 12.15 pkg_num 299 → **0** findings; node-pkg 7. Both
+probes: foundation PASS (build + bootstrap + `pnpm run check` + runtime
+smoke), verify PASS, sanitize PASS; security-gate failed closed only on the
+dev-image scan's bundled-npm findings.
+
+### Final selected configuration
+
+- Image: `docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d`
+  (amd64 `sha256:f2925910…`, arm64 `sha256:8525258f…`), no Dockerfile.
+- Features (registered, digest-pinned, options locked): python 1.8.0
+  (`…fbcad695…`, `{version: os-provided, installTools: false}`) and git
+  1.3.8 (`…fd75977d…`, `{version: os-provided, ppa: false}`).
+- devcontainer.json: `image` key, `remoteUser`/`containerUser` `node`,
+  node_modules volume + initializeCommand (trixie-slim digest), postCreate
+  bootstrap, no privileges/ports/services.
+- Runtime: foundation CI proves node v24.19.0, pnpm 11.4.0 (corepack),
+  python3, git 2.47.3, `pnpm install --frozen-lockfile`, `pnpm run check`,
+  runtime smoke — all PASS.
+
+### Why the gate still cannot pass (empirical, stop-and-report per round-5 criteria)
+
+The **only** remaining Trivy findings on the best packet-compliant
+configuration are 7 node-pkg findings (brace-expansion 5.0.6 ×3, ip-address
+10.2.0, tar 7.5.16 CRITICAL + HIGH, undici 6.26.0) inside the npm bundled
+with **every** official Node 24.19.0 image. Removing them requires image
+modification: a Dockerfile (whose frozen trigger — image cannot meet required
+runtime using its existing contents — is not met under the strict reading,
+since runtime parity is satisfied) or a custom removal Feature (unratified,
+forbidden). Mutable package operations, Node repin, and policy weakening are
+all forbidden. Therefore: **no packet-compliant image selection or
+deterministic remediation can pass the unchanged HIGH/CRITICAL gate**.
+Owner decision required (e.g., amend M-007 authority to permit the
+deterministic npm-removal Dockerfile, or explicitly direct another
+remediation). No threshold weakened; the slim + registered-features design is
+the delivered environment.
+
+### Round-5 workflow handoff (exact patch, final candidate)
+
+Regenerated from the actual current workflow files; replaces the 3
+bookworm-digest `docker pull` lines with the trixie-slim coordinate in
+`repository-foundation.yml` and `security-and-dependency-gates.yml`:
+`evidence/missions/M-007/INTENDED_WORKFLOWS.patch` — SHA-256 . `git apply --check` clean.
 
 ## Capability ledger transitions
 

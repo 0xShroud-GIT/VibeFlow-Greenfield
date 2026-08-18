@@ -2,20 +2,15 @@
   "adr_required": false,
   "base_image": {
     "architectures": {
-      "amd64": "sha256:05c60dce78787e477fd7c0d61d9efcd5b7ae3f21a8b18787c7ef3daf9c9a2ad3",
-      "arm64": "sha256:3f734716ad93ed2aa8a6eec03f2404de09b8505f3f9ce06c15933ffaf49ec65c",
-      "ppc64le": "sha256:6c207361d6106ba9afd94be2dbc25ab2fac15da6bf2dce761e05bdd3ce7a34e5",
-      "s390x": "sha256:cbdd8a21c55d1411e06bc0b9af82af98ed3040f0b1e80f2f51a50a43d261b607"
+      "amd64": "sha256:f2925910482dc53394bc0034c5f4abffcd01de400794c050ca343fe0d733b486",
+      "arm64": "sha256:8525258f39fa3365fcf9a9d01e85458c7280ad00bd30c5e67655311262257e9e"
     },
-    "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
-    "media_type": "application/vnd.oci.image.index.v1+json",
+    "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+    "dockerfile": false,
+    "license": "MIT",
     "node_version": "24.19.0",
-    "os": "Debian trixie (13), snapshot 2026-08-01",
-    "project_license": "MIT (docker-node project and Node.js runtime; Debian base under its component licenses)",
-    "registry_published": "2026-08-05",
-    "remediation": "deterministic filesystem-only removal of unused bundled npm and yarn; no apt/apk; no downloads; no floating references",
-    "remediation_dockerfile": ".devcontainer/Dockerfile",
-    "semantic_reference": "docker.io/library/node:24.19.0-trixie",
+    "os": "Debian trixie-slim (13)",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie-slim",
     "upstream_source": "https://github.com/nodejs/docker-node"
   },
   "bootstrap": {
@@ -79,11 +74,16 @@
         "installTools": false,
         "version": "os-provided"
       },
-      "project_license": "MIT",
-      "purpose": "Provides python3 (Debian bookworm os-provided) required by repository-owned stdlib validators/tests.",
-      "semantic_tag": "ghcr.io/devcontainers/features/python:1",
-      "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
       "version": "1.8.0"
+    },
+    {
+      "digest_reference": "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2",
+      "id": "git",
+      "options": {
+        "ppa": false,
+        "version": "os-provided"
+      },
+      "version": "1.3.8"
     }
   ],
   "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
@@ -439,6 +439,73 @@
           ".github/workflows/security-and-dependency-gates.yml"
         ],
         "sha256": "e0fab0f8b1b663eea8d44ad90e3b0df1ef46f1fa8cc476dc61e8e775bcdb3c94"
+      }
+    },
+    "round_5": {
+      "authority_correction": "Round-4 Dockerfile removed: frozen packet Dockerfile trigger (official image cannot meet required runtime using its existing contents) not met for security-only removal. No-Dockerfile slim + registered Features configuration adopted.",
+      "candidate_matrix": {
+        "A_bookworm_full": {
+          "debian_high": 5,
+          "digest": "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
+          "evidence": "round-3 CI",
+          "node_pkg": 7,
+          "verdict": "REJECT"
+        },
+        "B_trixie_full": {
+          "debian_high": 35,
+          "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+          "evidence": "round-4 CI",
+          "node_pkg": 7,
+          "verdict": "REJECT"
+        },
+        "C_trixie_slim_features": {
+          "debian_critical": 0,
+          "debian_high": 0,
+          "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+          "evidence": "probe run 32176814993 (head 15ed549), debian 13.6 pkg_num 290",
+          "node_pkg": 7,
+          "verdict": "SELECTED"
+        },
+        "D_bookworm_slim_features": {
+          "debian_critical": 0,
+          "debian_high": 0,
+          "digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+          "evidence": "probe run 32178600049 (head 077fc39), debian 12.15 pkg_num 299",
+          "node_pkg": 7,
+          "verdict": "REJECT (identical npm blocker; older base)"
+        }
+      },
+      "feature_authority_disposition": "Authorized as a registered feature: frozen mutation requirement is 'unregistered feature in active M-007' (prohibits unregistered); packet 4.2 requires git; Dev Containers specification (H-023) defines Features as the tool-adding mechanism. Active snapshot requires exactly python+git with exact locked options.",
+      "git_feature": {
+        "coordinate": "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2",
+        "digest_source": "official devcontainers/images devcontainer-lock.json",
+        "license": "MIT",
+        "options": {
+          "ppa": false,
+          "version": "os-provided"
+        },
+        "runtime_proof": "git 2.47.3-0+deb13u1 installed from trixie-security pocket (CI log); foundation runtime smoke passes",
+        "source": "https://github.com/devcontainers/features/tree/main/src/git",
+        "version": "1.3.8"
+      },
+      "review_id": 4964882866,
+      "selected": {
+        "dockerfile": false,
+        "features": [
+          "python 1.8.0 (fbcad695...) {os-provided, installTools:false}",
+          "git 1.3.8 (fd75977d...) {os-provided, ppa:false}"
+        ],
+        "image": "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
+        "runtime_proof": "foundation CI: node v24.19.0, pnpm 11.4.0, python3, git 2.47.3, frozen install, pnpm run check, runtime smoke all PASS"
+      },
+      "stop_and_report": "Empirically proven: no packet-compliant image selection or deterministic remediation can pass the unchanged HIGH/CRITICAL gate. Slim+features achieves 0 Debian findings; the only residual is 7 node-pkg findings (1 CRITICAL tar CVE-2026-59873) in npm bundled in every official Node 24.19.0 image; removal requires a Dockerfile (frozen trigger not met under strict reading) or unratified custom feature. Owner decision required; no threshold weakened.",
+      "workflow_handoff": {
+        "change": "replace 3 bookworm-digest docker pull lines with trixie-slim digest-pinned coordinate",
+        "paths": [
+          ".github/workflows/repository-foundation.yml",
+          ".github/workflows/security-and-dependency-gates.yml"
+        ],
+        "sha256": "1a1d1c06418c1d527d3f55002fcfbd5f650dd2f73e5b612360368d26d0557488"
       }
     }
   },

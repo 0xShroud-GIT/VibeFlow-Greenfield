@@ -46,17 +46,17 @@ M007 = "M-007"
 
 # --- Immutable M-007 provenance (authority: infrastructure/dev/dev-environment-policy.json) ---
 BASE_IMAGE = {
-    "semantic_reference": "docker.io/library/node:24.19.0-bookworm-slim",
-    "digest": "sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie-slim",
+    "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
     "architectures": {
-        "amd64": "sha256:65932751ed4073ed02f5c04e494e4b2572a891b7dbea0568a863dc80341bf848",
-        "arm64": "sha256:c133efe216ffb6e785ed9a8be55a29fcb86775e8008ae0a9f0ed6af4f175bb03",
+        "amd64": "sha256:f2925910482dc53394bc0034c5f4abffcd01de400794c050ca343fe0d733b486",
+        "arm64": "sha256:8525258f39fa3365fcf9a9d01e85458c7280ad00bd30c5e67655311262257e9e",
         "ppc64le": "sha256:441ec0d60b515c37dfc74c89357b1e8744639aeeb9038f44a5d2396fda4169b2",
         "s390x": "sha256:0e799be321515b3930d0288944b1960ecf476a2d35888508d191f79ae1bf4c0d",
     },
     "upstream_source": "https://github.com/nodejs/docker-node",
     "node_version": "24.19.0",
-    "os": "Debian bookworm-slim (12), snapshot 2026-08-01",
+    "os": "Debian trixie-slim (13), snapshot 2026-08-01",
     "dockerfile": False,
     "dockerfile_authority_reason": (
         "Round-5 review correction: frozen M-007 Dockerfile trigger not met for security-only "
@@ -563,7 +563,7 @@ NODE_MODULES_VOLUME = (
 # container; the host checkout's node_modules is never touched.
 NODE_MODULES_INIT = (
     "docker run --rm -u 0 -v vibeflow-node-modules:/data "
-    "docker.io/library/node:24.19.0-bookworm-slim@sha256:3638d9a6fe4030bd716be989438248074489337ba3275657f93595428be4fc03 "
+    "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d "
     "chown $(id -u):$(id -g) /data"
 )
 
