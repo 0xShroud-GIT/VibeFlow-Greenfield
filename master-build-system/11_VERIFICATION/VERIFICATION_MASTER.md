@@ -32,11 +32,11 @@ Risk classification must be deterministic and centrally tested. Unknown paths, f
 
 ## Development-image freshness
 
-The development image is a development artifact, not a product release image. Exact dev-image runtime, Trivy and CycloneDX work is required on a pull request when a change can affect the dev image, its toolchain, its build/scan workflow, or the verification classifier. It is also required on every push to `main` as full-system verification.
+The development image is a development artifact, not a product release image. Exact dev-image runtime, Trivy and CycloneDX work is required on a pull request when a change can affect the dev image, its toolchain, its build/scan workflow, or the verification classifier. It is also required on every push to `main` as full-system verification, and the security workflow performs scheduled certification so newly disclosed image vulnerabilities are discovered even when no relevant pull request is open.
 
 An ordinary product-only pull request may skip unchanged dev-image work, but the security workflow must emit candidate-bound machine-readable evidence stating that the check was not applicable/executed and why. A green required context on such a PR must never be represented as evidence that the image scan executed.
 
-When dev-image verification runs, vulnerability scan and SBOM generation must consume the same frozen image artifact. Evidence records the candidate revision, immutable image identity/content hash and SBOM hash. If image verification is classified applicable, missing or unsuccessful candidate-bound evidence fails verification.
+When dev-image verification runs, vulnerability scan and SBOM generation must consume the same frozen image artifact. Evidence records both the candidate head revision and the exact revision actually tested by CI, plus immutable image identity/content hash and SBOM hash. If image verification is classified applicable, missing or unsuccessful candidate-bound evidence fails verification.
 
 ## Durable invariants
 
