@@ -281,6 +281,82 @@ updated:
 No other authoritative master-build-system file was modified. All 72 pack hashes
 verify.
 
+## Review response — validator generalization (REQUEST_CHANGES on PR #6)
+
+The reviewer accepted the codegen architecture but blocked on both retained
+validators being current-state coupled. Both are now progression-aware. No
+dependency was added, the pipeline was not redesigned, and mission state is
+unchanged (M-005 REVIEW, M-006+ LOCKED).
+
+The MBS workflow was applied by reviewer commit `bd7f5924`; Arena did not retry
+a workflow push.
+
+### validate-m005-contract-codegen.py
+
+Two modes selected from mission state:
+
+- **m005-active** (M-005 REVIEW/IN_PROGRESS) — M-005's own snapshot is asserted
+  in full: 35/7/37 totals, no new dependency, no invented
+  command/payload/error-code vocabulary, no implementation under the product
+  trees, and successors must remain LOCKED.
+- **durable** (M-005 DONE) — successor progression is delegated to
+  `validate-master-contracts.py`, so a correct M-006 branch passes this
+  retained gate. A later authoritative mission may expand the catalog and
+  define payload/error-code contracts without rewriting M-005 history.
+
+Durable in both modes: M-001..M-004 DONE and M-005 never below REVIEW,
+DAG/register agreement, mission-pointer coherence with the *currently active*
+row, authority routing, generator presence and `--check`, exact artifact
+inventory, **generated counts equal current authoritative inputs**, manifest
+hashes match current authority and the pack, enum/order equality with authority,
+schema-derived types, no HealthSchema canary, the typebox 1.x exact pin,
+`@sinclair/typebox` prohibition, supply-chain settings, contracts scripts and
+the MBS workflow steps/triggers.
+
+The fixed 35/7/37 totals remain asserted as the M-005 snapshot in this evidence
+and in the mission tests, not as a permanent cap in the durable validator.
+
+### validate-m004-foundation.py
+
+Two modes selected from mission state:
+
+- **snapshot** (M-004 REVIEW) — the exact historical bootstrap state: empty root
+  dependencies, exact root devDependency set, exactly seven manifests, no
+  product-tree manifests, no shared-package dependencies, exact package script
+  dictionaries, no allowBuilds, exact turbo task set.
+- **durable** (M-004 DONE) — later mission-authorized manifests under
+  `apps|services|workers|adapters`, additional approved dependencies and
+  additional package scripts and turbo tasks are permitted, so M-008 onwards is
+  not blocked.
+
+Durable in both modes: Node/pnpm baseline and packageManager pin, the seed
+packages and their tsconfig/src entrypoints, exact non-exotic dependency specs,
+the typebox pin and `@sinclair/typebox` prohibition, one root lockfile and no
+foreign lockfiles, workspace globs, pnpm supply-chain policy and .npmrc rules,
+strict TypeScript with NodeNext, an acyclic workspace graph, required root
+build/typecheck/test scripts, no forbidden lifecycle scripts, foundation CI, and
+the ordered root `check` stages. Manifests under the product trees must be
+direct `prefix/*` workspace members so none escapes the lockfile.
+
+### Test counts after the review
+
+| Suite | Before | After |
+| ----- | ------ | ----- |
+| `test_m002_validators.py` | 38 | 38 |
+| `test_m003_security_contracts.py` | 18 | 18 |
+| `test_m004_foundation.py` | 47 | **82** |
+| `test_m005_contract_codegen.py` | 61 | **87** |
+| Total | 164 | **225** |
+
+New coverage proves both transition modes: historical snapshots still reject the
+bootstrap-era mutations, accepted-state sandboxes accept mission-authorized
+growth, and every durable rule is re-proven in the future state. Two pre-existing
+tests were re-pointed rather than weakened — the seven M-004 bootstrap-absence
+tests now pin the historical M-004 REVIEW state they document, and the M-005
+"never self-marked DONE" test became a branch-state guard asserting the real
+repository is at REVIEW with M-006+ LOCKED, because DONE is now a legitimate
+accepted state for the generalized validator.
+
 ## ADR status
 
 **ADR required: NO.** No architecture decision changed. H-025 records a decision

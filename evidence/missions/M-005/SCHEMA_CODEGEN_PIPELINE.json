@@ -10,12 +10,30 @@
   "self_accepted": false,
   "merged": false,
   "mission_state_transition": {
-    "M-001": { "before": "DONE", "after": "DONE" },
-    "M-002": { "before": "DONE", "after": "DONE" },
-    "M-003": { "before": "DONE", "after": "DONE" },
-    "M-004": { "before": "REVIEW", "after": "DONE" },
-    "M-005": { "before": "LOCKED", "after": "REVIEW" },
-    "M-006..M-151": { "before": "LOCKED", "after": "LOCKED" }
+    "M-001": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-002": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-003": {
+      "before": "DONE",
+      "after": "DONE"
+    },
+    "M-004": {
+      "before": "REVIEW",
+      "after": "DONE"
+    },
+    "M-005": {
+      "before": "LOCKED",
+      "after": "REVIEW"
+    },
+    "M-006..M-151": {
+      "before": "LOCKED",
+      "after": "LOCKED"
+    }
   },
   "mission_pointers_updated": [
     "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml",
@@ -76,8 +94,16 @@
       "reason": "Arena's GitHub App cannot push .github/workflows/**",
       "oauth_or_device_code_workaround_attempted": false,
       "handoff": "Exact workflow content/diff returned to GPT for application via its GitHub connector before final exact-head review.",
-      "added_trigger_paths": ["apps/**", "services/**", "workers/**", "adapters/**"],
-      "added_trigger_scopes": ["pull_request", "push:main"],
+      "added_trigger_paths": [
+        "apps/**",
+        "services/**",
+        "workers/**",
+        "adapters/**"
+      ],
+      "added_trigger_scopes": [
+        "pull_request",
+        "push:main"
+      ],
       "added_steps": [
         "python3 scripts/validate-m005-contract-codegen.py",
         "python3 tests/contract/test_m005_contract_codegen.py"
@@ -171,12 +197,21 @@
     "no_timestamp_or_machine_state_in_output": true
   },
   "mutation_test_counts": {
-    "test_m005_contract_codegen.py": 61
+    "test_m005_contract_codegen.py": 87
   },
   "old_suite_results": {
-    "test_m002_validators.py": { "result": "OK", "tests": 38 },
-    "test_m003_security_contracts.py": { "result": "OK", "tests": 18 },
-    "test_m004_foundation.py": { "result": "OK", "tests": 47 }
+    "test_m002_validators.py": {
+      "result": "OK",
+      "tests": 38
+    },
+    "test_m003_security_contracts.py": {
+      "result": "OK",
+      "tests": 18
+    },
+    "test_m004_foundation.py": {
+      "result": "OK",
+      "tests": 82
+    }
   },
   "old_suites_weakened": false,
   "verification": {
@@ -214,11 +249,26 @@
   },
   "capability_ledger_review": {
     "rows_reviewed": 16,
-    "selectors": ["REL", "ENV"],
+    "selectors": [
+      "REL",
+      "ENV"
+    ],
     "row_ids": [
-      "VF-REL-001", "VF-REL-002", "VF-REL-003", "VF-REL-004", "VF-REL-005",
-      "VF-REL-006", "VF-REL-007", "VF-REL-008", "VF-REL-009", "VF-REL-010",
-      "VF-REL-011", "VF-ENV-001", "VF-ENV-002", "VF-ENV-003", "VF-ENV-004",
+      "VF-REL-001",
+      "VF-REL-002",
+      "VF-REL-003",
+      "VF-REL-004",
+      "VF-REL-005",
+      "VF-REL-006",
+      "VF-REL-007",
+      "VF-REL-008",
+      "VF-REL-009",
+      "VF-REL-010",
+      "VF-REL-011",
+      "VF-ENV-001",
+      "VF-ENV-002",
+      "VF-ENV-003",
+      "VF-ENV-004",
       "VF-ENV-005"
     ],
     "statuses_changed": 0,
@@ -240,5 +290,52 @@
     "run_ids": [],
     "conclusions": [],
     "note": "No CI run IDs or conclusions are claimed. The workflow change adding the M-005 steps and apps/services/workers/adapters triggers could not be pushed by Arena; real CI results must be read from the PR after GPT applies it. Expected CI is not reported as real CI."
+  },
+  "review_response": {
+    "review": "REQUEST_CHANGES on PR #6",
+    "workflow_applied_by_reviewer_commit": "bd7f59241706472699b1c4bcbd7b54088666a0f3",
+    "workflow_push_retried_by_arena": false,
+    "dependencies_added": 0,
+    "pipeline_redesigned": false,
+    "mission_state_changed": false,
+    "validate_m005_contract_codegen": {
+      "modes": [
+        "m005-active",
+        "durable"
+      ],
+      "historical_m005_review_passes": true,
+      "accepted_m005_done_with_m006_active_passes": true,
+      "successors_locked_while_m005_review": true,
+      "m005_regression_or_desync_fails": true,
+      "fixed_counts_scope": "M-005 snapshot/evidence tests only",
+      "durable_count_rule": "generated counts equal current authoritative inputs",
+      "scope_prohibitions_scope": "M-005 active snapshot only; later authoritative expansion permitted"
+    },
+    "validate_m004_foundation": {
+      "modes": [
+        "snapshot",
+        "durable"
+      ],
+      "snapshot_preserved_while_m004_review": true,
+      "durable_allows_later_manifests_dependencies_scripts": true,
+      "durable_properties_enforced": [
+        "required foundation packages/toolchain present",
+        "dependency specs exact and non-exotic",
+        "one root lockfile; no foreign lockfiles",
+        "pnpm supply-chain policy retained",
+        "strict TypeScript retained",
+        "workspace dependency graph acyclic",
+        "required build/typecheck/test scripts present",
+        "product-tree manifests must be direct workspace members"
+      ]
+    },
+    "tests_repointed_not_weakened": [
+      "seven M-004 bootstrap-absence tests pinned to the historical M-004 REVIEW snapshot",
+      "M-005 'never self-marked DONE' converted to a branch-state guard on the real repository"
+    ],
+    "test_totals": {
+      "before": 164,
+      "after": 225
+    }
   }
 }

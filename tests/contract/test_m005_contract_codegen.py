@@ -100,6 +100,20 @@ class Sandbox:
         result = run_script(self.root / "scripts/generate-contracts.py", self.root)
         assert result.returncode == 0, result.stdout + result.stderr
 
+    def set_dag_status_only(self, mission_id: str, status: str) -> None:
+        """Change the DAG without the register, to simulate desync."""
+        lines = self.read(DAG).splitlines()
+        current = None
+        for index, line in enumerate(lines):
+            if line.startswith("- mission_id: "):
+                current = line.split(":", 1)[1].strip()
+            elif current == mission_id and line.startswith("  status: "):
+                lines[index] = f"  status: {status}"
+                break
+        else:
+            raise AssertionError(f"mission not found in DAG: {mission_id}")
+        self.write(DAG, "\n".join(lines) + "\n")
+
     def set_mission_status(self, mission_id: str, status: str) -> None:
         lines = self.read(DAG).splitlines()
         current = None
@@ -564,10 +578,28 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_m005_marked_done_fails(self) -> None:
+    def test_this_branch_keeps_m005_at_review(self) -> None:
+        """M-005 must not be self-marked DONE on this branch.
+
+        DONE is a legitimate *accepted* state for the generalized validator
+        (see M005ProgressionTests), so this is asserted against the real
+        repository rather than by making DONE universally invalid.
+        """
+        dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
+        block = dag.split("- mission_id: M-005", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: REVIEW", block)
+
+        with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
+            rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
+        self.assertEqual(rows["M-005"], "REVIEW")
+        self.assertEqual(rows["M-004"], "DONE")
+        for index in range(6, 152):
+            self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
+
+    def test_m005_dag_register_desync_is_rejected(self) -> None:
         box = self.box()
-        box.set_mission_status("M-005", "DONE")
-        self.assert_rejected(box, "M-005 must never be self-marked DONE")
+        box.set_dag_status_only("M-005", "DONE")
+        self.assert_rejected(box, "M-005 status disagrees between DAG")
 
     def test_m005_locked_fails(self) -> None:
         box = self.box()
@@ -607,6 +639,254 @@ class MissionStateTests(M005TestCase):
         """The M-005 state must satisfy the generic progression validator too."""
         result = run_script(MASTER, REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
+class M005ProgressionTests(M005TestCase):
+    """The M-005 gate is retained by CI, so it must not be current-state coupled.
+
+    Historical M-005 (REVIEW, successors LOCKED) and accepted M-005 (DONE, a
+    successor active) must both pass; regression and desync must fail.
+    """
+
+    def accepted(self, active: str = "M-006", status: str = "REVIEW") -> Sandbox:
+        """M-005 accepted, with `active` as the current mission and pointers moved."""
+        box = self.box()
+        box.set_mission_status("M-005", "DONE")
+        for index in range(6, int(active.split("-")[1])):
+            box.set_mission_status(f"M-{index:03d}", "DONE")
+        box.set_mission_status(active, status)
+        box.write(
+            ".ai/ACTIVE_MISSION.md",
+            f"# Active Mission\n\n**Mission:** {active} — successor mission\n\n"
+            f"**Status:** {status}\n",
+        )
+        box.write(
+            "README.md",
+            f"# VibeFlow\n\n## Current state\n\nThe active mission is `{active}` ({status}).\n",
+        )
+        box.write(
+            "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+            f"# Workspace Bootstrap Status\n\n- Active mission: {active} — successor ({status})\n",
+        )
+        return box
+
+    # --- both valid states pass ------------------------------------------
+
+    def test_historical_m005_review_state_passes(self) -> None:
+        """M-001..M-004 DONE, M-005 REVIEW, M-006+ LOCKED."""
+        box = self.box()
+        box.set_mission_status("M-005", "REVIEW")
+        self.assert_accepted(box)
+
+    def test_historical_m005_in_progress_state_passes(self) -> None:
+        box = self.box()
+        box.set_mission_status("M-005", "IN_PROGRESS")
+        box.write(
+            ".ai/ACTIVE_MISSION.md",
+            "# Active Mission\n\n**Mission:** M-005 — Establish schema/codegen pipeline\n\n"
+            "**Status:** IN_PROGRESS\n",
+        )
+        self.assert_accepted(box)
+
+    def test_accepted_m005_with_m006_review_passes(self) -> None:
+        """A correct M-006 branch must not fail this retained gate."""
+        self.assert_accepted(self.accepted("M-006", "REVIEW"))
+
+    def test_accepted_m005_with_m006_in_progress_passes(self) -> None:
+        self.assert_accepted(self.accepted("M-006", "IN_PROGRESS"))
+
+    def test_accepted_m005_with_far_future_mission_passes(self) -> None:
+        self.assert_accepted(self.accepted("M-008", "IN_PROGRESS"))
+
+    def test_reports_active_and_durable_modes(self) -> None:
+        result = run_script(VALIDATOR, REPO_ROOT)
+        self.assertIn("mode=m005-active", result.stdout)
+        future = run_script(VALIDATOR, self.accepted().root)
+        self.assertIn("mode=durable", future.stdout)
+
+    # --- invalid states fail ---------------------------------------------
+
+    def test_m005_review_with_m006_active_fails(self) -> None:
+        box = self.box()
+        box.set_mission_status("M-005", "REVIEW")
+        box.set_mission_status("M-006", "REVIEW")
+        self.assert_rejected(box, "M-006 must remain LOCKED while M-005 is REVIEW")
+
+    def test_m005_review_with_m007_active_fails(self) -> None:
+        box = self.box()
+        box.set_mission_status("M-007", "IN_PROGRESS")
+        self.assert_rejected(box, "M-007 must remain LOCKED while M-005 is REVIEW")
+
+    def test_m005_regression_to_locked_fails(self) -> None:
+        box = self.box()
+        box.set_mission_status("M-005", "LOCKED")
+        self.assert_rejected(box, "M-005 must be REVIEW")
+
+    def test_m005_regression_to_locked_after_acceptance_fails(self) -> None:
+        box = self.accepted()
+        box.set_mission_status("M-005", "LOCKED")
+        self.assert_rejected(box, "M-005 must be REVIEW")
+
+    def test_m005_dag_register_desync_fails(self) -> None:
+        box = self.box()
+        box.set_dag_status_only("M-005", "DONE")
+        self.assert_rejected(box, "M-005 status disagrees between DAG")
+
+    def test_m004_regression_after_m005_acceptance_fails(self) -> None:
+        box = self.accepted()
+        box.set_mission_status("M-004", "REVIEW")
+        self.assert_rejected(box, "M-004 must be DONE")
+
+    def test_stale_pointer_after_m005_acceptance_fails(self) -> None:
+        box = self.accepted()
+        box.write(
+            "README.md",
+            "# VibeFlow\n\n## Current state\n\nThe active mission is `M-005`.\n",
+        )
+        self.assert_rejected(box, "does not name the active mission M-006")
+
+    # --- durable rules survive M-005 acceptance ---------------------------
+
+    def test_durable_stale_catalog_still_fails_after_acceptance(self) -> None:
+        box = self.accepted()
+        box.patch(GENERATED_TS, '"Account",', '"Account",\n  "HandEdited",')
+        self.assert_rejected(box, "stale generated artifact")
+
+    def test_durable_typebox_pin_still_enforced_after_acceptance(self) -> None:
+        box = self.accepted()
+        box.patch("packages/contracts/package.json", '"typebox": "1.3.6"', '"typebox": "1.3.15"')
+        self.assert_rejected(box, "must keep the typebox@1.3.6 pin")
+
+    def test_durable_sinclair_typebox_still_forbidden_after_acceptance(self) -> None:
+        box = self.accepted()
+        box.patch(
+            "packages/contracts/package.json",
+            '"typebox": "1.3.6"',
+            '"typebox": "1.3.6", "@sinclair/typebox": "0.34.0"',
+        )
+        self.assert_rejected(box, "@sinclair/typebox")
+
+    def test_durable_health_schema_canary_still_forbidden_after_acceptance(self) -> None:
+        box = self.accepted()
+        box.write(
+            "packages/contracts/src/index.ts",
+            'export const HealthSchema = {} as const;\nexport * from "./generated/catalog.js";\n',
+        )
+        self.assert_rejected(box, "HealthSchema")
+
+    def test_durable_supply_chain_still_enforced_after_acceptance(self) -> None:
+        box = self.accepted()
+        box.patch("pnpm-workspace.yaml", "trustLockfile: false", "trustLockfile: true")
+        self.assert_rejected(box, "trustLockfile")
+
+    def test_durable_contracts_check_gate_still_required_after_acceptance(self) -> None:
+        box = self.accepted()
+        pkg = json.loads(box.read("package.json"))
+        pkg["scripts"]["check"] = (
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run typecheck && pnpm run test && pnpm run build"
+        )
+        box.write("package.json", json.dumps(pkg, indent=2) + "\n")
+        self.assert_rejected(box, "must include the 'pnpm run contracts:check' drift gate")
+
+    def test_durable_source_hash_drift_still_fails_after_acceptance(self) -> None:
+        box = self.accepted()
+        manifest = json.loads(box.read(GENERATED_MANIFEST))
+        manifest["sources"][1]["sha256"] = "0" * 64
+        box.write(GENERATED_MANIFEST, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+        self.assert_rejected(box, "manifest sha256 for")
+
+
+class FutureCatalogExpansionTests(M005TestCase):
+    """After M-005, a later authoritative mission may extend the catalog.
+
+    The fixed 35/7/37 totals are an M-005 snapshot assertion, not a permanent
+    cap. The durable rule is that generated output equals current authority.
+    """
+
+    def accepted_with_extra_resource(self) -> Sandbox:
+        box = self.box()
+        box.set_mission_status("M-005", "DONE")
+        box.set_mission_status("M-006", "IN_PROGRESS")
+        box.write(
+            ".ai/ACTIVE_MISSION.md",
+            "# Active Mission\n\n**Mission:** M-006 — successor\n\n**Status:** IN_PROGRESS\n",
+        )
+        box.write("README.md", "# VibeFlow\n\nThe active mission is `M-006`.\n")
+        box.write(
+            "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+            "# Workspace Bootstrap Status\n\n- Active mission: M-006 — successor\n",
+        )
+        box.write(
+            RESOURCES,
+            box.read(RESOURCES)
+            + "- resource: FutureAuthoritativeThing\n  authority: VibeFlow\n"
+            "  purpose: Added by a later authoritative mission.\n"
+            "  durability: durable\n  notes: test\n",
+        )
+        box.refresh_pack_hash("02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml")
+        return box
+
+    def test_expanded_catalog_passes_after_regeneration(self) -> None:
+        box = self.accepted_with_extra_resource()
+        box.regenerate()
+        self.assert_accepted(box)
+        manifest = json.loads(box.read(GENERATED_MANIFEST))
+        self.assertEqual(manifest["counts"]["canonical_resources"], 36)
+
+    def test_expanded_catalog_without_regeneration_still_fails(self) -> None:
+        box = self.accepted_with_extra_resource()
+        self.assert_rejected(box, "stale generated artifact")
+
+    def test_expanded_catalog_is_rejected_while_m005_is_active(self) -> None:
+        """The 35/7/37 snapshot is still enforced during M-005 itself."""
+        box = self.box()
+        box.write(
+            RESOURCES,
+            box.read(RESOURCES)
+            + "- resource: FutureAuthoritativeThing\n  authority: VibeFlow\n"
+            "  purpose: Not allowed during M-005.\n  durability: durable\n  notes: test\n",
+        )
+        box.refresh_pack_hash("02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml")
+        box.regenerate()
+        self.assert_rejected(box, "expected exactly 35 canonical resources at M-005")
+
+    def test_future_payload_contracts_allowed_after_acceptance(self) -> None:
+        """Scope prohibitions are M-005's own snapshot, not a permanent ban."""
+        box = self.box()
+        box.set_mission_status("M-005", "DONE")
+        box.set_mission_status("M-006", "IN_PROGRESS")
+        box.write(
+            ".ai/ACTIVE_MISSION.md",
+            "# Active Mission\n\n**Mission:** M-006 — successor\n\n**Status:** IN_PROGRESS\n",
+        )
+        box.write("README.md", "# VibeFlow\n\nThe active mission is `M-006`.\n")
+        box.write(
+            "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+            "# Workspace Bootstrap Status\n\n- Active mission: M-006 — successor\n",
+        )
+        # A later mission emits an authoritative error-code vocabulary.
+        box.write(
+            GENERATED_TS,
+            box.read(GENERATED_TS)
+            + '\nexport const ErrorCodeSchema = {\n  type: "string",\n'
+            '  enum: ["VF_UNAUTHORIZED"]\n} as const;\n'
+            "export type ErrorCode = Static<typeof ErrorCodeSchema>;\n",
+        )
+        result = run_script(VALIDATOR, box.root)
+        output = result.stdout + result.stderr
+        # It must not be rejected merely for containing the token; only the
+        # drift/derivation rules apply, which this hand-edit trips.
+        self.assertNotIn("must not invent commands", output)
+
+    def test_payload_contracts_still_prohibited_during_m005(self) -> None:
+        box = self.box()
+        box.write(
+            GENERATED_TS,
+            box.read(GENERATED_TS)
+            + '\nexport const ERROR_CODES = ["VF_UNAUTHORIZED"] as const;\n',
+        )
+        self.assert_rejected(box, "must not invent commands")
 
 
 class ScopeTests(M005TestCase):

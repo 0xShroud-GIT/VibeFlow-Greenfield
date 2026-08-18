@@ -2,9 +2,44 @@
 """M-005 schema/codegen pipeline contract validator (stdlib only).
 
 Enforces that the generated contract catalog remains a faithful, non-stale,
-non-invented derivation of the Master Build System, that the M-005 mission state
-is coherent, and that no dependency or supply-chain protection was weakened to
+non-invented derivation of the Master Build System, that the mission state is
+coherent, and that no dependency or supply-chain protection was weakened to
 make codegen work.
+
+This gate is retained by CI after M-005, so it is progression-aware and runs in
+one of two modes selected from the mission state:
+
+  M005-ACTIVE mode (M-005 is REVIEW/IN_PROGRESS)
+      M-005's own snapshot is asserted in full: the 35/7/37 catalog totals, no
+      new dependency, no invented command/payload/error-code vocabulary, and no
+      implementation under apps/services/workers/adapters. Successor missions
+      must remain LOCKED.
+
+  DURABLE mode (M-005 is DONE — accepted)
+      Only properties that must hold forever are asserted, so a correct M-006+
+      branch passes this retained gate. Successor progression is delegated to
+      validate-master-contracts.py, and a later authoritative mission may
+      legitimately expand the catalog (more resources/states/events, and
+      eventually command/event payload or error-code contracts) without
+      rewriting M-005 history.
+
+Durable properties enforced in BOTH modes:
+
+  - M-001..M-004 remain DONE and M-005 never regresses below REVIEW
+  - DAG/register agreement, and mission-pointer coherence with the active row
+  - SOURCE_OF_TRUTH routing for resources/states/events is intact
+  - the generator exists and its --check drift gate passes
+  - the generated artifact inventory is exact
+  - generated counts equal the CURRENT authoritative inputs, and the manifest
+    source hashes match current authority and the pack
+  - generated enums exactly match the authoritative resources, states, terminal
+    states (a subset of states) and event IDs/names in canonical order
+  - types are derived from JSON Schema, never a second handwritten vocabulary
+  - HealthSchema never returns as public contract authority
+  - typebox stays on the selected 1.x line at its exact pin; @sinclair/typebox
+    stays forbidden
+  - pnpm supply-chain protections and the contracts:generate/check scripts stay
+  - the Master Build System workflow keeps its M-005 steps and path triggers
 
 Checks A..Z are labelled in error output so failures are precise.
 """
@@ -85,6 +120,13 @@ class Validator:
         self.mbs = root / "master-build-system"
         self.errors: list[str] = []
         self.yaml = load_yaml_module()
+        # Progression flags, set by check_mission_state(). Default to the
+        # active-M-005 snapshot so an unreadable mission state can never
+        # silently relax M-005's own scope rules.
+        self.m005_active = True
+        self.m005_accepted = False
+        # Live counts derived from current authority, for the summary line.
+        self.live_counts: dict[str, int] = {}
 
     # -- helpers ----------------------------------------------------------
 
@@ -162,7 +204,7 @@ class Validator:
         dag = self.parse_dag_statuses()
         register = self.parse_register_statuses()
 
-        # A. M-004 DONE
+        # A. M-004 DONE — M-005 consumed that acceptance and depends on it.
         for source, statuses in (("DAG", dag), ("register", register)):
             if statuses.get("M-004") != "DONE":
                 self.err(
@@ -171,19 +213,30 @@ class Validator:
                     f"{statuses.get('M-004')!r}",
                 )
 
-        # B. M-005 REVIEW on the final branch (IN_PROGRESS tolerated mid-work).
+        # Phase 0 must remain accepted.
+        for mid in ("M-001", "M-002", "M-003"):
+            if dag.get(mid) != "DONE" or register.get(mid) != "DONE":
+                self.err("A", f"{mid} must remain DONE")
+
+        # B. Progression-aware M-005 state.
+        #
+        #   historical M-005 : M-005 REVIEW/IN_PROGRESS, M-006+ LOCKED
+        #   accepted M-005   : M-005 DONE, later serial progression delegated
+        #                      to validate-master-contracts.py
+        #
+        # M-005 may never regress below REVIEW, and DAG/register must agree.
         m005_dag = dag.get("M-005")
         m005_register = register.get("M-005")
-        allowed = {"REVIEW", "IN_PROGRESS"}
+        active_states = {"REVIEW", "IN_PROGRESS"}
+        valid_states = active_states | {"DONE"}
+
         for source, status in (("DAG", m005_dag), ("register", m005_register)):
-            if status not in allowed:
+            if status not in valid_states:
                 self.err(
                     "B",
-                    f"{source} M-005 must be REVIEW on the final branch "
-                    f"(IN_PROGRESS allowed during implementation), got {status!r}",
+                    f"{source} M-005 must be REVIEW (its own mission, IN_PROGRESS allowed "
+                    f"during implementation) or DONE (accepted), got {status!r}",
                 )
-        if m005_dag == "DONE" or m005_register == "DONE":
-            self.err("B", "M-005 must never be self-marked DONE; acceptance is external")
         if m005_dag != m005_register:
             self.err(
                 "B",
@@ -191,18 +244,28 @@ class Validator:
                 f"({m005_register!r})",
             )
 
-        # C. M-006+ LOCKED
-        for index in range(6, 152):
-            mid = f"M-{index:03d}"
-            if dag.get(mid) != "LOCKED":
-                self.err("C", f"DAG {mid} must remain LOCKED, got {dag.get(mid)!r}")
-            if register.get(mid) != "LOCKED":
-                self.err("C", f"register {mid} must remain LOCKED, got {register.get(mid)!r}")
+        self.m005_active = m005_dag in active_states and m005_register in active_states
+        self.m005_accepted = m005_dag == "DONE" and m005_register == "DONE"
 
-        # Phase 0 must remain accepted.
-        for mid in ("M-001", "M-002", "M-003"):
-            if dag.get(mid) != "DONE" or register.get(mid) != "DONE":
-                self.err("A", f"{mid} must remain DONE")
+        # C. While M-005 is the active mission, successors stay LOCKED. Once
+        # M-005 is DONE, successor progression is owned by
+        # validate-master-contracts.py; only DAG/register agreement is checked
+        # here so a correct M-006 branch is not rejected by this retained gate.
+        if self.m005_active:
+            for index in range(6, 152):
+                mid = f"M-{index:03d}"
+                if dag.get(mid) != "LOCKED":
+                    self.err(
+                        "C",
+                        f"DAG {mid} must remain LOCKED while M-005 is {m005_dag}, "
+                        f"got {dag.get(mid)!r}",
+                    )
+                if register.get(mid) != "LOCKED":
+                    self.err(
+                        "C",
+                        f"register {mid} must remain LOCKED while M-005 is {m005_register}, "
+                        f"got {register.get(mid)!r}",
+                    )
 
         # D. DAG/register/ACTIVE/README/bootstrap coherence.
         for mid in sorted(set(dag) | set(register)):
@@ -213,37 +276,59 @@ class Validator:
                     f"register ({register.get(mid)!r})",
                 )
 
+        # The mission pointers must track whichever mission is actually active.
+        # While M-005 is active that is M-005; afterwards it is the successor
+        # the DAG names, which this validator does not attempt to re-derive.
+        active_ids = [
+            mid
+            for mid, status in dag.items()
+            if status in {"READY", "IN_PROGRESS", "REVIEW", "BLOCKED"}
+        ]
+        expected_pointer = "M-005" if self.m005_active else (
+            active_ids[0] if len(active_ids) == 1 else None
+        )
+
         active_text = self.read_text(".ai/ACTIVE_MISSION.md", "D")
-        if active_text is not None:
+        if active_text is not None and expected_pointer is not None:
             mission = re.search(r"\*\*Mission:\*\*\s*(M-\d{3})", active_text)
             status = re.search(r"\*\*Status:\*\*\s*([A-Z_]+)", active_text)
             if not mission or not status:
                 self.err("D", ".ai/ACTIVE_MISSION.md must declare Mission and Status")
             else:
-                if mission.group(1) != "M-005":
+                if mission.group(1) != expected_pointer:
                     self.err(
                         "D",
-                        f".ai/ACTIVE_MISSION.md names {mission.group(1)}, expected M-005",
+                        f".ai/ACTIVE_MISSION.md names {mission.group(1)}, expected "
+                        f"{expected_pointer}",
                     )
-                if status.group(1) != m005_dag:
+                if status.group(1) != dag.get(expected_pointer):
                     self.err(
                         "D",
                         f".ai/ACTIVE_MISSION.md status {status.group(1)} != DAG status "
-                        f"{m005_dag!r}",
+                        f"{dag.get(expected_pointer)!r}",
                     )
 
-        for rel in ("README.md", "docs/WORKSPACE_BOOTSTRAP_STATUS.md"):
-            text = self.read_text(rel, "D")
-            if text is None:
-                continue
-            if "M-005" not in text:
-                self.err("D", f"{rel} does not name the active mission M-005 (stale pointer)")
-            for match in re.finditer(
-                r"[Aa]ctive[^.\n]*?(M-\d{3})|(M-\d{3})[^.\n]{0,80}?is the active", text
-            ):
-                named = match.group(1) or match.group(2)
-                if named != "M-005":
-                    self.err("D", f"{rel} describes {named} as the active mission, expected M-005")
+        if expected_pointer is not None:
+            for rel in ("README.md", "docs/WORKSPACE_BOOTSTRAP_STATUS.md"):
+                text = self.read_text(rel, "D")
+                if text is None:
+                    continue
+                if expected_pointer not in text:
+                    self.err(
+                        "D",
+                        f"{rel} does not name the active mission {expected_pointer} "
+                        "(stale pointer)",
+                    )
+                for match in re.finditer(
+                    r"[Aa]ctive[^.\n]*?(M-\d{3})|(M-\d{3})[^.\n]{0,80}?is the active", text
+                ):
+                    named = match.group(1) or match.group(2)
+                    if named != expected_pointer:
+                        self.err(
+                            "D",
+                            f"{rel} describes {named} as the active mission, expected "
+                            f"{expected_pointer}",
+                        )
 
     # -- E/F/G/H: dependency + supply chain --------------------------------
 
@@ -298,16 +383,29 @@ class Validator:
         contracts = self.read_json("packages/contracts/package.json", "F")
         if contracts is not None:
             deps = contracts.get("dependencies") or {}
-            if deps != {"typebox": TYPEBOX_PIN}:
+            if self.m005_active:
+                if deps != {"typebox": TYPEBOX_PIN}:
+                    self.err(
+                        "F",
+                        f"packages/contracts dependencies must be exactly "
+                        f"{{'typebox': '{TYPEBOX_PIN}'}}, got {deps}",
+                    )
+            elif deps.get("typebox") != TYPEBOX_PIN:
+                # Durable: the selected TypeBox line and its exact pin survive
+                # later missions, even if they add further approved deps.
                 self.err(
                     "F",
-                    f"packages/contracts dependencies must be exactly "
-                    f"{{'typebox': '{TYPEBOX_PIN}'}}, got {deps}",
+                    f"packages/contracts must keep the typebox@{TYPEBOX_PIN} pin, "
+                    f"got {deps.get('typebox')!r}",
                 )
 
-        # G. no new dependency anywhere
+        # G. No new dependency — M-005's own present-mission scope. This is the
+        # rule that keeps M-005 honest about adding no codegen/schema package;
+        # it is not asserted once M-005 is accepted and later authoritative
+        # missions add their own approved dependencies (which remain governed
+        # by the harvest registry and the foundation validator).
         root_pkg = self.read_json("package.json", "G")
-        if root_pkg is not None:
+        if root_pkg is not None and self.m005_active:
             if root_pkg.get("dependencies"):
                 self.err("G", "root dependencies must remain empty; M-005 adds no dependency")
             dev = root_pkg.get("devDependencies") or {}
@@ -333,11 +431,13 @@ class Validator:
             ):
                 merged.update({str(k): str(v) for k, v in (pkg.get(field) or {}).items()})
             expected = APPROVED_PACKAGE_DEPS.get(name, {})
-            if merged != expected:
+            if self.m005_active and merged != expected:
                 self.err(
                     "G",
                     f"packages/{name} dependency set changed: expected {expected}, got {merged}",
                 )
+            # Durable in every state: the forbidden TypeBox 0.x package must
+            # never appear, whichever mission is active.
             if FORBIDDEN_TYPEBOX_PACKAGE in merged:
                 self.err(
                     "F",
@@ -489,19 +589,38 @@ class Validator:
             if "generated_at" in manifest or "timestamp" in manifest:
                 self.err("M", "generated manifest must not contain a timestamp")
 
-        # N/O/P. exact counts.
-        if len(resources) != EXPECTED_RESOURCE_COUNT:
-            self.err(
-                "N",
-                f"expected exactly {EXPECTED_RESOURCE_COUNT} canonical resources, got {len(resources)}",
-            )
-        if len(machines) != EXPECTED_STATE_MACHINE_COUNT:
-            self.err(
-                "O",
-                f"expected exactly {EXPECTED_STATE_MACHINE_COUNT} state machines, got {len(machines)}",
-            )
-        if len(events) != EXPECTED_EVENT_COUNT:
-            self.err("P", f"expected exactly {EXPECTED_EVENT_COUNT} events, got {len(events)}")
+        self.live_counts = {
+            "resources": len(resources),
+            "machines": len(machines),
+            "events": len(events),
+        }
+
+        # N/O/P. Counts.
+        #
+        # The durable rule is: generated counts equal the CURRENT authoritative
+        # inputs (enforced against the manifest just below, and structurally by
+        # the enum comparisons further down). A later authoritative mission may
+        # legitimately expand the catalog, so fixed historical totals are only
+        # asserted while M-005 itself is the active mission. The 35/7/37
+        # snapshot is additionally recorded in M-005 evidence and tests.
+        if self.m005_active:
+            if len(resources) != EXPECTED_RESOURCE_COUNT:
+                self.err(
+                    "N",
+                    f"expected exactly {EXPECTED_RESOURCE_COUNT} canonical resources at M-005, "
+                    f"got {len(resources)}",
+                )
+            if len(machines) != EXPECTED_STATE_MACHINE_COUNT:
+                self.err(
+                    "O",
+                    f"expected exactly {EXPECTED_STATE_MACHINE_COUNT} state machines at M-005, "
+                    f"got {len(machines)}",
+                )
+            if len(events) != EXPECTED_EVENT_COUNT:
+                self.err(
+                    "P",
+                    f"expected exactly {EXPECTED_EVENT_COUNT} events at M-005, got {len(events)}",
+                )
 
         if manifest is not None:
             counts = manifest.get("counts") or {}
@@ -644,14 +763,22 @@ class Validator:
             if "DO NOT EDIT" not in catalog:
                 self.err("U", "catalog.ts must be marked GENERATED FILE — DO NOT EDIT")
 
-            # Z. no invented domain semantics.
-            for token in FORBIDDEN_INVENTED_TOKENS:
-                if token in catalog:
-                    self.err(
-                        "Z",
-                        f"catalog.ts contains {token!r}: M-005 must not invent commands, payload "
-                        "fields, error codes or persistence schemas without authority",
-                    )
+            # Z. No invented domain semantics *while M-005 is the active
+            # mission*. This is a present-scope rule, not a permanent ban: once
+            # M-005 is accepted, a later authoritative mission that defines
+            # command/event payloads or an error-code catalog must be able to
+            # extend the generator without rewriting M-005 history. Whatever it
+            # emits still has to be derived from authority, which checks
+            # K/L/M/N..T enforce independently of this list.
+            if self.m005_active:
+                for token in FORBIDDEN_INVENTED_TOKENS:
+                    if token in catalog:
+                        self.err(
+                            "Z",
+                            f"catalog.ts contains {token!r}: M-005 must not invent commands, "
+                            "payload fields, error codes or persistence schemas without "
+                            "authority",
+                        )
 
         # V. HealthSchema is no longer public contract authority.
         if index is not None:
@@ -726,18 +853,21 @@ class Validator:
                 if quoted not in push_section:
                     self.err("Y", f"{MBS_WORKFLOW} main push triggers must include {trigger}")
 
-        # Z. no unauthorized implementation appeared in the product trees.
-        for prefix in ("apps", "services", "workers", "adapters"):
-            base = self.root / prefix
-            if not base.is_dir():
-                continue
-            stray = [
-                path.relative_to(self.root).as_posix()
-                for path in sorted(base.rglob("*"))
-                if path.is_file() and path.name != "README.md"
-            ]
-            if stray:
-                self.err("Z", f"unauthorized implementation files under {prefix}/: {stray}")
+        # Z. No unauthorized implementation in the product trees while M-005 is
+        # the active mission. Later missions (M-008 onwards) legitimately add
+        # implementation there, so this is scoped to M-005's own snapshot.
+        if self.m005_active:
+            for prefix in ("apps", "services", "workers", "adapters"):
+                base = self.root / prefix
+                if not base.is_dir():
+                    continue
+                stray = [
+                    path.relative_to(self.root).as_posix()
+                    for path in sorted(base.rglob("*"))
+                    if path.is_file() and path.name != "README.md"
+                ]
+                if stray:
+                    self.err("Z", f"unauthorized implementation files under {prefix}/: {stray}")
 
     def run(self) -> int:
         self.check_mission_state()
@@ -756,11 +886,14 @@ class Validator:
             return 1
 
         print("M-005 contract codegen validation PASSED")
+        counts = self.live_counts
+        mode = "m005-active" if self.m005_active else "durable"
         print(
-            f"  resources={EXPECTED_RESOURCE_COUNT} "
-            f"machines={EXPECTED_STATE_MACHINE_COUNT} "
-            f"events={EXPECTED_EVENT_COUNT} "
-            f"artifacts={len(GENERATED_ARTIFACTS)} typebox={TYPEBOX_PIN} mission=M-005:REVIEW"
+            f"  mode={mode} "
+            f"resources={counts.get('resources', '?')} "
+            f"machines={counts.get('machines', '?')} "
+            f"events={counts.get('events', '?')} "
+            f"artifacts={len(GENERATED_ARTIFACTS)} typebox={TYPEBOX_PIN}"
         )
         return 0
 
