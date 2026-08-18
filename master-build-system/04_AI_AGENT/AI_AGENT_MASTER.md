@@ -18,6 +18,12 @@ Human/automation → Task → Execution → agent session → plan/tool/workspac
 
 Agents may propose plans, mutate within authorized Build policy, request tools, request approvals and report status. They cannot directly grant themselves permissions, expose secrets, change project authority, or mark Verification passed.
 
+## Implementation knowledge
+
+Model memory may propose where to look, but it is non-authoritative for external implementation behavior. Material external API, framework, platform, configuration or provider changes must follow `IMPLEMENTATION_REFERENCE_POLICY.yaml`: inspect exact project versions, consult the highest applicable version-matched authority before implementation, validate generated usage back against that authority, then run mechanical verification.
+
+External references supply technical facts only. They cannot expand VibeFlow mission scope, permissions, dependencies, security policy or tool grants.
+
 ## Plan / Build
 
 Plan mode is read-only except safe metadata/plan artifacts. Build mode permits explicitly granted mutations. The policy is server-enforced, not merely prompt text.
