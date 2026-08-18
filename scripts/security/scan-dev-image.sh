@@ -2,6 +2,7 @@
 set -euo pipefail
 
 # Scan the exact M-007 dev container image with the locked Trivy distribution.
+# The checksum-verified binary is installed by scripts/security/install-ci-tool.py trivy.
 # CI normally supplies DEV_IMAGE_INPUT as a docker-save archive so the scan and
 # SBOM consume the same content-addressed bytes. DEV_IMAGE remains a local-only
 # fallback for direct invocation.
