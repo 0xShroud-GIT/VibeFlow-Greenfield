@@ -946,6 +946,8 @@ class Validator:
             self.err("devcontainer", "Dockerfile must retain corepack (it must not remove /usr/local/lib/node_modules/corepack)")
         if "24.19.0-trixie" not in text:
             self.err("devcontainer", "Dockerfile must reference the Node 24.19.0 trixie base")
+        if not re.search(r"(?m)^\s*USER\s+node\s*$", code_lines):
+            self.err("devcontainer", "Dockerfile must declare 'USER node' (non-root at container level, Trivy DS-0002)")
         self.counts["dockerfile"] = 1
 
     def _feature_ref(self, entry: dict) -> str:

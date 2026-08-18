@@ -29,3 +29,8 @@ RUN rm -rf /usr/local/lib/node_modules/npm \
             /usr/local/bin/npx \
             /usr/local/bin/yarn \
             /usr/local/bin/yarnpkg
+
+# Run as the non-root node user at the container level too (Trivy DS-0002:
+# non-root USER in the Dockerfile). The node user (uid 1000) is created by
+# the official image; devcontainer.json remoteUser/containerUser align with it.
+USER node

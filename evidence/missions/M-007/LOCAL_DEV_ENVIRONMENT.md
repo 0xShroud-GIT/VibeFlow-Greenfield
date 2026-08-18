@@ -407,6 +407,24 @@ fixes.
   apt/apk package operations, (c) new unratified tooling, or (d) weakening
   Trivy policy — each requiring owner amendment of mission authority.
 
+### Round-4 CI evidence (head `65faf04`) and the DS-0002 correction
+
+- `verify` PASS (run `32171671074`), `sanitize` PASS (run `32171671104`),
+  `foundation` PASS (run `32171671050`): the trixie-based devcontainer
+  (Dockerfile + python feature + volume + initializeCommand) builds, the
+  postCreate bootstrap and `pnpm run check` succeed non-interactively, and
+  the runtime smoke passes inside the exact built image.
+- `Security & Dependency Gates` (run `32171671047`): the repository
+  filesystem scan flagged the new `.devcontainer/Dockerfile` with
+  **DS-0002 (HIGH)** — "Specify at least 1 USER command in Dockerfile with
+  non-root user as argument" — because the image ran non-root only through
+  devcontainer.json `remoteUser`/`containerUser`. Corrected by adding
+  `USER node` to the Dockerfile (the non-root `node` user is created by the
+  official image), which satisfies DS-0002 at the container level too. This
+  is a hardening, not a threshold change. The dev-image Trivy scan step
+  therefore did not run on `65faf04`; it runs after the corrected repo scan
+  on the next head.
+
 ### Round-4 workflow handoff (exact patch)
 
 Arena cannot write `.github/workflows/**`. The exact Round-4 correction
@@ -452,16 +470,17 @@ All 72 authoritative pack hashes verify on the branch
 | M-004 | 82 | PASS |
 | M-005 retained | 92 | PASS |
 | M-006 retained (status-relative) | 41 | PASS |
-| M-007 | 87 | PASS |
-| Total | 364 | PASS |
+| M-007 | 88 | PASS |
+| Total | 365 | PASS |
 
 Round 4 (image remediation) rewrote the image-provenance mutations from the
 bookworm `image` key to the trixie `dockerFile`/Dockerfile: floating FROM,
 malformed digest, digest-lock mismatch, wrong semantic coordinate, missing
-Dockerfile, forbidden `image` key, missing npm removal, and Dockerfile
-containing `apt-get`/`apk`/curl-pipe all fail (previous rounds: 53 -> 78 ->
-81 -> 87). The counts are recorded after the local run on this branch; the
-exact-head CI run re-executes all retained suites.
+Dockerfile, forbidden `image` key, missing npm removal, Dockerfile containing
+`apt-get`/`apk`/curl-pipe, and missing `USER node` (Trivy DS-0002) all fail
+(previous rounds: 53 -> 78 -> 81 -> 87 -> 88). The counts are recorded after
+the local run on this branch; the exact-head CI run re-executes all retained
+suites.
 
 ## Actual verification recorded before this push
 

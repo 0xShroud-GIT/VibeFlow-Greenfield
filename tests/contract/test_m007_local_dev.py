@@ -853,6 +853,12 @@ class M007Tests(unittest.TestCase):
         self.assertEqual(config["initializeCommand"], NODE_MODULES_INIT)
 
 
+    def test_dockerfile_missing_user_node_fails(self) -> None:
+        box = self.box()
+        text = box.read(DOCKERFILE).replace("USER node", "")
+        box.write(DOCKERFILE, text)
+        self.assert_rejected(box, "must declare 'USER node'")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

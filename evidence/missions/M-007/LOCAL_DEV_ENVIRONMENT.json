@@ -354,6 +354,26 @@
           "trixie_security": "17.11 fixed"
         }
       },
+      "ds0002_correction": "added 'USER node' to .devcontainer/Dockerfile; validator requires it; mutation test added (M-007 suite 88).",
+      "exact_head_ci_65faf04": {
+        "foundation": {
+          "id": 32171671050,
+          "result": "PASS"
+        },
+        "sanitize": {
+          "id": 32171671104,
+          "result": "PASS"
+        },
+        "security": {
+          "id": 32171671047,
+          "reason": "repository scan flagged .devcontainer/Dockerfile DS-0002 (HIGH): missing non-root USER; fixed by adding 'USER node' (hardening, not threshold change); dev-image scan step reruns on next head",
+          "result": "FAIL"
+        },
+        "verify": {
+          "id": 32171671074,
+          "result": "PASS"
+        }
+      },
       "expected_trivy": {
         "debian_residual": [
           "libaprutil1 CVE-2026-34191 HIGH (trixie-security only fix)",
@@ -404,9 +424,8 @@
     "M-004": 82,
     "M-005": 92,
     "M-006": 41,
-    "M-007": 87,
-    "note": "Round 4 rewrote image-provenance mutations to the trixie dockerFile/Dockerfile (53 -> 78 -> 81 -> 87).",
-    "total": 364
+    "M-007": 88,
+    "total": 365
   },
   "toolchain": {
     "corepack": "required",
