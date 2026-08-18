@@ -41,6 +41,6 @@ jobs:
       - name: Build dev container and run runtime smoke inside the exact image
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
         with:
-          imageName: vibeflow-dev:smoke
+          imageName: vibeflow-dev
           runCmd: python3 scripts/dev-runtime-smoke.py
           push: never
