@@ -76,10 +76,16 @@
       "host network",
       "raw secret material in committed/client-readable configuration",
       "silent expansion without an owning later mission declaration"
+    ],
+    "mounts": [
+      {
+        "entry": "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
+        "purpose": "Canonical Dev Containers pattern: anonymous/named volume shadows the host checkout's node_modules inside the container so pnpm install --frozen-lockfile runs non-interactively against a fresh container-local modules dir (fixes ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY) without mutating the host developer's node_modules. Container-local only; no host credential/docker-socket exposure."
+      }
     ]
   },
   "durable_extension_policy": {
-    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, or service containers) only by recording an explicit extension entry here with mission ownership, rationale, and exact values. Privileged mode, docker-socket mounts, host networking, and raw secret material remain permanently banned unless a later mission amends this lock through explicit reviewed authority.",
+    "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume is retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
     "extensions": []
   }
 }

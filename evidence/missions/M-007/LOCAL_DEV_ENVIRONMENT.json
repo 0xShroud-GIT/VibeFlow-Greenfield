@@ -51,6 +51,9 @@
   "environment_descriptor": {
     "adopted": "devcontainers",
     "canonical_file": ".devcontainer/devcontainer.json",
+    "canonical_mounts": [
+      "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+    ],
     "harvest_id": "H-023",
     "policy_lock": "infrastructure/dev/dev-environment-policy.json",
     "policy_lock_is_provenance_not_protocol": true
@@ -141,7 +144,75 @@
       "requirement": "extension entries authorize changes only when owned (mission_id) by the actually active later mission; active M-007 snapshot requires zero durable extensions; permanent bans (privileged, docker socket, host network, raw secrets, silent privilege expansion) remain regardless of declarations"
     },
     "gpt_review_id": 4963221835,
-    "reviewed_head_pre_fix": "16d79c5b705207af64c38303e168cdfb6ac81287"
+    "reviewed_head_pre_fix": "16d79c5b705207af64c38303e168cdfb6ac81287",
+    "round_3": {
+      "blocker_1_bootstrap_no_tty_purge": {
+        "failed_runs": {
+          "repository_foundation": 32162692250,
+          "security_and_dependency_gates": 32162692252
+        },
+        "failure": "ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY during postCreateCommand pnpm install --frozen-lockfile: host checkout node_modules visible through the workspace bind mount with host pnpm-store symlinks; pnpm attempted to purge/recreate modules dir non-interactively.",
+        "fix": "canonical container-local volume: source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume (shadows host node_modules; host files untouched; frozen-lockfile bootstrap unchanged; no TTY required; no CI-only path).",
+        "validator": "active M-007 requires exactly the node_modules volume (removal or any extra mount fails)."
+      },
+      "blocker_2_wrappers_not_executable": {
+        "failure": "scripts/security/scan-dev-image.sh and generate-dev-image-sbom.sh tracked 100644; CI exit 126 Permission denied.",
+        "fix": "both chmod 100755; validator enforces os.access X_OK on fresh checkout.",
+        "validated": true
+      },
+      "blocker_3_durable_feature_extensions": {
+        "fix": "active: exactly python feature + zero extensions; durable: retain python, allow additional features only when registered in the policy/provenance structure, digest-pinned, options exact, and owned by the active later mission or an already-completed later mission (historical remain); unrelated/future missions authorize nothing."
+      },
+      "blocker_4_durable_runargs": {
+        "fix": "any non-empty durable runArgs require an extension owned by the active later mission (exact value + rationale); permanent bans (--privileged, host network, --cap-add/--security-opt, docker-socket/host-credential/ssh-agent) enforced independently and never declarable."
+      },
+      "blocker_5_durable_user_fields": {
+        "fix": "both remoteUser and containerUser must remain explicitly present and non-root in durable mode (missing/null/empty/root/UID-0 always fail); change from node requires exact owning-active-mission declaration; root ban never overridable."
+      },
+      "gpt_review_id": 4963633347,
+      "new_mutation_tests": {
+        "blocker_1": [
+          "active requires exactly node_modules volume",
+          "active extra mount fails",
+          "real repo carries canonical volume"
+        ],
+        "blocker_2": [
+          "wrapper not executable fails",
+          "real repo wrappers executable"
+        ],
+        "blocker_3": [
+          "active extra feature fails",
+          "durable feature no declaration fails",
+          "durable feature wrong mission fails",
+          "floating feature fails",
+          "unregistered feature fails",
+          "owned extra feature passes"
+        ],
+        "blocker_4": [
+          "undeclared safe runArgs fail",
+          "wrong-mission runArgs declaration fails",
+          "declared privileged runArgs fail",
+          "declared host-network runArgs fail",
+          "declared docker-socket runArgs fail",
+          "owned safe runArgs pass"
+        ],
+        "blocker_5": [
+          "missing remoteUser fails",
+          "missing containerUser fails",
+          "null user fails",
+          "empty user fails",
+          "root user fails",
+          "UID-0 user fails",
+          "wrong-mission user change fails",
+          "owned both-user change passes"
+        ],
+        "from": 53,
+        "to": 78
+      },
+      "reviewed_head_pre_fix": "3dbe9e84e21ffaf8eaac141395a9e17d039b4520",
+      "round_2_imagename_correction_applied_at": "3dbe9e84e21ffaf8eaac141395a9e17d039b4520",
+      "workflow_changes_required": false
+    }
   },
   "schema_version": 1,
   "security_posture": {
@@ -165,9 +236,9 @@
     "M-004": 82,
     "M-005": 92,
     "M-006": 41,
-    "M-007": 53,
-    "note": "M-007 grew from 44 to 53 in the review-fix round (user-exactness and durable-extension-ownership mutations).",
-    "total": 330
+    "M-007": 78,
+    "note": "Round 3 grew M-007 from 53 to 78 tests (blockers 1-5 coverage).",
+    "total": 355
   },
   "toolchain": {
     "corepack": "required",
@@ -182,7 +253,7 @@
   },
   "validator_design": {
     "active_snapshot": "exact accepted environment shape including BOTH remoteUser == 'node' and containerUser == 'node'; zero durable extensions allowed; provenance, toolchain, capability snapshot, mission/ledger sync, master hash integrity",
-    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions owned by the actually active later mission (mission_id + rationale + exact values); privileged/docker-socket/host-network/raw-secrets permanently banned; user changes from 'node' require an owning declaration",
+    "durable_policy": "later owning missions declare growth via durable_extension_policy.extensions owned by the actually active later mission (mission_id + rationale + exact values); historical extensions from completed later missions remain; additional features must be registered, digest-pinned and owned; durable runArgs require an owning declaration; both user fields must remain explicit and non-root; privileged/docker-socket/host-network/raw-secrets permanently banned",
     "forward_compatible": "positive durable-extension test included in the M-007 mutation suite",
     "mode_selection": "auto: active while M-007 is READY/IN_PROGRESS/REVIEW; durable once M-007 is DONE"
   }

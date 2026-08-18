@@ -7,8 +7,15 @@
 | Starting `origin/main` / verified branch start | `f8b214a687944eb44b148997e6028044baf8b6b8` |
 | Arena session branch | `arena/01a01576-vibeflow-greenfield` |
 | Reviewer workflow-handoff head (pre-fix) | `16d79c5b705207af64c38303e168cdfb6ac81287` |
+| Round-2 fix head (GPT applied imageName correction) | `3dbe9e84e21ffaf8eaac141395a9e17d039b4520` |
 | Mission state at branch head | `M-001..M-006 DONE`; `M-007 REVIEW`; `M-008..M-151 LOCKED` |
 | ADR | Not required — implementation stays inside the ratified M-004/M-006 policy and H-023 |
+
+Round 3 (review ID 4963633347) is recorded below: the devcontainer bootstrap
+no-TTY purge, the non-executable image wrappers, and the three durable-mode
+gaps (feature registry freeze, silent runArgs expansion, user-field removal
+fallback to root). No workflow edits were required this round; the round-2
+imageName correction is fully applied at `3dbe9e8`.
 
 This revision records the Arena response to GPT review request-changes
 (review ID 4963221835): the exact-head CI workflow defect (`devcontainers/ci`
@@ -83,11 +90,17 @@ plus `infrastructure/dev/dev-environment-policy.json` (the provenance/policy
 lock — explicitly not a second environment-description protocol):
 
 - non-root dev user `node` (`remoteUser`/`containerUser`);
-- `privileged: false`, no `runArgs`, no mounts, no `containerEnv`/`remoteEnv`;
+- `privileged: false`, no `runArgs`, no `containerEnv`/`remoteEnv`;
+- one canonical container-local volume mount:
+  `source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume`
+  (shadows the host checkout's `node_modules` so
+  `pnpm install --frozen-lockfile` runs non-interactively against a fresh
+  container-local modules dir — fixes `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`
+  — without mutating the host developer's `node_modules`);
+- no other mounts (no Docker-in-Docker, no docker-socket or host-credential
+  mounts, no SSH-agent/cloud-credential forwarding, no extra capabilities,
+  no securityOpt weakening);
 - no forwarded ports, no `dockerComposeFile`, no `.devcontainer/Dockerfile`;
-- no Docker-in-Docker, no docker-socket or host-credential mounts, no
-  SSH-agent/cloud-credential forwarding, no extra capabilities, no
-  securityOpt weakening;
 - no product/service ports or containers started by this mission;
 - `postCreateCommand: python3 scripts/dev-bootstrap.py`.
 
@@ -123,21 +136,24 @@ package manager or application dependency.
 - **Active M-007 snapshot** (M-007 READY/IN_PROGRESS/REVIEW): exact accepted
   initial environment shape — both `remoteUser == "node"` and
   `containerUser == "node"` are **required** (missing or wrong value fails),
-  zero durable extensions allowed, exact image/feature/toolchain provenance,
-  no ports/features/mount-based privilege, exact 405-capability status
-  snapshot (only `VF-ENV-005` advances), mission/ledger synchronization
-  (M-001..M-006 DONE, M-007 active, M-008+ LOCKED), master-pack hash
-  integrity.
+  the canonical node_modules volume is **required** (its removal or any extra
+  mount fails), zero durable extensions allowed, exactly the python feature,
+  exact image/feature/toolchain provenance, no ports/privilege/host-network,
+  exact 405-capability status snapshot (only `VF-ENV-005` advances),
+  mission/ledger synchronization (M-001..M-006 DONE, M-007 active, M-008+
+  LOCKED), master-pack hash integrity.
 - **Durable later-mission mode** (M-007 DONE): later owning missions may add
-  ports, digest-pinned registered features, benign env metadata, mounts,
-  service containers, or a different non-root dev user **only** through
-  explicit `durable_extension_policy` extension entries (mission_id +
-  rationale + exact declared values) **owned by the actually active later
-  mission** — an entry belonging to another mission authorizes nothing. The
-  accepted `node` user baseline may not be changed without such a declaration.
-  Permanently retained: immutable provenance, no raw secrets, no
-  privileged/docker-socket/host-network expansion, exact toolchain agreement,
-  frozen-lockfile installation, mission/ledger synchronization, Dev
+  ports, additional digest-pinned registered features, benign env metadata,
+  mounts, runArgs, service containers, or a different explicit non-root dev
+  user **only** through explicit `durable_extension_policy` extension entries
+  (mission_id + rationale + exact declared values) **owned by the actually
+  active later mission** — an entry belonging to another mission authorizes
+  nothing, and historical extensions from already-completed later missions
+  remain valid. Both user fields must remain explicitly present and non-root
+  (missing/null/empty/root/UID-0 always fail; declarations never override the
+  permanent root ban). Permanently retained: immutable provenance, no raw
+  secrets, no privileged/docker-socket/host-network expansion, exact toolchain
+  agreement, frozen-lockfile installation, mission/ledger synchronization, Dev
   Containers as the adopted descriptor.
 
 This intentionally avoids the earlier M-006 mistake of freezing the entire
@@ -219,6 +235,92 @@ M-006 durable gate. The intended correction was validated by applying it to a
 sandbox copy of the branch: M-006 validator `RESULT: PASS` (action_uses 8),
 master contracts `RESULT: PASS`, M-007 validator `RESULT: PASS`.
 
+## Round 3 review fixes (review ID 4963633347)
+
+Exact-head CI at `3dbe9e8` (Repository Foundation run `32162692250`, Security &
+Dependency Gates run `32162692252`) proved three runtime defects; the durable
+validator had three forward-compatibility gaps. All five blockers were fixed
+in non-workflow files; no workflow edits were required.
+
+### Blocker 1 — devcontainer bootstrap fails in CI (no TTY purge)
+
+`postCreateCommand` (`scripts/dev-bootstrap.py`) ran `pnpm install
+--frozen-lockfile` inside the container while the host checkout's
+`node_modules` (with pnpm store symlinks pointing at host paths) was visible
+through the workspace bind mount; pnpm decided the modules dir was
+incompatible, attempted to purge/recreate it, and aborted non-interactively
+with `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`.
+
+Fix (smallest standards-compliant arrangement, canonical in both local and CI
+Dev Containers usage): the dev container now declares one container-local
+volume that shadows `node_modules` —
+
+```json
+"mounts": [
+  "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+]
+```
+
+Inside the container, pnpm installs against a fresh container-local modules
+dir (no host-store symlinks, no removal decision, no TTY needed); the host
+developer's `node_modules` is never touched. Frozen-lockfile install and the
+canonical bootstrap are unchanged; the postCreate bootstrap and the runtime
+smoke then execute non-interactively.
+
+### Blocker 2 — security wrappers not executable
+
+`scripts/security/scan-dev-image.sh` and
+`scripts/security/generate-dev-image-sbom.sh` were tracked mode `100644`; CI
+failed with exit 126 / Permission denied. Both are now `100755`, and the
+retained validator fails any future mode regression (`os.access X_OK`).
+
+### Blocker 3 — durable feature extensions were impossible
+
+The durable policy check required exactly one (python) feature registration,
+freezing the M-007 feature shape. Now: active M-007 still requires exactly the
+python feature and zero extensions; durable mode retains python and allows
+additional Dev Container Features only when each is registered in the
+policy/provenance structure, digest-pinned with exact options, and owned by a
+durable extension entry whose `mission_id` is the active later mission or an
+already-completed later mission (historical extensions remain; an unrelated or
+future mission authorizes nothing).
+
+### Blocker 4 — durable runArgs could expand silently
+
+Durable mode now requires any non-empty `runArgs` to be declared by an
+extension owned by the active later mission (exact value + rationale).
+Permanent bans (`--privileged`, host networking, `--cap-add`/`--security-opt`,
+docker-socket/host-credential/ssh-agent) are enforced independently and can
+never be authorized by a declaration.
+
+### Blocker 5 — durable user-field removal could fall back to root
+
+Durable mode now requires both `remoteUser` and `containerUser` to remain
+explicitly present and non-root (missing, null, empty, `root` or `0` always
+fail); changing either away from `node` requires an exact owning-active-mission
+declaration; the permanent root ban is never overridable.
+
+### Round-3 mutation coverage added (M-007 suite 53 → 78)
+
+- Blocker 1: active requires exactly the node_modules volume (removal/extra
+  mount fails); real repo carries the canonical volume.
+- Blocker 2: non-executable wrapper fails; real repo wrappers executable.
+- Blocker 3: active extra feature fails; durable feature without declaration
+  fails; durable feature owned by wrong mission fails; floating feature fails;
+  unregistered feature fails; correctly registered + digest-pinned + correctly
+  owned extra feature passes.
+- Blocker 4: undeclared safe runArgs fail; wrong-mission declaration fails;
+  declared `--privileged` / `--network=host` / docker-socket runArgs still
+  fail; owned safe runArgs pass.
+- Blocker 5: missing/null/empty/root/UID-0 user fields fail in durable; user
+  change declared by wrong mission fails; both-user change with correct owning
+  declaration passes.
+
+A synthetic combined durable tree (M-007 DONE, M-008 REVIEW with git feature +
+safe runArgs + non-root user change, all declared and owned by M-008) passes
+the M-007 durable validator, the retained M-006 durable gate, and master
+contracts — demonstrating the forward-compatibility contract.
+
 ## Capability ledger transitions
 
 - `VF-ENV-005 Environment Definition`: `NOT_STARTED` → `IN_PROGRESS`
@@ -252,17 +354,15 @@ All 72 authoritative pack hashes verify on the branch
 | M-004 | 82 | PASS |
 | M-005 retained | 92 | PASS |
 | M-006 retained (status-relative) | 41 | PASS |
-| M-007 | 53 | PASS |
-| Total | 330 | PASS |
+| M-007 | 78 | PASS |
+| Total | 355 | PASS |
 
-M-007 grew from 44 to 53 tests in the review-fix round: five new active-mode
-user-exactness mutations (missing `remoteUser`, missing `containerUser`,
-`containerUser=root`, wrong non-root user, updated root-`remoteUser` needle)
-and durable-extension ownership coverage (active snapshot rejects any
-extensions, extension owned by a non-active mission fails, owned non-root
-user change passes, undeclared user change fails, declared Docker-socket
-mount still permanently banned). The counts are recorded after the local run
-on this branch; the exact-head CI run re-executes all retained suites.
+Round 3 grew the M-007 suite from 53 to 78 tests: Blocker-1 node_modules
+volume exactness (removal/extra-mount fail), Blocker-2 wrapper exec-bit
+regression, Blocker-3 durable feature ownership (5 FAIL + 1 PASS), Blocker-4
+durable runArgs ownership (6 FAIL + 1 PASS), and Blocker-5 durable user-field
+presence (6 FAIL + 1 PASS). The counts are recorded after the local run on
+this branch; the exact-head CI run re-executes all retained suites.
 
 ## Actual verification recorded before this push
 
@@ -289,12 +389,24 @@ No expected CI result is represented as actual CI. At this evidence revision:
   the pinned devcontainers/ci source; the intended corrected workflows pass
   the retained M-006 durable gate, master contracts and the M-007 validator
   in a sandbox.
+- Round-3 local re-run: all validators and suites above re-executed on the
+  round-3 tree (M-007 suite 78); `pnpm install --frozen-lockfile` and
+  `pnpm run check` PASS; synthetic combined durable tree passes M-007 durable,
+  M-006 durable and master contracts.
 - Exact dev-image pull, in-container runtime smoke, Trivy dev-image scan and
   dev-image CycloneDX SBOM: **not claimed until exact-head CI executes them**
-  after GPT applies the corrected `INTENDED_WORKFLOWS.patch`.
+  on the round-3 head. The round-2 `INTENDED_WORKFLOWS.patch` correction was
+  fully applied by GPT at `3dbe9e8`; round 3 requires no workflow change.
 
 ## Deviations and recorded risks
 
+- **Round-3 CI defects (now fixed)**: (1) devcontainer bootstrap aborted with
+  `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` because the host checkout's
+  `node_modules` was visible through the workspace bind mount; fixed with the
+  canonical container-local `vibeflow-node-modules` volume (container-only,
+  host files untouched). (2) both image-evidence wrappers were tracked
+  `100644` and failed with exit 126; fixed to `100755` with validator
+  enforcement.
 - **Exact-head CI defect (workflow `imageName`)**: devcontainers/ci defaults
   `imageTag` to `latest` and joins `` `${imageName}:${tag}` ``, so the
   original `imageName: vibeflow-dev:smoke` produced `vibeflow-dev:smoke:latest`
@@ -316,8 +428,8 @@ No expected CI result is represented as actual CI. At this evidence revision:
 - **Runtime evidence is CI-bound**: docker, the exact dev image, Trivy and the
   devcontainer CLI are unavailable in the Arena sandbox, so image pull,
   runtime smoke, Trivy image scan and dev-image SBOM results become actual
-  only after GPT applies the corrected `INTENDED_WORKFLOWS.patch` on the
-  exact head. No scanner/image result is claimed before that.
+  only when exact-head CI executes them on the round-3 head. No scanner/image
+  result is claimed before that.
 - **Durable security posture**: privileged mode, docker-socket mounts, host
   networking and raw secrets are permanently banned in both validator modes;
   a later mission that genuinely requires them must amend this lock and the

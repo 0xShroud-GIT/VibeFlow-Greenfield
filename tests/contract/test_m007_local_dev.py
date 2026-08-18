@@ -13,6 +13,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -39,6 +40,8 @@ POLICY = "infrastructure/dev/dev-environment-policy.json"
 
 FEATURE_REF = "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511"
 BASE_IMAGE = "docker.io/library/node:24.19.0@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584"
+GIT_FEATURE_REF = "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2"
+NODE_MODULES_VOLUME = "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
 
 
 def run(script: Path, root: Path, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -544,6 +547,254 @@ class M007Tests(unittest.TestCase):
         box = self.future_later_mission()
         box.set_capability_status("VF-ENV-001", "IN_PROGRESS")
         self.assert_accepted(box)
+
+    # ---------- Blocker 1: canonical node_modules volume (CI bootstrap) ----------
+    def test_active_requires_exact_node_modules_volume(self) -> None:
+        box = self.box()
+        box.set_devcontainer(mounts=[])
+        self.assert_rejected(box, "active M-007 requires exactly the node_modules volume")
+
+    def test_active_extra_mount_fails(self) -> None:
+        box = self.box()
+        box.set_devcontainer(mounts=[NODE_MODULES_VOLUME, "source=/tmp/x,target=/tmp/x,type=bind"])
+        self.assert_rejected(box, "active M-007 requires exactly the node_modules volume")
+
+    def test_real_repo_has_canonical_node_modules_volume(self) -> None:
+        config = json.loads(Path(REPO_ROOT, DEVCONTAINER).read_text(encoding="utf-8"))
+        self.assertEqual(config["mounts"], [NODE_MODULES_VOLUME])
+
+    # ---------- Blocker 2: wrappers executable ----------
+    def test_wrapper_not_executable_fails(self) -> None:
+        box = self.box()
+        for rel in ("scripts/security/scan-dev-image.sh", "scripts/security/generate-dev-image-sbom.sh"):
+            box.path(rel).chmod(0o644)
+        self.assert_rejected(box, "must be executable")
+
+    def test_wrappers_executable_on_real_repo(self) -> None:
+        for rel in ("scripts/security/scan-dev-image.sh", "scripts/security/generate-dev-image-sbom.sh"):
+            self.assertTrue(os.access(Path(REPO_ROOT, rel), os.X_OK), rel)
+
+    # ---------- Blocker 3: durable feature extensions ----------
+    def test_active_snapshot_extra_feature_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active feature set must equal the lock registration")
+
+    def test_durable_extra_feature_no_declaration_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        policy = json.loads(box.read(POLICY))
+        policy["features"].append(
+            {
+                "id": "git",
+                "version": "1.3.8",
+                "digest_reference": GIT_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "project_license": "MIT",
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "requires an owning extension from the active or a completed later mission")
+
+    def test_durable_extra_feature_wrong_mission_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        policy = json.loads(box.read(POLICY))
+        policy["features"].append(
+            {
+                "id": "git",
+                "version": "1.3.8",
+                "digest_reference": GIT_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "project_license": "MIT",
+            }
+        )
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-009",
+                "rationale": "Wrong owner: must not authorize the active mission's new feature.",
+                "declared": {"features": [GIT_FEATURE_REF]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "requires an owning extension from the active or a completed later mission")
+
+    def test_durable_floating_feature_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"]["ghcr.io/devcontainers/features/git:1"] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "must be digest-pinned")
+
+    def test_durable_feature_not_registered_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "is not registered in the dev-environment policy lock")
+
+    def test_durable_extra_feature_owned_passes(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        policy = json.loads(box.read(POLICY))
+        policy["features"].append(
+            {
+                "id": "git",
+                "version": "1.3.8",
+                "digest_reference": GIT_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "project_license": "MIT",
+            }
+        )
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Owning later mission adds the git feature for repository tooling.",
+                "declared": {"features": [GIT_FEATURE_REF]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_accepted(box)
+
+    # ---------- Blocker 4: durable runArgs require owning declaration ----------
+    def test_durable_undeclared_runargs_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["--env", "FOO=bar"])
+        self.assert_rejected(box, "durable runArgs require a declaration owned by the active later mission")
+
+    def test_durable_runargs_wrong_mission_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["--env", "FOO=bar"])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-009",
+                "rationale": "Wrong owner: must not authorize the runArgs.",
+                "declared": {"run_args": ["--env", "FOO=bar"]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "durable runArgs require a declaration owned by the active later mission")
+
+    def test_durable_safe_runargs_owned_passes(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["--env", "FOO=bar"])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Owning later mission sets a benign environment runArg.",
+                "declared": {"run_args": ["--env", "FOO=bar"]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_accepted(box)
+
+    def test_durable_declared_privileged_runargs_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["--privileged"])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {"mission_id": "M-008", "rationale": "Malicious: must still fail.", "declared": {"run_args": ["--privileged"]}}
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "runArgs --privileged is permanently forbidden")
+
+    def test_durable_declared_host_network_runargs_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["--network=host"])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {"mission_id": "M-008", "rationale": "Malicious: must still fail.", "declared": {"run_args": ["--network=host"]}}
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "host/network override")
+
+    def test_durable_declared_docker_socket_runargs_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(runArgs=["-v", "/var/run/docker.sock:/var/run/docker.sock"])
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Malicious: must still fail.",
+                "declared": {"run_args": ["-v", "/var/run/docker.sock:/var/run/docker.sock"]},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "must not mount docker socket")
+
+    # ---------- Blocker 5: durable user fields explicit + non-root ----------
+    def test_durable_missing_remote_user_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["remoteUser"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "durable remoteUser must be explicitly present and non-root")
+
+    def test_durable_missing_container_user_fails(self) -> None:
+        box = self.future_later_mission()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["containerUser"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "durable containerUser must be explicitly present and non-root")
+
+    def test_durable_null_user_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser=None)
+        self.assert_rejected(box, "durable remoteUser must be explicitly present and non-root")
+
+    def test_durable_empty_user_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="")
+        self.assert_rejected(box, "durable remoteUser must be explicitly present and non-root")
+
+    def test_durable_root_user_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="root")
+        self.assert_rejected(box, "durable remoteUser must be explicitly present and non-root")
+
+    def test_durable_uid_zero_user_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="0")
+        self.assert_rejected(box, "durable remoteUser must be explicitly present and non-root")
+
+    def test_durable_user_change_wrong_mission_fails(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="node-dev")
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-009",
+                "rationale": "Wrong owner: must not authorize the user change.",
+                "declared": {"users": {"remoteUser": "node-dev", "containerUser": "node"}},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "change from 'node' requires a declaration owned by the active later mission")
+
+    def test_durable_both_users_owned_change_passes(self) -> None:
+        box = self.future_later_mission()
+        box.set_devcontainer(remoteUser="node-dev", containerUser="node-dev")
+        policy = json.loads(box.read(POLICY))
+        policy["durable_extension_policy"]["extensions"].append(
+            {
+                "mission_id": "M-008",
+                "rationale": "Owning later mission changes both user fields to an explicit non-root user.",
+                "declared": {"users": {"remoteUser": "node-dev", "containerUser": "node-dev"}},
+            }
+        )
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_accepted(box)
+
 
 
 if __name__ == "__main__":

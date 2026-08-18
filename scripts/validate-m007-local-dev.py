@@ -35,6 +35,7 @@ import argparse
 import ast
 import csv
 import json
+import os
 import re
 import subprocess
 import sys
@@ -528,6 +529,14 @@ HOST_CREDENTIAL_REF = re.compile(
 
 DOCKER_SOCKET_REF = re.compile(r"docker\.sock")
 
+# The canonical M-007 node_modules volume: shadows the host checkout's
+# node_modules inside the container so `pnpm install --frozen-lockfile` runs
+# non-interactively against a fresh container-local modules dir (fixes
+# ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY) without mutating host files.
+NODE_MODULES_VOLUME = (
+    "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+)
+
 DEVCONTAINER_REL = ".devcontainer/devcontainer.json"
 POLICY_REL = "infrastructure/dev/dev-environment-policy.json"
 INTENDED_WORKFLOWS_REL = "evidence/missions/M-007/INTENDED_WORKFLOWS.patch"
@@ -566,6 +575,7 @@ class Validator:
         self.mode = mode
         self.m007_status = ""
         self.active_later_mission: str | None = None
+        self.completed_later_missions: set[str] = set()
 
     # ---------- helpers ----------
     def err(self, area: str, message: str) -> None:
@@ -618,6 +628,12 @@ class Validator:
                 self.err("mission", f"accepted M-007 requires one active later mission, got {active_later}")
             elif len(active_later) == 1:
                 self.active_later_mission = active_later[0]
+                self.completed_later_missions = {
+                    mid for mid, value in dag.items()
+                    if int(mid.split("-")[1]) >= 8
+                    and mid != self.active_later_mission
+                    and value == "DONE"
+                }
 
         expected_active = M007 if self.mode == "active" else (
             active_later[0] if self.mode == "durable" and len(active_later) == 1 else None
@@ -671,17 +687,26 @@ class Validator:
                         f"active M-007 requires {field} == 'node', got {config.get(field)!r}",
                     )
         else:
-            # Durable: root is permanently forbidden; any change away from the
-            # accepted `node` user (including removal) must be declared by the
-            # actually active later mission.
+            # Durable: BOTH user fields must remain explicitly present and
+            # non-root; removal/absence/empty would let execution fall back to
+            # the base image's default root user and is permanently banned.
+            # Changing either away from `node` requires a declaration owned by
+            # the actually active later mission (exact values + rationale).
             declared_users = {
                 "remoteUser": config.get("remoteUser"),
                 "containerUser": config.get("containerUser"),
             }
             for field in ("remoteUser", "containerUser"):
                 user = config.get(field)
-                if user is not None and str(user).strip() in {"root", "0", ""}:
-                    self.err("devcontainer", f"{field} must be a non-root user, got {user!r}")
+                if (
+                    user is None
+                    or (isinstance(user, str) and not user.strip())
+                    or str(user).strip() in {"root", "0"}
+                ):
+                    self.err(
+                        "devcontainer",
+                        f"durable {field} must be explicitly present and non-root, got {user!r}",
+                    )
                 elif user != "node" and not self._declared("users", declared_users):
                     self.err(
                         "devcontainer",
@@ -706,8 +731,14 @@ class Validator:
                     self.err("devcontainer", "runArgs capability/securityOpt weakening is permanently forbidden")
                 if DOCKER_SOCKET_REF.search(joined) or HOST_CREDENTIAL_REF.search(joined) or "ssh-agent" in joined:
                     self.err("devcontainer", "runArgs must not mount docker socket, host credentials, or ssh-agent")
-                if joined and self.mode == "active":
-                    self.err("devcontainer", "active M-007 forbids any runArgs")
+                if self.mode == "active":
+                    if joined:
+                        self.err("devcontainer", "active M-007 forbids any runArgs")
+                elif run_args and not self._declared("run_args", run_args):
+                    self.err(
+                        "devcontainer",
+                        "durable runArgs require a declaration owned by the active later mission",
+                    )
         mounts = config.get("mounts")
         if mounts is not None:
             if not isinstance(mounts, list):
@@ -720,10 +751,22 @@ class Validator:
                     self.err("devcontainer", "host credential mounts are permanently forbidden")
                 if "ssh-agent" in joined or "SSH_AUTH_SOCK" in joined:
                     self.err("devcontainer", "ssh-agent forwarding is permanently forbidden")
-                if mounts and self.mode == "active":
-                    self.err("devcontainer", "active M-007 forbids any mounts")
-                elif mounts and self.mode == "durable" and not self._declared("mounts", mounts):
-                    self.err("devcontainer", "durable mounts require a declaration owned by the active later mission")
+                if self.mode == "active":
+                    # The active M-007 snapshot allows exactly the canonical
+                    # node_modules volume; anything else (or its removal)
+                    # fails so the CI bootstrap regression cannot return.
+                    if mounts != [NODE_MODULES_VOLUME]:
+                        self.err(
+                            "devcontainer",
+                            f"active M-007 requires exactly the node_modules volume, got {mounts}",
+                        )
+                else:
+                    extras = [m for m in mounts if m != NODE_MODULES_VOLUME]
+                    if extras and not self._declared("mounts", mounts):
+                        self.err(
+                            "devcontainer",
+                            "durable mounts require a declaration owned by the active later mission",
+                        )
 
         # --- environment fields: no raw secrets; active forbids entirely ---
         for field in ("containerEnv", "remoteEnv"):
@@ -789,10 +832,24 @@ class Validator:
                     "devcontainer",
                     f"active feature set must equal the lock registration {sorted(locked_feature_refs)}, got {sorted(feature_refs)}",
                 )
-        elif self.mode == "durable":
-            extra = set(feature_refs) - locked_feature_refs
-            if extra and not self._declared("features", sorted(extra)):
-                self.err("devcontainer", f"durable features {sorted(extra)} require declarations owned by the active later mission")
+        else:
+            # Durable: the M-007 python feature is retained; additional
+            # features must be registered in the policy/provenance structure
+            # AND owned by the active later mission or an already-completed
+            # later mission (historical extensions remain). An unrelated or
+            # future mission authorizes nothing.
+            python_ref = PYTHON_FEATURE["digest_reference"]
+            if python_ref not in feature_refs:
+                self.err("devcontainer", "durable mode must retain the M-007 python feature")
+            for ref in feature_refs:
+                if ref == python_ref:
+                    continue
+                if not self._feature_owned(ref):
+                    self.err(
+                        "devcontainer",
+                        f"durable feature {ref!r} requires an owning extension from the "
+                        f"active or a completed later mission",
+                    )
 
         # --- committed env examples: no raw secrets ---
         for path in sorted(self.root.rglob(".env*")):
@@ -834,6 +891,29 @@ class Validator:
                     return True
         return False
 
+    def _feature_owned(self, ref: str) -> bool:
+        """Durable: True if a durable extension entry (owned by the active
+        later mission or by an already-completed later mission, with rationale)
+        declares this digest-pinned feature ref."""
+        if self.mode != "durable" or not self.active_later_mission:
+            return False
+        owners = {self.active_later_mission} | self.completed_later_missions
+        policy = self.read_json(POLICY_REL) or {}
+        for entry in policy.get("durable_extension_policy", {}).get("extensions") or []:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("mission_id") or "") not in owners:
+                continue
+            if not str(entry.get("rationale") or "").strip():
+                continue
+            declared = entry.get("declared", {})
+            if not isinstance(declared, dict):
+                continue
+            declared_refs = declared.get("features")
+            if isinstance(declared_refs, list) and ref in [str(item) for item in declared_refs]:
+                return True
+        return False
+
     # ---------- provenance / policy lock ----------
     def check_policy_lock(self) -> None:
         policy = self.read_json(POLICY_REL)
@@ -859,21 +939,55 @@ class Validator:
             self.err("policy", "policy base image license must be recorded")
 
         features = policy.get("features") or []
-        if not isinstance(features, list) or len(features) != 1:
-            self.err("policy", "policy lock must register exactly the python feature")
+        if not isinstance(features, list) or not features:
+            self.err("policy", "policy lock must register the M-007 python feature")
         else:
-            entry = features[0]
-            if not isinstance(entry, dict):
-                self.err("policy", "feature registration must be an object")
-            else:
-                if entry.get("id") != PYTHON_FEATURE["id"] or entry.get("version") != PYTHON_FEATURE["version"]:
-                    self.err("policy", "python feature registration disagrees with M-007 snapshot")
-                if entry.get("digest_reference") != PYTHON_FEATURE["digest_reference"]:
-                    self.err("policy", "python feature digest disagrees with M-007 snapshot")
-                if not str(entry.get("upstream_source") or "").startswith("https://"):
-                    self.err("policy", "python feature source must be recorded")
-                if not str(entry.get("project_license") or "").strip():
-                    self.err("policy", "python feature license must be recorded")
+            python_entries = [
+                entry for entry in features
+                if isinstance(entry, dict)
+                and entry.get("digest_reference") == PYTHON_FEATURE["digest_reference"]
+            ]
+            if not python_entries:
+                self.err("policy", "policy lock must retain the M-007 python feature")
+            for entry in features:
+                if not isinstance(entry, dict):
+                    self.err("policy", "feature registration must be an object")
+                    continue
+                if entry.get("digest_reference") == PYTHON_FEATURE["digest_reference"]:
+                    if entry.get("id") != PYTHON_FEATURE["id"] or entry.get("version") != PYTHON_FEATURE["version"]:
+                        self.err("policy", "python feature registration disagrees with M-007 snapshot")
+                    if entry.get("digest_reference") != PYTHON_FEATURE["digest_reference"]:
+                        self.err("policy", "python feature digest disagrees with M-007 snapshot")
+                    if not str(entry.get("upstream_source") or "").startswith("https://"):
+                        self.err("policy", "python feature source must be recorded")
+                    if not str(entry.get("project_license") or "").strip():
+                        self.err("policy", "python feature license must be recorded")
+                else:
+                    ref = str(entry.get("digest_reference") or "")
+                    if not re.fullmatch(r"[^@]+@sha256:[0-9a-f]{64}", ref):
+                        self.err("policy", f"additional feature {ref!r} must be digest-pinned")
+                    if not str(entry.get("upstream_source") or "").startswith("https://"):
+                        self.err("policy", f"additional feature {ref!r} source must be recorded")
+                    if not str(entry.get("project_license") or "").strip():
+                        self.err("policy", f"additional feature {ref!r} license must be recorded")
+            if self.mode == "active" and len(features) != 1:
+                self.err(
+                    "policy",
+                    f"active M-007 policy registry must register exactly the python feature, got {len(features)}",
+                )
+            if self.mode == "durable":
+                for entry in features:
+                    if not isinstance(entry, dict):
+                        continue
+                    ref = str(entry.get("digest_reference") or "")
+                    if ref == PYTHON_FEATURE["digest_reference"]:
+                        continue
+                    if not self._feature_owned(ref):
+                        self.err(
+                            "policy",
+                            f"policy feature {ref!r} requires an owning extension from the "
+                            f"active or a completed later mission",
+                        )
 
         toolchain = policy.get("toolchain") or {}
         for name, expected in TOOLCHAIN.items():
@@ -906,6 +1020,12 @@ class Validator:
         for key in ("extra_capabilities", "security_opt", "forwarded_ports", "product_services"):
             if posture.get(key) not in (None, []):
                 self.err("policy", f"policy security_posture {key} must be empty in the M-007 baseline")
+        posture_mounts = posture.get("mounts")
+        if not isinstance(posture_mounts, list) or not any(
+            isinstance(item, dict) and item.get("entry") == NODE_MODULES_VOLUME
+            for item in posture_mounts
+        ):
+            self.err("policy", "policy security_posture must document the canonical node_modules volume")
 
         extensions = (policy.get("durable_extension_policy") or {}).get("extensions") or []
         if not isinstance(extensions, list):
@@ -1049,6 +1169,17 @@ class Validator:
 
     # ---------- CI wrappers ----------
     def check_ci_wrappers(self) -> None:
+        wrapper_scripts = (
+            "scripts/security/scan-dev-image.sh",
+            "scripts/security/generate-dev-image-sbom.sh",
+        )
+        for rel in wrapper_scripts:
+            path = self.root / rel
+            if not path.is_file():
+                self.err("ci", f"missing {rel}")
+                continue
+            if not os.access(path, os.X_OK):
+                self.err("ci", f"{rel} must be executable (fresh checkout invokes it directly)")
         scan = self.read_text("scripts/security/scan-dev-image.sh") or ""
         for snippet in ("--scanners vuln,misconfig", "--severity HIGH,CRITICAL", "--ignore-unfixed", "--exit-code 1"):
             if snippet not in scan:
@@ -1059,7 +1190,7 @@ class Validator:
                 self.err("ci", f"generate-dev-image-sbom.sh missing required policy argument {snippet!r}")
         if "install-ci-tool.py" not in (scan + sbom):
             self.err("ci", "dev-image wrappers must use the locked Trivy toolchain path")
-        self.counts["ci_wrappers"] = 2
+        self.counts["ci_wrappers"] = len(wrapper_scripts)
 
     # ---------- evidence and CI readiness ----------
     def check_evidence(self) -> None:
@@ -1105,12 +1236,15 @@ class Validator:
                 ".github/workflows/repository-foundation.yml": (
                     "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
                     "scripts/dev-runtime-smoke.py",
+                    "imageName: vibeflow-dev",
                 ),
                 ".github/workflows/security-and-dependency-gates.yml": (
                     "docker pull docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
                     "scripts/security/scan-dev-image.sh",
                     "scripts/security/generate-dev-image-sbom.sh",
                     "vibeflow-dev-image-cyclonedx",
+                    "imageName: vibeflow-dev",
+                    "vibeflow-dev:latest",
                 ),
             }
             for rel, snippets in workflow_evidence.items():

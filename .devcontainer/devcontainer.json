@@ -9,6 +9,9 @@
   },
   "remoteUser": "node",
   "containerUser": "node",
+  "mounts": [
+    "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
   "postCreateCommand": "python3 scripts/dev-bootstrap.py",
   "privileged": false
 }
