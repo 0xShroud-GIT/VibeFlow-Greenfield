@@ -39,13 +39,14 @@ DEVCONTAINER = ".devcontainer/devcontainer.json"
 POLICY = "infrastructure/dev/dev-environment-policy.json"
 
 FEATURE_REF = "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511"
-BASE_IMAGE = "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1"
+BASE_IMAGE = "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d"
 DOCKERFILE = ".devcontainer/Dockerfile"
 GIT_FEATURE_REF = "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2"
+NODE_FEATURE_REF = "ghcr.io/devcontainers/features/node@sha256:586c9a6f7dd40bd3ba2cd41e7f2f88dcc31fbe5d1442afcbf07ffbc66b686857"
 NODE_MODULES_VOLUME = "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
 NODE_MODULES_INIT = (
     "docker run --rm -u 0 -v vibeflow-node-modules:/data "
-    "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1 "
+    "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d "
     "chown $(id -u):$(id -g) /data"
 )
 
@@ -194,60 +195,90 @@ class M007Tests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("mode: active", result.stdout)
         self.assertIn("capabilities: 405", result.stdout)
-        self.assertIn("devcontainer_features: 1", result.stdout)
+        self.assertIn("devcontainer_features: 2", result.stdout)
 
-    # ---------- image provenance (dockerFile + Dockerfile) ----------
-    def test_floating_dockerfile_from_fails(self) -> None:
+    # ---------- image provenance (official digest-pinned slim image, no Dockerfile) ----------
+    def test_floating_image_reference_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie\n")
-        self.assert_rejected(box, "Dockerfile FROM must be a digest-pinned reference")
+        box.set_devcontainer(image="docker.io/library/node:24.19.0-trixie-slim")
+        self.assert_rejected(box, "image must be a digest-pinned reference")
 
     def test_malformed_digest_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:zzz\n")
-        self.assert_rejected(box, "Dockerfile FROM must be a digest-pinned reference")
+        box.set_devcontainer(image="docker.io/library/node:24.19.0-trixie-slim@sha256:zzz")
+        self.assert_rejected(box, "image must be a digest-pinned reference")
 
-    def test_dockerfile_digest_lock_mismatch_fails(self) -> None:
+    def test_image_digest_lock_mismatch_fails(self) -> None:
         box = self.box()
         other = "sha256:" + "0" * 64
-        box.write(DOCKERFILE, f"FROM docker.io/library/node:24.19.0-trixie@{other}\n")
-        self.assert_rejected(box, "Dockerfile FROM digest")
+        box.set_devcontainer(image=f"docker.io/library/node:24.19.0-trixie-slim@{other}")
+        self.assert_rejected(box, "image digest")
 
-    def test_dockerfile_coordinate_differs_from_locked_provenance_fails(self) -> None:
+    def test_image_coordinate_differs_from_locked_provenance_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.1@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\n")
-        self.assert_rejected(box, "Dockerfile FROM semantic coordinate")
+        box.set_devcontainer(image="docker.io/library/node:24.19.0-trixie@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d")
+        self.assert_rejected(box, "image semantic coordinate")
 
-    def test_missing_dockerfile_fails(self) -> None:
+    def test_active_forbids_dockerfile(self) -> None:
         box = self.box()
-        (box.path(DOCKERFILE)).unlink()
-        self.assert_rejected(box, "active M-007 requires .devcontainer/Dockerfile")
+        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d\n")
+        self.assert_rejected(box, "active M-007 forbids a .devcontainer/Dockerfile")
 
-    def test_image_key_forbidden_in_active(self) -> None:
+    def test_dockerfile_key_forbidden_in_active(self) -> None:
         box = self.box()
-        box.set_devcontainer(image=BASE_IMAGE)
-        self.assert_rejected(box, "active M-007 uses dockerFile, not an image key")
+        box.set_devcontainer(dockerFile="Dockerfile")
+        self.assert_rejected(box, "active M-007 uses the image key, not dockerFile/compose")
 
-    def test_dockerfile_missing_npm_removal_fails(self) -> None:
+    # ---------- git feature registration / exactness (Round 5) ----------
+    def test_floating_git_feature_fails(self) -> None:
         box = self.box()
-        text = box.read(DOCKERFILE).replace("rm -rf /usr/local/lib/node_modules/npm", "rm -rf /usr/local/lib/node_modules/not-npm")
-        box.write(DOCKERFILE, text)
-        self.assert_rejected(box, "must deterministically remove unused bundled material")
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"]["ghcr.io/devcontainers/features/git:1"] = {"version": "os-provided", "ppa": False}
+        del config["features"][GIT_FEATURE_REF]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "must be digest-pinned")
 
-    def test_dockerfile_apt_get_fails(self) -> None:
+    def test_wrong_git_feature_digest_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN apt-get update && apt-get install -y git\n")
-        self.assert_rejected(box, "must not use 'apt-get'")
+        wrong = "ghcr.io/devcontainers/features/git@sha256:" + "a" * 64
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][wrong] = {"version": "os-provided", "ppa": False}
+        del config["features"][GIT_FEATURE_REF]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "is not registered in the dev-environment policy lock")
 
-    def test_dockerfile_apk_fails(self) -> None:
+    def test_unregistered_git_feature_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN apk add --no-cache git\n")
-        self.assert_rejected(box, "must not use 'apk '")
+        policy = json.loads(box.read(POLICY))
+        policy["features"] = [f for f in policy["features"] if f.get("digest_reference") != GIT_FEATURE_REF]
+        box.write(POLICY, json.dumps(policy, indent=2) + "\n")
+        self.assert_rejected(box, "policy lock must register both python and git features")
 
-    def test_dockerfile_curl_pipe_fails(self) -> None:
+    def test_changed_git_feature_options_fails(self) -> None:
         box = self.box()
-        box.write(DOCKERFILE, "FROM docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1\nRUN curl -fsSL https://x | sh\n")
-        self.assert_rejected(box, "must not use 'curl -fsSL'")
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][GIT_FEATURE_REF] = {"version": "os-provided", "ppa": True}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "options must exactly equal the locked registration")
+
+    def test_removed_required_git_feature_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["features"][GIT_FEATURE_REF]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active feature set must be exactly python+git")
+
+    def test_unauthorized_additional_feature_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        config["features"][NODE_FEATURE_REF] = {}
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active feature set must be exactly python+git")
+
+    def test_real_repo_has_python_and_git_features(self) -> None:
+        config = json.loads(Path(REPO_ROOT, DEVCONTAINER).read_text(encoding="utf-8"))
+        self.assertIn(GIT_FEATURE_REF, config["features"])
+        self.assertIn(FEATURE_REF, config["features"])
 
     def test_policy_lock_digest_drift_fails(self) -> None:
         box = self.box()
@@ -386,13 +417,6 @@ class M007Tests(unittest.TestCase):
         box.set_devcontainer(dockerComposeFile="docker-compose.yml")
         box.write(".devcontainer/docker-compose.yml", "services:\n  postgres:\n    image: postgres:16\n")
         self.assert_rejected(box, "forbids dockerComposeFile")
-
-    def test_devcontainer_missing_dockerfile_key_fails(self) -> None:
-        box = self.box()
-        config = json.loads(box.read(DEVCONTAINER))
-        del config["dockerFile"]
-        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
-        self.assert_rejected(box, "active M-007 requires dockerFile 'Dockerfile'")
 
     def test_host_credential_mount_fails(self) -> None:
         box = self.box()
@@ -617,22 +641,22 @@ class M007Tests(unittest.TestCase):
     def test_active_snapshot_extra_feature_fails(self) -> None:
         box = self.box()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"][GIT_FEATURE_REF] = {}
+        config["features"][NODE_FEATURE_REF] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
-        self.assert_rejected(box, "active feature set must equal the lock registration")
+        self.assert_rejected(box, "active feature set must be exactly python+git")
 
     def test_durable_extra_feature_no_declaration_fails(self) -> None:
         box = self.future_later_mission()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"][GIT_FEATURE_REF] = {}
+        config["features"][NODE_FEATURE_REF] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
         policy = json.loads(box.read(POLICY))
         policy["features"].append(
             {
-                "id": "git",
-                "version": "1.3.8",
-                "digest_reference": GIT_FEATURE_REF,
-                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "id": "node",
+                "version": "2.1.0",
+                "digest_reference": NODE_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/node",
                 "project_license": "MIT",
             }
         )
@@ -642,15 +666,15 @@ class M007Tests(unittest.TestCase):
     def test_durable_extra_feature_wrong_mission_fails(self) -> None:
         box = self.future_later_mission()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"][GIT_FEATURE_REF] = {}
+        config["features"][NODE_FEATURE_REF] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
         policy = json.loads(box.read(POLICY))
         policy["features"].append(
             {
-                "id": "git",
-                "version": "1.3.8",
-                "digest_reference": GIT_FEATURE_REF,
-                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "id": "node",
+                "version": "2.1.0",
+                "digest_reference": NODE_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/node",
                 "project_license": "MIT",
             }
         )
@@ -658,7 +682,7 @@ class M007Tests(unittest.TestCase):
             {
                 "mission_id": "M-009",
                 "rationale": "Wrong owner: must not authorize the active mission's new feature.",
-                "declared": {"features": [GIT_FEATURE_REF]},
+                "declared": {"features": [NODE_FEATURE_REF]},
             }
         )
         box.write(POLICY, json.dumps(policy, indent=2) + "\n")
@@ -667,37 +691,37 @@ class M007Tests(unittest.TestCase):
     def test_durable_floating_feature_fails(self) -> None:
         box = self.future_later_mission()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"]["ghcr.io/devcontainers/features/git:1"] = {}
+        config["features"]["ghcr.io/devcontainers/features/node:2"] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
         self.assert_rejected(box, "must be digest-pinned")
 
     def test_durable_feature_not_registered_fails(self) -> None:
         box = self.future_later_mission()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"][GIT_FEATURE_REF] = {}
+        config["features"][NODE_FEATURE_REF] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
         self.assert_rejected(box, "is not registered in the dev-environment policy lock")
 
     def test_durable_extra_feature_owned_passes(self) -> None:
         box = self.future_later_mission()
         config = json.loads(box.read(DEVCONTAINER))
-        config["features"][GIT_FEATURE_REF] = {}
+        config["features"][NODE_FEATURE_REF] = {}
         box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
         policy = json.loads(box.read(POLICY))
         policy["features"].append(
             {
-                "id": "git",
-                "version": "1.3.8",
-                "digest_reference": GIT_FEATURE_REF,
-                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+                "id": "node",
+                "version": "2.1.0",
+                "digest_reference": NODE_FEATURE_REF,
+                "upstream_source": "https://github.com/devcontainers/features/tree/main/src/node",
                 "project_license": "MIT",
             }
         )
         policy["durable_extension_policy"]["extensions"].append(
             {
                 "mission_id": "M-008",
-                "rationale": "Owning later mission adds the git feature for repository tooling.",
-                "declared": {"features": [GIT_FEATURE_REF]},
+                "rationale": "Owning later mission adds the node feature for repository tooling.",
+                "declared": {"features": [NODE_FEATURE_REF]},
             }
         )
         box.write(POLICY, json.dumps(policy, indent=2) + "\n")
@@ -852,12 +876,6 @@ class M007Tests(unittest.TestCase):
         config = json.loads(Path(REPO_ROOT, DEVCONTAINER).read_text(encoding="utf-8"))
         self.assertEqual(config["initializeCommand"], NODE_MODULES_INIT)
 
-
-    def test_dockerfile_missing_user_node_fails(self) -> None:
-        box = self.box()
-        text = box.read(DOCKERFILE).replace("USER node", "")
-        box.write(DOCKERFILE, text)
-        self.assert_rejected(box, "must declare 'USER node'")
 
 
 if __name__ == "__main__":

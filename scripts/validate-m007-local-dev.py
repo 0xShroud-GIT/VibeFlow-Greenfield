@@ -46,18 +46,22 @@ M007 = "M-007"
 
 # --- Immutable M-007 provenance (authority: infrastructure/dev/dev-environment-policy.json) ---
 BASE_IMAGE = {
-    "semantic_reference": "docker.io/library/node:24.19.0-trixie",
-    "digest": "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+    "semantic_reference": "docker.io/library/node:24.19.0-trixie-slim",
+    "digest": "sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
     "architectures": {
-        "amd64": "sha256:05c60dce78787e477fd7c0d61d9efcd5b7ae3f21a8b18787c7ef3daf9c9a2ad3",
-        "arm64": "sha256:3f734716ad93ed2aa8a6eec03f2404de09b8505f3f9ce06c15933ffaf49ec65c",
-        "ppc64le": "sha256:6c207361d6106ba9afd94be2dbc25ab2fac15da6bf2dce761e05bdd3ce7a34e5",
-        "s390x": "sha256:cbdd8a21c55d1411e06bc0b9af82af98ed3040f0b1e80f2f51a50a43d261b607",
+        "amd64": "sha256:f2925910482dc53394bc0034c5f4abffcd01de400794c050ca343fe0d733b486",
+        "arm64": "sha256:8525258f39fa3365fcf9a9d01e85458c7280ad00bd30c5e67655311262257e9e",
+        "ppc64le": "sha256:441ec0d60b515c37dfc74c89357b1e8744639aeeb9038f44a5d2396fda4169b2",
+        "s390x": "sha256:0e799be321515b3930d0288944b1960ecf476a2d35888508d191f79ae1bf4c0d",
     },
     "upstream_source": "https://github.com/nodejs/docker-node",
     "node_version": "24.19.0",
-    "os": "Debian trixie (13)",
-    "remediation": "Deterministic .devcontainer/Dockerfile removes unused bundled npm/yarn material (filesystem-only; no apt/apk).",
+    "os": "Debian trixie-slim (13), snapshot 2026-08-01",
+    "dockerfile": False,
+    "dockerfile_authority_reason": (
+        "Round-5 review correction: frozen M-007 Dockerfile trigger not met for security-only "
+        "removal; slim image + registered python/git Features used instead."
+    ),
 }
 
 PYTHON_FEATURE = {
@@ -69,6 +73,19 @@ PYTHON_FEATURE = {
         "fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511"
     ),
     "upstream_source": "https://github.com/devcontainers/features/tree/main/src/python",
+    "options": {"version": "os-provided", "installTools": False},
+}
+
+GIT_FEATURE = {
+    "id": "git",
+    "version": "1.3.8",
+    "semantic_tag": "ghcr.io/devcontainers/features/git:1",
+    "digest_reference": (
+        "ghcr.io/devcontainers/features/git@sha256:"
+        "fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2"
+    ),
+    "upstream_source": "https://github.com/devcontainers/features/tree/main/src/git",
+    "options": {"version": "os-provided", "ppa": False},
 }
 
 TOOLCHAIN = {
@@ -546,39 +563,12 @@ NODE_MODULES_VOLUME = (
 # container; the host checkout's node_modules is never touched.
 NODE_MODULES_INIT = (
     "docker run --rm -u 0 -v vibeflow-node-modules:/data "
-    "docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1 "
+    "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d "
     "chown $(id -u):$(id -g) /data"
 )
 
 DEVCONTAINER_REL = ".devcontainer/devcontainer.json"
 DOCKERFILE_REL = ".devcontainer/Dockerfile"
-
-# Deterministic remediation contract for .devcontainer/Dockerfile: it must
-# derive FROM the digest-pinned official trixie base and filesystem-only
-# remove the unused bundled npm/yarn material. No apt/apk, no downloads.
-DOCKERFILE_REQUIRED_REMOVALS = (
-    "/usr/local/lib/node_modules/npm",
-    "/opt/yarn-v1.22.22",
-    "/usr/local/bin/npm",
-    "/usr/local/bin/npx",
-    "/usr/local/bin/yarn",
-    "/usr/local/bin/yarnpkg",
-)
-DOCKERFILE_FORBIDDEN = (
-    "apt-get",
-    "apt ",
-    "apk ",
-    "apk add",
-    "curl -fsSL",
-    "curl -fsS",
-    "curl -o",
-    "wget ",
-    "| sh",
-    "| bash",
-    "RUN npm",
-    "RUN yarn",
-    "ADD http",
-)
 POLICY_REL = "infrastructure/dev/dev-environment-policy.json"
 INTENDED_WORKFLOWS_REL = "evidence/missions/M-007/INTENDED_WORKFLOWS.patch"
 EVIDENCE_MD_REL = "evidence/missions/M-007/LOCAL_DEV_ENVIRONMENT.md"
@@ -704,13 +694,21 @@ class Validator:
 
         policy = self.read_json(POLICY_REL) or {}
 
-        # --- image: M-007 uses the digest-pinned Dockerfile (remediation) ---
-        if config.get("image") is not None:
-            self.err("devcontainer", "active M-007 uses dockerFile, not an image key")
-        docker_file = str(config.get("dockerFile") or "")
-        if docker_file != "Dockerfile":
-            self.err("devcontainer", f"active M-007 requires dockerFile 'Dockerfile', got {docker_file!r}")
-        self._check_dockerfile()
+        # --- image: official digest-pinned slim base (no Dockerfile) ---
+        if config.get("dockerFile") is not None or config.get("dockerComposeFile") is not None:
+            self.err("devcontainer", "active M-007 uses the image key, not dockerFile/compose")
+        if (self.root / DOCKERFILE_REL).is_file() and self.mode == "active":
+            self.err("devcontainer", "active M-007 forbids a .devcontainer/Dockerfile (packet trigger not met)")
+        image = str(config.get("image") or "")
+        image_match = re.fullmatch(r"(?P<ref>[^@]+)@(?P<digest>sha256:[0-9a-f]{64})", image)
+        if not image_match:
+            self.err("devcontainer", "image must be a digest-pinned reference name:tag@sha256:<64hex>")
+        else:
+            ref, digest = image_match.group("ref"), image_match.group("digest")
+            if ref != BASE_IMAGE["semantic_reference"]:
+                self.err("devcontainer", f"image semantic coordinate must be {BASE_IMAGE['semantic_reference']}, got {ref!r}")
+            if digest != BASE_IMAGE["digest"]:
+                self.err("devcontainer", f"image digest {digest} != accepted base {BASE_IMAGE['digest']}")
 
         # --- users: non-root, exact in the active M-007 snapshot ---
         if self.mode == "active":
@@ -859,9 +857,8 @@ class Validator:
             self.err("devcontainer", "features must be an object")
             features = {}
         feature_refs = [str(key) for key in features]
-        locked_feature_refs = {
-            self._feature_ref(entry) for entry in (policy.get("features") or []) if isinstance(entry, dict)
-        }
+        registered = {self._feature_ref(entry): entry for entry in (policy.get("features") or []) if isinstance(entry, dict)}
+        locked_feature_refs = set(registered)
         for ref in feature_refs:
             match = re.fullmatch(r"([^@]+)@sha256:[0-9a-f]{64}", ref)
             if not match:
@@ -869,23 +866,35 @@ class Validator:
                 continue
             if ref not in locked_feature_refs:
                 self.err("devcontainer", f"feature {ref!r} is not registered in the dev-environment policy lock")
+                continue
+            # Options must exactly match the registered/locked options.
+            locked_options = (registered[ref] or {}).get("options")
+            if isinstance(locked_options, dict):
+                actual_options = features.get(ref)
+                if not isinstance(actual_options, dict) or actual_options != locked_options:
+                    self.err(
+                        "devcontainer",
+                        f"feature {ref!r} options must exactly equal the locked registration {locked_options}, got {actual_options!r}",
+                    )
         if self.mode == "active":
-            if set(feature_refs) != locked_feature_refs:
+            required = {PYTHON_FEATURE["digest_reference"], GIT_FEATURE["digest_reference"]}
+            if set(feature_refs) != required:
                 self.err(
                     "devcontainer",
-                    f"active feature set must equal the lock registration {sorted(locked_feature_refs)}, got {sorted(feature_refs)}",
+                    f"active feature set must be exactly python+git {sorted(required)}, got {sorted(feature_refs)}",
                 )
         else:
-            # Durable: the M-007 python feature is retained; additional
-            # features must be registered in the policy/provenance structure
-            # AND owned by the active later mission or an already-completed
-            # later mission (historical extensions remain). An unrelated or
-            # future mission authorizes nothing.
-            python_ref = PYTHON_FEATURE["digest_reference"]
-            if python_ref not in feature_refs:
-                self.err("devcontainer", "durable mode must retain the M-007 python feature")
+            # Durable: the M-007 python and git features are retained;
+            # additional features must be registered in the policy/provenance
+            # structure AND owned by the active later mission or an
+            # already-completed later mission (historical extensions remain).
+            # An unrelated or future mission authorizes nothing.
+            baseline = {PYTHON_FEATURE["digest_reference"], GIT_FEATURE["digest_reference"]}
+            missing = baseline - set(feature_refs)
+            if missing:
+                self.err("devcontainer", f"durable mode must retain the M-007 features {sorted(missing)}")
             for ref in feature_refs:
-                if ref == python_ref:
+                if ref in baseline:
                     continue
                 if not self._feature_owned(ref):
                     self.err(
@@ -904,51 +913,6 @@ class Validator:
                         break
 
         self.counts["devcontainer_features"] = len(feature_refs)
-
-    def _check_dockerfile(self) -> None:
-        """Validate .devcontainer/Dockerfile provenance and deterministic
-        remediation: FROM the digest-pinned official trixie base, filesystem-
-        only removal of unused bundled npm/yarn, no apt/apk/downloads."""
-        path = self.root / DOCKERFILE_REL
-        if not path.is_file():
-            self.err("devcontainer", f"active M-007 requires {DOCKERFILE_REL}")
-            return
-        text = path.read_text(encoding="utf-8")
-
-        from_match = re.search(r"(?m)^\s*FROM\s+(.+?)\s*$", text)
-        if not from_match:
-            self.err("devcontainer", "Dockerfile must declare a FROM image")
-            return
-        from_ref = from_match.group(1).strip()
-        ref_match = re.fullmatch(
-            r"(?P<ref>[^@\s]+)@(?P<digest>sha256:[0-9a-f]{64})", from_ref
-        )
-        if not ref_match:
-            self.err("devcontainer", "Dockerfile FROM must be a digest-pinned reference name@sha256:<64hex>")
-        else:
-            ref, digest = ref_match.group("ref"), ref_match.group("digest")
-            if ref != "docker.io/library/node:24.19.0-trixie":
-                self.err("devcontainer", f"Dockerfile FROM semantic coordinate must be the trixie base, got {ref!r}")
-            if digest != BASE_IMAGE["digest"]:
-                self.err("devcontainer", f"Dockerfile FROM digest {digest} != accepted base {BASE_IMAGE['digest']}")
-
-        # Scan only non-comment lines so documentation never false-positives.
-        code_lines = "\n".join(
-            line for line in text.splitlines() if not line.lstrip().startswith("#")
-        )
-        for forbidden in DOCKERFILE_FORBIDDEN:
-            if forbidden in code_lines:
-                self.err("devcontainer", f"Dockerfile must not use {forbidden!r} (no mutable apt/apk, no downloads)")
-        missing = [item for item in DOCKERFILE_REQUIRED_REMOVALS if item not in code_lines]
-        if missing:
-            self.err("devcontainer", f"Dockerfile must deterministically remove unused bundled material: {missing}")
-        if "rm -rf" in code_lines and "/usr/local/lib/node_modules/corepack" in code_lines:
-            self.err("devcontainer", "Dockerfile must retain corepack (it must not remove /usr/local/lib/node_modules/corepack)")
-        if "24.19.0-trixie" not in text:
-            self.err("devcontainer", "Dockerfile must reference the Node 24.19.0 trixie base")
-        if not re.search(r"(?m)^\s*USER\s+node\s*$", code_lines):
-            self.err("devcontainer", "Dockerfile must declare 'USER node' (non-root at container level, Trivy DS-0002)")
-        self.counts["dockerfile"] = 1
 
     def _feature_ref(self, entry: dict) -> str:
         return str(entry.get("digest_reference") or "")
@@ -1028,47 +992,46 @@ class Validator:
 
         features = policy.get("features") or []
         if not isinstance(features, list) or not features:
-            self.err("policy", "policy lock must register the M-007 python feature")
+            self.err("policy", "policy lock must register the M-007 python and git features")
         else:
-            python_entries = [
-                entry for entry in features
-                if isinstance(entry, dict)
-                and entry.get("digest_reference") == PYTHON_FEATURE["digest_reference"]
-            ]
-            if not python_entries:
-                self.err("policy", "policy lock must retain the M-007 python feature")
+            registered_refs = {
+                str(entry.get("digest_reference") or "") for entry in features if isinstance(entry, dict)
+            }
+            baseline_refs = {PYTHON_FEATURE["digest_reference"], GIT_FEATURE["digest_reference"]}
+            if not baseline_refs.issubset(registered_refs):
+                self.err("policy", f"policy lock must register both python and git features (missing {sorted(baseline_refs - registered_refs)})")
             for entry in features:
                 if not isinstance(entry, dict):
                     self.err("policy", "feature registration must be an object")
                     continue
-                if entry.get("digest_reference") == PYTHON_FEATURE["digest_reference"]:
+                ref = str(entry.get("digest_reference") or "")
+                if not re.fullmatch(r"[^@]+@sha256:[0-9a-f]{64}", ref):
+                    self.err("policy", f"feature {ref!r} must be digest-pinned")
+                if not str(entry.get("upstream_source") or "").startswith("https://"):
+                    self.err("policy", f"feature {ref!r} source must be recorded")
+                if not str(entry.get("project_license") or "").strip():
+                    self.err("policy", f"feature {ref!r} license must be recorded")
+                if ref == PYTHON_FEATURE["digest_reference"]:
                     if entry.get("id") != PYTHON_FEATURE["id"] or entry.get("version") != PYTHON_FEATURE["version"]:
                         self.err("policy", "python feature registration disagrees with M-007 snapshot")
-                    if entry.get("digest_reference") != PYTHON_FEATURE["digest_reference"]:
-                        self.err("policy", "python feature digest disagrees with M-007 snapshot")
-                    if not str(entry.get("upstream_source") or "").startswith("https://"):
-                        self.err("policy", "python feature source must be recorded")
-                    if not str(entry.get("project_license") or "").strip():
-                        self.err("policy", "python feature license must be recorded")
-                else:
-                    ref = str(entry.get("digest_reference") or "")
-                    if not re.fullmatch(r"[^@]+@sha256:[0-9a-f]{64}", ref):
-                        self.err("policy", f"additional feature {ref!r} must be digest-pinned")
-                    if not str(entry.get("upstream_source") or "").startswith("https://"):
-                        self.err("policy", f"additional feature {ref!r} source must be recorded")
-                    if not str(entry.get("project_license") or "").strip():
-                        self.err("policy", f"additional feature {ref!r} license must be recorded")
-            if self.mode == "active" and len(features) != 1:
+                    if entry.get("options") != PYTHON_FEATURE["options"]:
+                        self.err("policy", f"python feature options must be {PYTHON_FEATURE['options']}")
+                elif ref == GIT_FEATURE["digest_reference"]:
+                    if entry.get("id") != GIT_FEATURE["id"] or entry.get("version") != GIT_FEATURE["version"]:
+                        self.err("policy", "git feature registration disagrees with M-007 snapshot")
+                    if entry.get("options") != GIT_FEATURE["options"]:
+                        self.err("policy", f"git feature options must be {GIT_FEATURE['options']}")
+            if self.mode == "active" and registered_refs != baseline_refs:
                 self.err(
                     "policy",
-                    f"active M-007 policy registry must register exactly the python feature, got {len(features)}",
+                    f"active M-007 policy registry must register exactly python+git {sorted(baseline_refs)}, got {sorted(registered_refs)}",
                 )
             if self.mode == "durable":
                 for entry in features:
                     if not isinstance(entry, dict):
                         continue
                     ref = str(entry.get("digest_reference") or "")
-                    if ref == PYTHON_FEATURE["digest_reference"]:
+                    if ref in baseline_refs:
                         continue
                     if not self._feature_owned(ref):
                         self.err(
@@ -1305,7 +1268,7 @@ class Validator:
                 required_patch_content = (
                     "devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca",
                     "sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584",
-                    "sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1",
+                    BASE_IMAGE["digest"],
                 )
                 for snippet in required_patch_content:
                     if snippet not in patch:

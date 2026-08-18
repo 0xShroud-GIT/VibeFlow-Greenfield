@@ -1,15 +1,19 @@
 {
   "name": "VibeFlow Repository Development Environment (M-007)",
-  "dockerFile": "Dockerfile",
+  "image": "docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d",
   "features": {
     "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f7886baf652e25cba5225a6c4c2287c536de2e5607511": {
       "version": "os-provided",
       "installTools": false
+    },
+    "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2": {
+      "version": "os-provided",
+      "ppa": false
     }
   },
   "remoteUser": "node",
   "containerUser": "node",
-  "initializeCommand": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node:24.19.0-trixie@sha256:66bb8d36ae1ddd72199ed235a089904874ca4079ee517936ca3adb80506a75c1 chown $(id -u):$(id -g) /data",
+  "initializeCommand": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d chown $(id -u):$(id -g) /data",
   "mounts": [
     "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
   ],
