@@ -70,9 +70,11 @@ jobs:
       - name: Build exact dev container image
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
         with:
-          imageName: vibeflow-dev:smoke
+          imageName: vibeflow-dev
           push: never
       - name: Scan exact dev image with Trivy
+        env:
+          DEV_IMAGE: vibeflow-dev:latest
         shell: bash
         run: scripts/security/scan-dev-image.sh
 
@@ -118,9 +120,11 @@ jobs:
       - name: Build exact dev container image
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
         with:
-          imageName: vibeflow-dev:smoke
+          imageName: vibeflow-dev
           push: never
       - name: Generate ephemeral CycloneDX dev-image SBOM
+        env:
+          DEV_IMAGE: vibeflow-dev:latest
         shell: bash
         run: scripts/security/generate-dev-image-sbom.sh "$RUNNER_TEMP/vibeflow-dev-image.cdx.json"
       - name: Upload ephemeral dev-image CycloneDX evidence
