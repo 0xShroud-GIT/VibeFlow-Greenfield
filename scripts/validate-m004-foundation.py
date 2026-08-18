@@ -3,6 +3,25 @@
 
 This validator checks the ratified M-004 toolchain, workspace shape, dependency
 policy, mission progression, and the existence/content of foundation CI.
+
+The toolchain/dependency/workspace rules are *permanent* foundation invariants:
+they stay fully enforced for every later mission.
+
+Mission-state logic is deliberately **progression-aware** rather than a frozen
+M-004 snapshot, so a legitimate successor branch is not rejected:
+
+    historical M-004 state : M-001..M-003 DONE, M-004 REVIEW, M-005+ LOCKED
+    accepted M-004 state   : M-001..M-004 DONE, a later mission may be active
+
+While M-004 is still REVIEW (not yet accepted) every later mission must remain
+LOCKED. Once M-004 is DONE this validator stops asserting the status of later
+missions: serial mission progression is owned by validate-master-contracts.py.
+What this validator keeps enforcing is that M-004 never regresses below the
+acceptance state that later work depends on.
+
+The root `check` script is validated by parsing its `&&` stages instead of
+matching one frozen literal command, so additional legitimate gates may be added
+without allowing a required foundation stage to disappear.
 """
 
 from __future__ import annotations
@@ -51,6 +70,15 @@ STRICT_FLAGS = {
     "forceConsistentCasingInFileNames": True,
 }
 FORBIDDEN_LIFECYCLE = {"preinstall", "install", "postinstall", "prepare"}
+# Permanent required stages of the root `check` pipeline, in order. Additional
+# legitimate gates may be interleaved, but none of these may disappear and the
+# foundation validator must remain the first gate.
+REQUIRED_CHECK_STAGES = (
+    "python3 scripts/validate-m004-foundation.py",
+    "pnpm run typecheck",
+    "pnpm run test",
+    "pnpm run build",
+)
 IGNORED_WALK_PARTS = {
     ".git", "node_modules", "dist", ".turbo", ".cache", ".vite",
     "__pycache__", ".pytest_cache", ".next", ".expo",
@@ -249,11 +277,40 @@ def main() -> int:
         "typecheck": "turbo run typecheck",
         "test": "turbo run test",
         "foundation:validate": "python3 scripts/validate-m004-foundation.py",
-        "check": "python3 scripts/validate-m004-foundation.py && pnpm run typecheck && pnpm run test && pnpm run build",
     }
     for name, command in required_root_scripts.items():
         if root_scripts.get(name) != command:
             errors.append(f"B: root script {name!r} must be {command!r}")
+
+    # Root `check` is a pipeline, not a frozen literal. Parse its && stages and
+    # require every permanent foundation stage to remain present, in order.
+    check_script = root_scripts.get("check")
+    if not isinstance(check_script, str) or not check_script.strip():
+        errors.append("B: root script 'check' is required")
+    else:
+        stages = [stage.strip() for stage in check_script.split("&&")]
+        stages = [stage for stage in stages if stage]
+        position = -1
+        for required in REQUIRED_CHECK_STAGES:
+            try:
+                index = stages.index(required, position + 1)
+            except ValueError:
+                if required in stages:
+                    errors.append(
+                        f"B: root 'check' stage {required!r} is out of order; required order is "
+                        f"{' && '.join(REQUIRED_CHECK_STAGES)}"
+                    )
+                else:
+                    errors.append(
+                        f"B: root 'check' must include stage {required!r} (got {check_script!r})"
+                    )
+                position = len(stages)
+                continue
+            position = index
+        if stages and stages[0] != REQUIRED_CHECK_STAGES[0]:
+            errors.append(
+                f"B: root 'check' must begin with {REQUIRED_CHECK_STAGES[0]!r}, got {stages[0]!r}"
+            )
     for name in FORBIDDEN_LIFECYCLE:
         if name in root_scripts:
             errors.append(f"P: forbidden root lifecycle script {name!r}")
@@ -407,18 +464,59 @@ def main() -> int:
 
     dag = parse_dag_statuses(root / "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml", errors)
     register = parse_register_statuses(root / "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv", errors)
-    expected_progression = {"M-001": "DONE", "M-002": "DONE", "M-003": "DONE", "M-004": "REVIEW"}
-    for mid, expected in expected_progression.items():
-        if dag.get(mid) != expected:
-            errors.append(f"U: DAG {mid} must be {expected}, got {dag.get(mid)!r}")
-        if register.get(mid) != expected:
-            errors.append(f"U: register {mid} must be {expected}, got {register.get(mid)!r}")
-    for index in range(5, 152):
-        mid = f"M-{index:03d}"
-        if dag.get(mid) != "LOCKED":
-            errors.append(f"V: DAG {mid} must remain LOCKED, got {dag.get(mid)!r}")
-        if register.get(mid) != "LOCKED":
-            errors.append(f"V: register {mid} must remain LOCKED, got {register.get(mid)!r}")
+
+    # --- Progression-aware mission state -----------------------------------
+    #
+    # Phase 0 must stay accepted; M-004 must be REVIEW (its own mission) or DONE
+    # (accepted). Nothing later than M-004 may be unlocked until M-004 is DONE.
+    # Once M-004 is DONE, later-mission progression belongs to
+    # validate-master-contracts.py and is not re-asserted here.
+
+    for mid in ("M-001", "M-002", "M-003"):
+        if dag.get(mid) != "DONE":
+            errors.append(f"U: DAG {mid} must be DONE, got {dag.get(mid)!r}")
+        if register.get(mid) != "DONE":
+            errors.append(f"U: register {mid} must be DONE, got {register.get(mid)!r}")
+
+    m004_dag = dag.get("M-004")
+    m004_register = register.get("M-004")
+    accepted_states = {"REVIEW", "DONE"}
+    if m004_dag not in accepted_states:
+        errors.append(
+            f"U: DAG M-004 must be REVIEW (its own mission) or DONE (accepted), got {m004_dag!r}"
+        )
+    if m004_register not in accepted_states:
+        errors.append(
+            f"U: register M-004 must be REVIEW (its own mission) or DONE (accepted), "
+            f"got {m004_register!r}"
+        )
+    if m004_dag != m004_register:
+        errors.append(
+            f"U: M-004 status disagrees between DAG ({m004_dag!r}) and register ({m004_register!r})"
+        )
+
+    later_ids = [f"M-{index:03d}" for index in range(5, 152)]
+    if m004_dag == "REVIEW" or m004_register == "REVIEW":
+        # M-004 is not yet accepted: no successor mission may be unlocked.
+        for mid in later_ids:
+            if dag.get(mid) != "LOCKED":
+                errors.append(
+                    f"V: DAG {mid} must remain LOCKED while M-004 is REVIEW, got {dag.get(mid)!r}"
+                )
+            if register.get(mid) != "LOCKED":
+                errors.append(
+                    f"V: register {mid} must remain LOCKED while M-004 is REVIEW, "
+                    f"got {register.get(mid)!r}"
+                )
+    else:
+        # M-004 is accepted. Successor progression is owned by
+        # validate-master-contracts.py; only DAG/register agreement is enforced.
+        for mid in later_ids:
+            if dag.get(mid) != register.get(mid):
+                errors.append(
+                    f"V: {mid} status disagrees between DAG ({dag.get(mid)!r}) and "
+                    f"register ({register.get(mid)!r})"
+                )
 
     workflow = root / ".github/workflows/repository-foundation.yml"
     if not workflow.is_file():
@@ -461,7 +559,7 @@ def main() -> int:
         return 1
 
     print("M-004 foundation validation PASSED")
-    print("  packages=7 lockfiles=1 mission=M-004:REVIEW")
+    print(f"  packages=7 lockfiles=1 mission=M-004:{m004_dag}")
     return 0
 
 

@@ -12,7 +12,9 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "foundation:validate": "python3 scripts/validate-m004-foundation.py",
-    "check": "python3 scripts/validate-m004-foundation.py && pnpm run typecheck && pnpm run test && pnpm run build"
+    "contracts:generate": "python3 scripts/generate-contracts.py",
+    "contracts:check": "python3 scripts/generate-contracts.py --check",
+    "check": "python3 scripts/validate-m004-foundation.py && pnpm run contracts:check && pnpm run typecheck && pnpm run test && pnpm run build"
   },
   "devDependencies": {
     "turbo": "2.10.6",

@@ -73,6 +73,11 @@ class Sandbox:
             raise AssertionError(f"mission not found in DAG: {mission_id}")
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    def set_mission_status(self, mission_id: str, status: str) -> None:
+        """Set a mission's status in both the DAG and the register."""
+        self.set_dag_status(mission_id, status)
+        self.set_register_status(mission_id, status)
+
     def set_register_status(self, mission_id: str, status: str) -> None:
         path = self.path("master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv")
         with path.open(newline="", encoding="utf-8") as handle:
@@ -252,16 +257,200 @@ class M004FoundationTests(unittest.TestCase):
         box.write("packages/core/package.json", json.dumps(pkg, indent=2) + "\n")
         self.assert_rejected(box, "cross-platform foundation scripts only")
 
-    def test_m005_unlocked(self) -> None:
-        box = Sandbox(self.tmp)
-        box.set_dag_status("M-005", "REVIEW")
-        box.set_register_status("M-005", "REVIEW")
-        self.assert_rejected(box, "V: DAG M-005 must remain LOCKED")
-
     def test_missing_foundation_workflow(self) -> None:
         box = Sandbox(self.tmp)
         box.delete(".github/workflows/repository-foundation.yml")
         self.assert_rejected(box, "W: missing .github/workflows/repository-foundation.yml")
+
+
+class M004MissionProgressionTests(unittest.TestCase):
+    """Progression-aware mission-state coverage (M-005 audit remediation 3A).
+
+    The M-004 validator must accept both the historical M-004 snapshot and a
+    legitimate successor branch, while still refusing states that would let
+    later work proceed on an unaccepted foundation.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+    def assert_rejected(self, box: Sandbox, needle: str) -> None:
+        result = run_validator(box.root)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(needle, result.stdout + result.stderr)
+
+    def assert_accepted(self, box: Sandbox) -> None:
+        result = run_validator(box.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_historical_m004_review_state_passes(self) -> None:
+        """M-001..M-003 DONE, M-004 REVIEW, M-005+ LOCKED remains valid."""
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "REVIEW")
+        box.set_mission_status("M-005", "LOCKED")
+        self.assert_accepted(box)
+
+    def test_m004_done_with_m005_review_passes(self) -> None:
+        """The accepted-M-004 / active-M-005 state must not be rejected."""
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "DONE")
+        box.set_mission_status("M-005", "REVIEW")
+        self.assert_accepted(box)
+
+    def test_m004_done_with_m005_in_progress_passes(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "DONE")
+        box.set_mission_status("M-005", "IN_PROGRESS")
+        self.assert_accepted(box)
+
+    def test_m004_review_with_m005_active_fails(self) -> None:
+        """Successors may not be unlocked while M-004 is still unaccepted."""
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "REVIEW")
+        box.set_mission_status("M-005", "REVIEW")
+        self.assert_rejected(box, "V: DAG M-005 must remain LOCKED while M-004 is REVIEW")
+
+    def test_m004_review_with_m005_in_progress_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "REVIEW")
+        box.set_mission_status("M-005", "IN_PROGRESS")
+        self.assert_rejected(box, "must remain LOCKED while M-004 is REVIEW")
+
+    def test_m004_regression_to_locked_fails(self) -> None:
+        """M-004 may never regress below its acceptance state."""
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "LOCKED")
+        box.set_mission_status("M-005", "LOCKED")
+        self.assert_rejected(box, "U: DAG M-004 must be REVIEW")
+
+    def test_m004_regression_to_in_progress_after_acceptance_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "IN_PROGRESS")
+        self.assert_rejected(box, "U: DAG M-004 must be REVIEW")
+
+    def test_m004_status_desync_between_dag_and_register_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_dag_status("M-004", "DONE")
+        box.set_register_status("M-004", "REVIEW")
+        self.assert_rejected(box, "U: M-004 status disagrees between DAG")
+
+    def test_later_mission_desync_after_acceptance_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-004", "DONE")
+        box.set_dag_status("M-006", "READY")
+        self.assert_rejected(box, "V: M-006 status disagrees between DAG")
+
+    def test_phase_zero_regression_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        box.set_mission_status("M-002", "REVIEW")
+        self.assert_rejected(box, "U: DAG M-002 must be DONE")
+
+
+class M004RootCheckPipelineTests(unittest.TestCase):
+    """Root `check` is a parsed pipeline, not one frozen literal (3A).
+
+    Extra legitimate gates may be added, but no required foundation stage may
+    be removed or reordered.
+    """
+
+    REQUIRED = (
+        "python3 scripts/validate-m004-foundation.py",
+        "pnpm run typecheck",
+        "pnpm run test",
+        "pnpm run build",
+    )
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+    def set_check(self, box: Sandbox, command: str) -> None:
+        pkg = json.loads(box.path("package.json").read_text(encoding="utf-8"))
+        pkg["scripts"]["check"] = command
+        box.write("package.json", json.dumps(pkg, indent=2) + "\n")
+
+    def assert_rejected(self, box: Sandbox, needle: str) -> None:
+        result = run_validator(box.root)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(needle, result.stdout + result.stderr)
+
+    def test_real_check_pipeline_passes(self) -> None:
+        result = run_validator(REPO_ROOT)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_additional_gate_is_allowed(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run contracts:check"
+            " && python3 scripts/validate-m005-contract-codegen.py"
+            " && pnpm run typecheck && pnpm run test && pnpm run build",
+        )
+        result = run_validator(box.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_removing_typecheck_stage_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run contracts:check && pnpm run test && pnpm run build",
+        )
+        self.assert_rejected(box, "must include stage 'pnpm run typecheck'")
+
+    def test_removing_test_stage_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run contracts:check && pnpm run typecheck && pnpm run build",
+        )
+        self.assert_rejected(box, "must include stage 'pnpm run test'")
+
+    def test_removing_build_stage_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run contracts:check && pnpm run typecheck && pnpm run test",
+        )
+        self.assert_rejected(box, "must include stage 'pnpm run build'")
+
+    def test_removing_foundation_validator_stage_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "pnpm run contracts:check && pnpm run typecheck && pnpm run test && pnpm run build",
+        )
+        self.assert_rejected(box, "must include stage 'python3 scripts/validate-m004-foundation.py'")
+
+    def test_out_of_order_stages_fail(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "python3 scripts/validate-m004-foundation.py"
+            " && pnpm run build && pnpm run typecheck && pnpm run test",
+        )
+        self.assert_rejected(box, "out of order")
+
+    def test_foundation_validator_must_run_first(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(
+            box,
+            "pnpm run contracts:check"
+            " && python3 scripts/validate-m004-foundation.py"
+            " && pnpm run typecheck && pnpm run test && pnpm run build",
+        )
+        self.assert_rejected(box, "must begin with")
+
+    def test_empty_check_fails(self) -> None:
+        box = Sandbox(self.tmp)
+        self.set_check(box, "")
+        self.assert_rejected(box, "root script 'check' is required")
 
 
 if __name__ == "__main__":

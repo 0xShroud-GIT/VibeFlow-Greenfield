@@ -322,17 +322,18 @@ entries:
   replacement_strategy: Exporters/instrumentation are swappable behind the observability interface.
 - id: H-025
   capability: schema_validation
-  name: TypeBox or JSON Schema-native validator
-  version: pin current stable during bootstrap
+  name: TypeBox
+  version: 1.x (repo `typebox`, ESM); foundation exact pin 1.3.6
   decision: ADOPT
   integration: DEPEND
   license: MIT
   source: https://github.com/sinclairzx81/typebox
   rule: Contracts are JSON Schema first; generated TypeScript types are derived. TypeBox 1.x (repo `typebox`,
-    ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS — choose one at M-004.
+    ESM) is the VibeFlow selected line, chosen by M-004 and pinned exactly at 1.3.6; `@sinclair/typebox` 0.x
+    remains upstream LTS for CJS but is not the VibeFlow selected line.
   use: JSON Schema construction and runtime validation for contracts.
   ownership: TypeBox owns schema building/validation mechanics; VibeFlow owns the contracts (JSON Schema first, generated types derived).
-  upgrade_policy: Choose 1.x (ESM) or 0.x LTS at M-004, then stay on that stable line.
+  upgrade_policy: Stay on vetted TypeBox 1.x from the M-004 exact pin 1.3.6; moving off the 1.x line requires an architecture change.
   replacement_strategy: Contracts are plain JSON Schema; any JSON-Schema-native validator can replace it.
 - id: H-026
   capability: web_e2e

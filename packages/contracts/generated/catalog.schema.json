@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vibeflow:contracts:catalog:v1",
+  "title": "VibeFlow canonical contract catalog",
+  "description": "Generated JSON Schema bundle derived from the VibeFlow Master Build System. DO NOT EDIT: regenerate with scripts/generate-contracts.py.",
+  "$defs": {
+    "CanonicalResourceName": {
+      "type": "string",
+      "enum": [
+        "Account",
+        "Organization",
+        "Project",
+        "Artifact",
+        "ArtifactRelation",
+        "AgentBinding",
+        "ModelBinding",
+        "WorkspaceBinding",
+        "RepositoryBinding",
+        "DeploymentBinding",
+        "DataBinding",
+        "ObjectStorageBinding",
+        "Connection",
+        "ConnectionGrant",
+        "SecretRef",
+        "Policy",
+        "Approval",
+        "Task",
+        "Execution",
+        "ExecutionAttempt",
+        "Event",
+        "EventCursor",
+        "WorkspaceRevision",
+        "CheckpointManifest",
+        "RecoveryRecord",
+        "Evidence",
+        "Verification",
+        "VerificationCheck",
+        "Release",
+        "ProviderCapability",
+        "Entitlement",
+        "UsageRecord",
+        "Notification",
+        "AuditEvent",
+        "SupportCase"
+      ]
+    },
+    "StateMachineName": {
+      "type": "string",
+      "enum": [
+        "Task",
+        "Execution",
+        "Approval",
+        "Connection",
+        "Verification",
+        "Release",
+        "RecoveryRecord"
+      ]
+    },
+    "TaskState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "READY",
+        "RUNNING",
+        "BLOCKED",
+        "CANDIDATE_COMPLETE",
+        "VERIFIED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "TaskTerminalState": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "ExecutionState": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "STARTING",
+        "RUNNING",
+        "WAITING_APPROVAL",
+        "INTERRUPTED",
+        "CANDIDATE_COMPLETE",
+        "VERIFYING",
+        "VERIFIED",
+        "FAILED",
+        "CANCELLED",
+        "LOST"
+      ]
+    },
+    "ExecutionTerminalState": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "FAILED",
+        "CANCELLED",
+        "LOST"
+      ]
+    },
+    "ApprovalState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "APPROVED",
+        "DENIED",
+        "EXPIRED",
+        "CANCELLED"
+      ]
+    },
+    "ApprovalTerminalState": {
+      "type": "string",
+      "enum": [
+        "APPROVED",
+        "DENIED",
+        "EXPIRED",
+        "CANCELLED"
+      ]
+    },
+    "ConnectionState": {
+      "type": "string",
+      "enum": [
+        "UNLINKED",
+        "LINKING",
+        "ACTIVE",
+        "DEGRADED",
+        "REAUTH_REQUIRED",
+        "REVOKED"
+      ]
+    },
+    "ConnectionTerminalState": {
+      "type": "string",
+      "enum": [
+        "REVOKED"
+      ]
+    },
+    "VerificationState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "PASSED",
+        "FAILED",
+        "INTERRUPTED",
+        "STALE"
+      ]
+    },
+    "VerificationTerminalState": {
+      "type": "string",
+      "enum": [
+        "PASSED",
+        "FAILED",
+        "STALE"
+      ]
+    },
+    "ReleaseState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "READY",
+        "DEPLOYING",
+        "DEPLOYED",
+        "DEGRADED",
+        "ROLLED_BACK",
+        "FAILED"
+      ]
+    },
+    "ReleaseTerminalState": {
+      "type": "string",
+      "enum": [
+        "ROLLED_BACK",
+        "FAILED"
+      ]
+    },
+    "RecoveryRecordState": {
+      "type": "string",
+      "enum": [
+        "STARTED",
+        "REPLAYING_EVENTS",
+        "RECONCILING_WORKSPACE",
+        "REATTACHING_PROVIDER",
+        "REVERIFYING",
+        "RECOVERED",
+        "BLOCKED",
+        "EXECUTION_LOST"
+      ]
+    },
+    "RecoveryRecordTerminalState": {
+      "type": "string",
+      "enum": [
+        "RECOVERED",
+        "BLOCKED",
+        "EXECUTION_LOST"
+      ]
+    },
+    "EventId": {
+      "type": "string",
+      "enum": [
+        "EVT-001",
+        "EVT-002",
+        "EVT-003",
+        "EVT-004",
+        "EVT-005",
+        "EVT-006",
+        "EVT-007",
+        "EVT-008",
+        "EVT-009",
+        "EVT-010",
+        "EVT-011",
+        "EVT-012",
+        "EVT-013",
+        "EVT-014",
+        "EVT-015",
+        "EVT-016",
+        "EVT-017",
+        "EVT-018",
+        "EVT-019",
+        "EVT-020",
+        "EVT-021",
+        "EVT-022",
+        "EVT-023",
+        "EVT-024",
+        "EVT-025",
+        "EVT-026",
+        "EVT-027",
+        "EVT-028",
+        "EVT-029",
+        "EVT-030",
+        "EVT-031",
+        "EVT-032",
+        "EVT-033",
+        "EVT-034",
+        "EVT-035",
+        "EVT-036",
+        "EVT-037"
+      ]
+    },
+    "EventName": {
+      "type": "string",
+      "enum": [
+        "project.created",
+        "project.updated",
+        "binding.created",
+        "binding.updated",
+        "task.created",
+        "execution.queued",
+        "execution.started",
+        "execution.output",
+        "execution.waiting_for_approval",
+        "execution.interrupted",
+        "execution.candidate_complete",
+        "execution.failed",
+        "execution.cancelled",
+        "approval.requested",
+        "approval.decided",
+        "verification.started",
+        "verification.check_started",
+        "verification.check_passed",
+        "verification.check_failed",
+        "verification.completed",
+        "workspace.reconciled",
+        "checkpoint.created",
+        "recovery.started",
+        "recovery.completed",
+        "recovery.blocked",
+        "connection.linked",
+        "grant.created",
+        "grant.revoked",
+        "provider.capability_changed",
+        "release.created",
+        "deployment.started",
+        "deployment.completed",
+        "deployment.failed",
+        "deployment.rolled_back",
+        "usage.recorded",
+        "notification.created",
+        "audit.recorded"
+      ]
+    }
+  }
+}

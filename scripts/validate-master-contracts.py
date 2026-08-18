@@ -811,6 +811,38 @@ def check_missions(report: Report) -> None:
                     f"{by_id[active_id].get('status')} for {active_id}"
                 )
 
+    # Every human-facing mission pointer must name the same active mission as
+    # the DAG. A stale pointer misroutes contributors and coding agents, so it
+    # is an error, not a warning.
+    if active_id is not None:
+        for rel in ("README.md", "docs/WORKSPACE_BOOTSTRAP_STATUS.md"):
+            pointer_file = REPO_ROOT / rel
+            if not pointer_file.is_file():
+                report.err(f"Mission pointer file missing: {rel}")
+                continue
+            text = pointer_file.read_text(encoding="utf-8")
+            named = sorted(set(re.findall(r"M-\d{3}", text)))
+            if not named:
+                report.err(f"{rel} names no mission; it must name the active mission {active_id}")
+                continue
+            if active_id not in named:
+                report.err(
+                    f"{rel} does not name the active mission {active_id} (names {named}); "
+                    "mission pointer is stale"
+                )
+                continue
+            # A pointer may reference accepted history, but must not describe a
+            # non-active mission as the current/active one.
+            for match in re.finditer(
+                r"[Aa]ctive[^.\n]*?(M-\d{3})|(M-\d{3})[^.\n]{0,80}?is the active", text
+            ):
+                named_mission = match.group(1) or match.group(2)
+                if named_mission != active_id:
+                    report.err(
+                        f"{rel} describes {named_mission} as the active mission, "
+                        f"but the active mission is {active_id}"
+                    )
+
     with (MBS / "10_IMPLEMENTATION" / "MISSION_REGISTER.csv").open(
         newline="", encoding="utf-8"
     ) as handle:
@@ -938,6 +970,17 @@ def check_harvest_and_clean_room(report: Report) -> None:
         "src/index.ts",
         "src/typebox-smoke.test.ts",
     }
+    # M-005 derived contract artifacts. These are generated from the master pack
+    # by scripts/generate-contracts.py, are marked DO NOT EDIT, and carry no
+    # harvested third-party source. The exact inventory is enforced here and by
+    # `generate-contracts.py --check`.
+    allowed_generated_files = {
+        "contracts": {
+            "src/generated/catalog.ts",
+            "generated/catalog.schema.json",
+            "generated/catalog.manifest.json",
+        },
+    }
     ignored_dirs = {
         "dist",
         ".turbo",
@@ -966,6 +1009,8 @@ def check_harvest_and_clean_room(report: Report) -> None:
             ):
                 suffix = "/".join(rel.parts[2:])
                 if suffix in allowed_files or suffix in allowed_src_files:
+                    continue
+                if suffix in allowed_generated_files.get(rel.parts[1], set()):
                     continue
             unexpected.append(str(path.relative_to(REPO_ROOT)))
     if unexpected:
