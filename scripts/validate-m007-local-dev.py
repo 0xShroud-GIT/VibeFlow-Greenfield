@@ -537,6 +537,16 @@ NODE_MODULES_VOLUME = (
     "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
 )
 
+# Host-side (initializeCommand) one-shot that chowns the volume root to the
+# host user so the non-root container user (uid-aligned to the host) can write
+# it. Uses the same digest-pinned node image; no host paths enter the dev
+# container; the host checkout's node_modules is never touched.
+NODE_MODULES_INIT = (
+    "docker run --rm -u 0 -v vibeflow-node-modules:/data "
+    "docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 "
+    "chown $(id -u):$(id -g) /data"
+)
+
 DEVCONTAINER_REL = ".devcontainer/devcontainer.json"
 POLICY_REL = "infrastructure/dev/dev-environment-policy.json"
 INTENDED_WORKFLOWS_REL = "evidence/missions/M-007/INTENDED_WORKFLOWS.patch"
@@ -767,6 +777,20 @@ class Validator:
                             "devcontainer",
                             "durable mounts require a declaration owned by the active later mission",
                         )
+
+        # --- initializeCommand: canonical host-side volume chown ---
+        init_cmd = config.get("initializeCommand")
+        if self.mode == "active":
+            if init_cmd != NODE_MODULES_INIT:
+                self.err(
+                    "devcontainer",
+                    f"active M-007 requires exactly the node_modules initializeCommand, got {init_cmd!r}",
+                )
+        elif init_cmd != NODE_MODULES_INIT and not self._declared("initialize_command", init_cmd):
+            self.err(
+                "devcontainer",
+                "durable initializeCommand change requires a declaration owned by the active later mission",
+            )
 
         # --- environment fields: no raw secrets; active forbids entirely ---
         for field in ("containerEnv", "remoteEnv"):
@@ -1026,6 +1050,9 @@ class Validator:
             for item in posture_mounts
         ):
             self.err("policy", "policy security_posture must document the canonical node_modules volume")
+        posture_init = posture.get("initialize_command")
+        if not isinstance(posture_init, dict) or posture_init.get("command") != NODE_MODULES_INIT:
+            self.err("policy", "policy security_posture must document the canonical node_modules initializeCommand")
 
         extensions = (policy.get("durable_extension_policy") or {}).get("extensions") or []
         if not isinstance(extensions, list):

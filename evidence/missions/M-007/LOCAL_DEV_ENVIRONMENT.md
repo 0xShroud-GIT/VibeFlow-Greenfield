@@ -242,18 +242,16 @@ Dependency Gates run `32162692252`) proved three runtime defects; the durable
 validator had three forward-compatibility gaps. All five blockers were fixed
 in non-workflow files; no workflow edits were required.
 
-### Blocker 1 — devcontainer bootstrap fails in CI (no TTY purge)
+### Blocker 1 — devcontainer bootstrap fails in CI (no TTY purge, then volume permissions)
 
-`postCreateCommand` (`scripts/dev-bootstrap.py`) ran `pnpm install
---frozen-lockfile` inside the container while the host checkout's
+Exact-head CI on `3dbe9e8` failed in `postCreateCommand` with
+`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`: the host checkout's
 `node_modules` (with pnpm store symlinks pointing at host paths) was visible
 through the workspace bind mount; pnpm decided the modules dir was
-incompatible, attempted to purge/recreate it, and aborted non-interactively
-with `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`.
+incompatible, attempted to purge/recreate it, and aborted non-interactively.
 
-Fix (smallest standards-compliant arrangement, canonical in both local and CI
-Dev Containers usage): the dev container now declares one container-local
-volume that shadows `node_modules` —
+Fix part 1 (canonical in both local and CI Dev Containers usage): the dev
+container declares one container-local volume that shadows `node_modules` —
 
 ```json
 "mounts": [
@@ -261,11 +259,29 @@ volume that shadows `node_modules` —
 ]
 ```
 
-Inside the container, pnpm installs against a fresh container-local modules
-dir (no host-store symlinks, no removal decision, no TTY needed); the host
-developer's `node_modules` is never touched. Frozen-lockfile install and the
-canonical bootstrap are unchanged; the postCreate bootstrap and the runtime
-smoke then execute non-interactively.
+Exact-head CI on the first fix (`2911bc3`, run `32164179453`) proved the
+purge was gone but surfaced the second part: a fresh Docker named volume is
+root-owned, so the non-root container user got
+`EACCES: permission denied, mkdir /workspaces/VibeFlow-Greenfield/node_modules/.pnpm`
+(the bootstrap's own version checks — node v24.19.0, pnpm 11.4.0, python3,
+git — all passed before the install).
+
+Fix part 2: a host-side `initializeCommand` chowns the volume root to the
+host user, which is exactly the uid the container user is aligned to by
+devcontainers/ci / VS Code:
+
+```json
+"initializeCommand": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 chown $(id -u):$(id -g) /data"
+```
+
+The throwaway chown container uses the same digest-pinned node image (already
+pulled), mounts no host paths into the dev container, runs only during
+host-side initialization, and never touches the host checkout's
+`node_modules`. Frozen-lockfile install and the canonical bootstrap are
+unchanged; postCreate bootstrap and runtime smoke then execute
+non-interactively. The retained validator pins both the volume and the
+initializeCommand in the active snapshot and requires an owning
+later-mission declaration to change them.
 
 ### Blocker 2 — security wrappers not executable
 
@@ -390,13 +406,59 @@ No expected CI result is represented as actual CI. At this evidence revision:
   the retained M-006 durable gate, master contracts and the M-007 validator
   in a sandbox.
 - Round-3 local re-run: all validators and suites above re-executed on the
-  round-3 tree (M-007 suite 78); `pnpm install --frozen-lockfile` and
-  `pnpm run check` PASS; synthetic combined durable tree passes M-007 durable,
-  M-006 durable and master contracts.
-- Exact dev-image pull, in-container runtime smoke, Trivy dev-image scan and
-  dev-image CycloneDX SBOM: **not claimed until exact-head CI executes them**
-  on the round-3 head. The round-2 `INTENDED_WORKFLOWS.patch` correction was
-  fully applied by GPT at `3dbe9e8`; round 3 requires no workflow change.
+  round-3 tree (M-007 suite 81 after the volume-permissions follow-up);
+  `pnpm install --frozen-lockfile` and `pnpm run check` PASS; synthetic
+  combined durable tree passes M-007 durable, M-006 durable and master
+  contracts.
+
+### Round-3 exact-head CI evidence (head `2911bc3`, runs `32164179453` / `32164179498`)
+
+- `Master Build System Integrity / verify`: **PASS** (run `32164179653`).
+- `Repository Sanitation / sanitize`: **PASS** (run `32164179507`).
+- `Repository Foundation / foundation`: **FAIL** (run `32164179453`) at
+  `postCreateCommand` with `EACCES` on the fresh root-owned volume (fixed by
+  the initializeCommand chown above; pending re-run on the new head).
+- `Security & Dependency Gates / sbom`: **PASS** (run `32164179498`) — the
+  exact dev image was built and the ephemeral dev-image CycloneDX SBOM was
+  generated and uploaded:
+  - artifact `vibeflow-dev-image-cyclonedx`, ID `9334786052`,
+    1,319,260 bytes, archive digest `sha256:155a219433f5eedb8b2ea7d3748383d34a2e4655bd11f9f96a59d25d78519b96`
+    (content SHA-256 is inside the artifact next to the SBOM).
+- `Security & Dependency Gates / vulnerabilities`: **FAIL** (run
+  `32164179498`) — the wrapper now executes and Trivy scanned the exact built
+  image, which **correctly failed closed** on real actionable findings
+  (see the stop-and-report blocker below). `secrets`, `dependency-policy`,
+  `sast` all PASS; aggregate `security-gate` failed closed as designed.
+- Runtime smoke, Trivy scan pass, and a green `security-gate`: **not claimed**
+  until exact-head CI executes them on the new head.
+
+### Stop-and-report blocker: dev-image Trivy findings (packet §4.3 / §8)
+
+The exact pinned dev image `vibeflow-dev:latest` (from official
+`docker.io/library/node:24.19.0@sha256:934240…e6584`, debian 12.15) fails the
+locked Trivy policy with real actionable HIGH/CRITICAL findings. Per M-007
+§8 ("Do not weaken security thresholds to make the dev image pass. Select/
+remediate the image instead.") and §4.3 ("if the selected image cannot meet
+exact Node/pnpm parity without an unratified tool/feature or unsafe mutable
+bootstrap, STOP and report instead of improvising"), Arena does **not** weaken
+the threshold, repin Node, or mutate the image. Findings:
+
+- Debian (5 HIGH): `libaprutil1` CVE-2026-34191; `libpq-dev`/`libpq5`
+  CVE-2025-8714, CVE-2026-6473 (bundled by the official image's
+  buildpack-deps:bookworm base).
+- Node/npm bundled (`/usr/local/lib/node_modules/npm/node_modules/`, 7:
+  6 HIGH + 1 CRITICAL): `brace-expansion` 5.0.6 (CVE-2026-13149,
+  CVE-2026-14257, CVE-2026-69152), `ip-address` 10.2.0 (CVE-2026-69192,
+  SSRF), `tar` 7.5.16 (CVE-2026-59873 CRITICAL, CVE-2026-59874), `undici`
+  6.26.0 (CVE-2026-12151, DoS).
+
+Every `node:24.19.0` official variant bundles the same npm/undici packages,
+so no image with exact Node 24.19.0 parity clears the gate. Remediation
+options require an owner decision (out of M-007 authority): (a) authorize a
+later toolchain/ADR mission to repin Node to a patched 24.19.x once released,
+(b) accept a documented risk exception for the dev-only image with the
+runtime non-root posture as the compensating control, or (c) otherwise
+explicitly direct the next step. No threshold weakening is proposed.
 
 ## Deviations and recorded risks
 

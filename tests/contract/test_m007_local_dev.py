@@ -42,6 +42,11 @@ FEATURE_REF = "ghcr.io/devcontainers/features/python@sha256:fbcad6955caeecc5ad3f
 BASE_IMAGE = "docker.io/library/node:24.19.0@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584"
 GIT_FEATURE_REF = "ghcr.io/devcontainers/features/git@sha256:fd75977de13a9979000e0e78baf949adb0ca71d2398995fa22e0a36d7e7e7fe2"
 NODE_MODULES_VOLUME = "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+NODE_MODULES_INIT = (
+    "docker run --rm -u 0 -v vibeflow-node-modules:/data "
+    "docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 "
+    "chown $(id -u):$(id -g) /data"
+)
 
 
 def run(script: Path, root: Path, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -794,6 +799,24 @@ class M007Tests(unittest.TestCase):
         )
         box.write(POLICY, json.dumps(policy, indent=2) + "\n")
         self.assert_accepted(box)
+
+
+    # ---------- Blocker 1 (continued): canonical initializeCommand ----------
+    def test_active_missing_initialize_command_fails(self) -> None:
+        box = self.box()
+        config = json.loads(box.read(DEVCONTAINER))
+        del config["initializeCommand"]
+        box.write(DEVCONTAINER, json.dumps(config, indent=2) + "\n")
+        self.assert_rejected(box, "active M-007 requires exactly the node_modules initializeCommand")
+
+    def test_active_wrong_initialize_command_fails(self) -> None:
+        box = self.box()
+        box.set_devcontainer(initializeCommand="echo hi")
+        self.assert_rejected(box, "active M-007 requires exactly the node_modules initializeCommand")
+
+    def test_real_repo_has_canonical_initialize_command(self) -> None:
+        config = json.loads(Path(REPO_ROOT, DEVCONTAINER).read_text(encoding="utf-8"))
+        self.assertEqual(config["initializeCommand"], NODE_MODULES_INIT)
 
 
 

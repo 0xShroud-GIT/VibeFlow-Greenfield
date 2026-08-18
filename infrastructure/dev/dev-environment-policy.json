@@ -80,9 +80,13 @@
     "mounts": [
       {
         "entry": "source=vibeflow-node-modules,target=${containerWorkspaceFolder}/node_modules,type=volume",
-        "purpose": "Canonical Dev Containers pattern: anonymous/named volume shadows the host checkout's node_modules inside the container so pnpm install --frozen-lockfile runs non-interactively against a fresh container-local modules dir (fixes ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY) without mutating the host developer's node_modules. Container-local only; no host credential/docker-socket exposure."
+        "purpose": "Canonical Dev Containers pattern: named volume shadows the host checkout's node_modules inside the container so pnpm install --frozen-lockfile runs non-interactively against a fresh container-local modules dir (fixes ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY) without mutating the host developer's node_modules. Container-local only; no host credential/docker-socket exposure. The volume root is chowned to the host user by initializeCommand so the non-root container user can write it."
       }
-    ]
+    ],
+    "initialize_command": {
+      "command": "docker run --rm -u 0 -v vibeflow-node-modules:/data docker.io/library/node@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 chown $(id -u):$(id -g) /data",
+      "purpose": "Host-side (initializeCommand) one-shot: chowns the canonical vibeflow-node-modules volume root to the host user so the non-root container user (uid-aligned to the host by devcontainers/ci / VS Code) can write node_modules. Uses the same digest-pinned node image, runs as root only inside that throwaway chown container, mounts no host paths into the dev container, and never touches the host checkout's node_modules."
+    }
   },
   "durable_extension_policy": {
     "rule": "After M-007 acceptance, a later owning mission may extend the environment (forwarded ports, additional digest-pinned registered features, benign environment metadata, additional mounts, runArgs, service containers, or a different explicit non-root dev user) only by recording an explicit extension entry here owned by the actually active later mission (mission_id, rationale, exact declared values). The canonical node_modules volume is retained as M-007 baseline. Privileged mode, docker-socket mounts, host networking, Docker-in-Docker, root/absent user fields, and raw secret material remain permanently banned and can never be authorized by a declaration.",
