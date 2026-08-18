@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "status": "ACCEPTED_ADVISORY_REFERENCE_LANDING",
+  "accepted_by_user": true,
+  "accepted_date": "2026-08-18",
+  "repository": "0xShroud-GIT/VibeFlow-Greenfield",
+  "base_main_sha": "affa8f9bab79a73dbc0a4e97fb4fa88f07ae3b34",
+  "repository_path": "reference/oss-harvest",
+  "authority_effect": "ADVISORY_REFERENCE_ONLY",
+  "mission_state_effect": "NONE",
+  "dependency_registry_effect": "NONE",
+  "m007_effect": "NONE_BY_DEFAULT",
+  "source_reuse_effect": "NONE_UNTIL_MISSION_OWNED_PROMOTION",
+  "source_artifact_storage": "EXTERNAL_PRE_LANDING_PACKAGE_IDENTIFIED_BY_SOURCE_DIGESTS",
+  "historical_artifact_policy": "Preserve pre-landing source/routing artifacts externally by exact SHA-256; record acceptance here rather than rewriting their historical metadata.",
+  "source_artifacts": {
+    "VibeFlow_Open_Source_Harvest_Research_2026-08-18.md": {
+      "sha256": "b9731683dafc98fa3e86490df0be90c45dff025ef1a71a5ee3ea7ca6bbe09ad6"
+    },
+    "VibeFlow_OSS_Harvest_Audit_and_Master_Disposition_2026-08-18.md": {
+      "sha256": "19e06ab045adcb75a43c5df116cb3adf3db101f42c76d789471e63ce069d1319"
+    },
+    "VibeFlow_Research_Routing_Map_2026-08-18.json": {
+      "sha256": "f0e1d5c896348561b53c79d8102c516b7bd0073e927a0a84604d25955d85f7c3"
+    },
+    "VibeFlow_Research_Routing_Map_2026-08-18.csv": {
+      "sha256": "e2f8547292710847f4039c4dcc8e127d734b55b4fa6b12fb8facf3048f879104"
+    },
+    "VibeFlow_Research_Routing_Map_Review_2026-08-18.md": {
+      "sha256": "a160e7e6752a8229b56c0cbc5ac6167de76241ebb42a51efc100815aae4e5d26"
+    }
+  },
+  "deep_pin": {
+    "repository": "newo-ether/Agora",
+    "commit": "38147fca345565649e8f4971d6cad974bc858b1b",
+    "tree": "1c08de6d29ca462eed03dbd12899c77b81fb789d"
+  }
+}
