@@ -19,8 +19,9 @@ At the same time, coding models can rely on stale or unsupported implementation 
 3. Verification depth is risk-aware. Durable validators and baseline security checks remain always-on; historical mission mutation suites and expensive development-image work are added when their governed boundary changes and during full-system verification.
 4. Risk classification is centralized, tested and fail-closed for unknown or failed classification. Rename detection must not hide an original sensitive path.
 5. Required GitHub check contexts remain present; expensive internals may be conditional. Workflow path filtering is not used to bypass required contexts.
-6. Development-image verification, when applicable, binds scan and SBOM generation to the same frozen image archive and candidate revision. When not applicable, candidate-bound evidence records that the work was skipped rather than representing the underlying scan as executed.
-7. Existing accepted dependency, secret, vulnerability, Semgrep/Gitleaks fixture, exact-head and M-002 through M-007 durable invariants remain in force.
+6. Development-image verification, when applicable, binds scan and SBOM generation to the same frozen image archive and records both candidate head SHA and exact CI-tested revision. When not applicable, candidate-bound evidence records that the work was skipped rather than representing the underlying scan as executed.
+7. Development-image vulnerability freshness is also certified on a scheduled security workflow so newly disclosed vulnerabilities are detected even without a relevant pull request.
+8. Existing accepted dependency, secret, vulnerability, Semgrep/Gitleaks fixture, exact-head and M-002 through M-007 durable invariants remain in force.
 
 ## Consequences
 
