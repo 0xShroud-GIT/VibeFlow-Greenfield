@@ -1,0 +1,87 @@
+name: Master Build System Integrity
+
+on:
+  pull_request:
+    paths:
+      - 'master-build-system/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'evidence/**'
+      - '.ai/**'
+      - '.github/workflows/master-build-system-integrity.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.npmrc'
+      - 'tsconfig.base.json'
+      - 'turbo.json'
+      - 'packages/**'
+      - 'apps/**'
+      - 'services/**'
+      - 'workers/**'
+      - 'adapters/**'
+      - '.github/workflows/repository-foundation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'master-build-system/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'evidence/**'
+      - '.ai/**'
+      - '.github/workflows/master-build-system-integrity.yml'
+      - 'package.json'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.npmrc'
+      - 'tsconfig.base.json'
+      - 'turbo.json'
+      - 'packages/**'
+      - 'apps/**'
+      - 'services/**'
+      - 'workers/**'
+      - 'adapters/**'
+      - '.github/workflows/repository-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify authoritative pack hashes
+        shell: bash
+        run: |
+          cd master-build-system
+          sha256sum -c SHA256SUMS.txt
+      - name: Validate master contracts (incl. mission progression)
+        shell: bash
+        run: python3 scripts/validate-master-contracts.py
+      - name: Validate dependency/harvest registry
+        shell: bash
+        run: python3 scripts/validate-harvest-registry.py
+      - name: Validate threat model and trust boundaries
+        shell: bash
+        run: python3 scripts/validate-threat-model.py
+      - name: Run M-002 contract validator tests
+        shell: bash
+        run: python3 tests/contract/test_m002_validators.py
+      - name: Run M-003 security contract tests
+        shell: bash
+        run: python3 tests/contract/test_m003_security_contracts.py
+      - name: Validate M-004 foundation
+        shell: bash
+        run: python3 scripts/validate-m004-foundation.py
+      - name: Run M-004 foundation mutation tests
+        shell: bash
+        run: python3 tests/contract/test_m004_foundation.py
+      - name: Validate M-005 contract codegen pipeline
+        shell: bash
+        run: python3 scripts/validate-m005-contract-codegen.py
+      - name: Run M-005 contract codegen mutation tests
+        shell: bash
+        run: python3 tests/contract/test_m005_contract_codegen.py

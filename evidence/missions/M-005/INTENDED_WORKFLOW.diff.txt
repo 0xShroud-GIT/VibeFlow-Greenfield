@@ -1,0 +1,34 @@
+--- /tmp/mbs-original.yml	2026-08-18 00:01:01.163521981 +0000
++++ /tmp/mbs-intended.yml	2026-08-18 00:08:44.498725946 +0000
+@@ -17,6 +17,10 @@
+       - 'tsconfig.base.json'
+       - 'turbo.json'
+       - 'packages/**'
++      - 'apps/**'
++      - 'services/**'
++      - 'workers/**'
++      - 'adapters/**'
+       - '.github/workflows/repository-foundation.yml'
+   push:
+     branches: [main]
+@@ -35,6 +39,10 @@
+       - 'tsconfig.base.json'
+       - 'turbo.json'
+       - 'packages/**'
++      - 'apps/**'
++      - 'services/**'
++      - 'workers/**'
++      - 'adapters/**'
+       - '.github/workflows/repository-foundation.yml'
+ 
+ permissions:
+@@ -71,3 +79,9 @@
+       - name: Run M-004 foundation mutation tests
+         shell: bash
+         run: python3 tests/contract/test_m004_foundation.py
++      - name: Validate M-005 contract codegen pipeline
++        shell: bash
++        run: python3 scripts/validate-m005-contract-codegen.py
++      - name: Run M-005 contract codegen mutation tests
++        shell: bash
++        run: python3 tests/contract/test_m005_contract_codegen.py
