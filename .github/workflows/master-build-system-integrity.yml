@@ -28,7 +28,7 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ]; then
             if changed="$(git diff --name-only "$BASE_SHA"...HEAD)"; then
               full=false
-              if printf '%s\n' "$changed" | grep -Eq '^(\.ai/(INDEX\.yaml$|CONTEXT_POLICY\.md$)|AGENTS\.md$|master-build-system/(\.ai/|00_MASTER/|04_AI_AGENT/|06_HARVEST/|08_SECURITY/|11_VERIFICATION/|AGENTS\.md$|10_IMPLEMENTATION/(STATUS_PROTOCOL\.md$|MISSION_PACKET_TEMPLATE\.md$|CONTEXT_ASSEMBLY_RULES\.md$))|scripts/(validate-master-contracts|validate-harvest-registry|validate-threat-model|validate-m004-foundation|validate-m005-contract-codegen|validate-m006-security-gates|validate-m007-local-dev|_validate_m007_core|generate-contracts)\.py$|scripts/security/|tests/contract/test_m00[2-7][^/]*\.py$|security/|infrastructure/dev/|\.devcontainer/|\.github/workflows/(master-build-system-integrity|repository-foundation|repository-sanitation|security-and-dependency-gates)\.yml$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig(\..*)?\.json$)'; then
+              if printf '%s\n' "$changed" | grep -Eq '^(\.ai/(INDEX\.yaml$|CONTEXT_POLICY\.md$)|AGENTS\.md$|master-build-system/(\.ai/|00_MASTER/|04_AI_AGENT/|06_HARVEST/|08_SECURITY/|11_VERIFICATION/|AGENTS\.md$|10_IMPLEMENTATION/(STATUS_PROTOCOL\.md$|MISSION_PACKET_TEMPLATE\.md$|CONTEXT_ASSEMBLY_RULES\.md$))|scripts/(validate-master-contracts|validate-harvest-registry|validate-threat-model|validate-implementation-reference-policy|validate-m004-foundation|validate-m005-contract-codegen|validate-m006-security-gates|validate-m007-local-dev|_validate_m007_core|generate-contracts)\.py$|scripts/security/|tests/contract/(test_implementation_reference_policy\.py$|test_m00[2-7][^/]*\.py$)|security/|infrastructure/dev/|\.devcontainer/|\.github/workflows/(master-build-system-integrity|repository-foundation|repository-sanitation|security-and-dependency-gates)\.yml$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|tsconfig(\..*)?\.json$)'; then
                 full=true
               fi
             fi
@@ -49,6 +49,13 @@ jobs:
       - name: Validate threat model and trust boundaries
         shell: bash
         run: python3 scripts/validate-threat-model.py
+      - name: Validate implementation reference policy
+        shell: bash
+        run: python3 scripts/validate-implementation-reference-policy.py
+      - name: Run implementation reference policy mutation tests
+        if: ${{ steps.scope.outputs.full == 'true' }}
+        shell: bash
+        run: python3 tests/contract/test_implementation_reference_policy.py
       - name: Run M-002 contract validator tests
         if: ${{ steps.scope.outputs.full == 'true' }}
         shell: bash
