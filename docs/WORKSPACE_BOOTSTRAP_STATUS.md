@@ -1,8 +1,8 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: READY to start (M-008)
-- Active mission: M-008 — Implement Account/Organization persistence (READY)
+- Product implementation: REVIEW (M-008 Account/Organization persistence)
+- Active mission: M-008 — Implement Account/Organization persistence (REVIEW)
 - Accepted missions: M-001, M-002, M-003, M-004, M-005, M-006, M-007 (DONE)
 - Locked missions: M-009..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`

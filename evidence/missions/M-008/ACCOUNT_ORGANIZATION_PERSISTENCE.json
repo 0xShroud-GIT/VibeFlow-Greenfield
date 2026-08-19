@@ -1,0 +1,72 @@
+{
+  "adr_required": false,
+  "branch": "arena/01a018ab-vibeflow-greenfield",
+  "capability_status": {
+    "VF-ENV-005": "IN_PROGRESS (unchanged)",
+    "VF-IAM-005": "NOT_STARTED (session is M-009)",
+    "VF-IAM-006": "IN_PROGRESS",
+    "VF-IAM-010": "NOT_STARTED (project ownership is later)",
+    "VF-IAM-016": "IN_PROGRESS",
+    "overclaim": "none claimed IMPLEMENTED/VERIFIED/COMPLETE"
+  },
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "live_postgres": {
+    "connection_env": ["VIBEFLOW_DATABASE_URL", "DATABASE_URL"],
+    "executed_in_arena": false,
+    "reason": "No PostgreSQL 18 service in Arena or retained CI foundation. Arena cannot write .github/workflows/**. Live suite is describe.skipIf without a connection string.",
+    "suite": "packages/persistence/src/persistence.live.test.ts"
+  },
+  "mission": "M-008",
+  "mission_states": {
+    "M-001..M-007": "DONE",
+    "M-008": "REVIEW",
+    "M-009..M-151": "LOCKED"
+  },
+  "mission_status": "REVIEW",
+  "mission_title": "Implement Account/Organization persistence",
+  "non_goals_respected": [
+    "no M-009 authentication/session/Better Auth",
+    "no M-010 authorization/roles/OpenFGA",
+    "no M-011 audit baseline",
+    "no M-012 Project persistence",
+    "no UI/mobile",
+    "no billing/deletion orchestration/enterprise roles",
+    "no provider identity columns as authority",
+    "no drizzle-kit install (no 0.45.2 kit; esbuild install scripts denied)",
+    "no postgres.js (Unlicense outside green license tokens)"
+  ],
+  "package": {
+    "name": "@vibeflow/persistence",
+    "path": "packages/persistence",
+    "skipLibCheck": true
+  },
+  "phase": "2 - Identity & Tenant Authority",
+  "pins": {
+    "@types/pg": {"license": "MIT", "usage": "development", "version": "8.23.1"},
+    "drizzle-orm": {
+      "driver": "drizzle-orm/node-postgres",
+      "license": "Apache-2.0",
+      "peer_pg": ">=8",
+      "usage": "production",
+      "version": "0.45.2"
+    },
+    "pg": {"license": "MIT", "usage": "production", "version": "8.23.0"}
+  },
+  "schema": {
+    "migration": "migrations/0001_account_organization.sql",
+    "tables": ["accounts", "organizations", "organization_memberships"],
+    "unique_membership": ["organization_id", "account_id"]
+  },
+  "schema_version": 1,
+  "starting_main_sha": "5b9ca460d300abdc626aa581d1bf2d6c533a0fd1",
+  "test_counts": {
+    "M-002": 48,
+    "M-004": 82,
+    "M-005": 92,
+    "M-006": 41,
+    "M-007": 90,
+    "M-008_contract": 7,
+    "persistence_always_on": 7,
+    "persistence_live_skipped_without_db": 8
+  }
+}

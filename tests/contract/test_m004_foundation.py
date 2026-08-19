@@ -14,6 +14,25 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR = REPO_ROOT / "scripts/validate-m004-foundation.py"
+EXPECTED_SEED_PACKAGES = {
+    "core",
+    "contracts",
+    "remote",
+    "bridge",
+    "provider-sdk",
+    "verification",
+    "ui",
+}
+
+
+def strip_later_packages(box: Sandbox) -> None:
+    """Remove successor package manifests so the M-004 snapshot is exact."""
+    packages_root = box.path("packages")
+    if not packages_root.is_dir():
+        return
+    for child in packages_root.iterdir():
+        if child.is_dir() and child.name not in EXPECTED_SEED_PACKAGES:
+            box.delete(f"packages/{child.name}/package.json")
 IGNORE = shutil.ignore_patterns(
     ".git", "node_modules", "dist", ".turbo", ".cache", ".vite",
     "__pycache__", ".pytest_cache", ".next", ".expo",
@@ -122,6 +141,7 @@ class M004FoundationTests(unittest.TestCase):
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "LOCKED")
         box.set_mission_status("M-006", "LOCKED")
+        strip_later_packages(box)
         return box
 
     def test_00_real_repository_passes(self) -> None:
@@ -306,6 +326,7 @@ class M004MissionProgressionTests(unittest.TestCase):
         box.set_mission_status("M-004", "REVIEW")
         for index in range(5, 152):
             box.set_mission_status(f"M-{index:03d}", "LOCKED")
+        strip_later_packages(box)
         self.assert_accepted(box)
 
     def test_m004_done_with_m005_review_passes(self) -> None:
@@ -326,12 +347,14 @@ class M004MissionProgressionTests(unittest.TestCase):
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "REVIEW")
+        strip_later_packages(box)
         self.assert_rejected(box, "V: DAG M-005 must remain LOCKED while M-004 is REVIEW")
 
     def test_m004_review_with_m005_in_progress_fails(self) -> None:
         box = Sandbox(self.tmp)
         box.set_mission_status("M-004", "REVIEW")
         box.set_mission_status("M-005", "IN_PROGRESS")
+        strip_later_packages(box)
         self.assert_rejected(box, "must remain LOCKED while M-004 is REVIEW")
 
     def test_m004_regression_to_locked_fails(self) -> None:
@@ -400,6 +423,7 @@ class M004DurableVsSnapshotTests(unittest.TestCase):
         box.set_mission_status("M-004", "REVIEW")
         for index in range(5, 152):
             box.set_mission_status(f"M-{index:03d}", "LOCKED")
+        strip_later_packages(box)
         return box
 
     def future(self, active: str = "M-008") -> Sandbox:

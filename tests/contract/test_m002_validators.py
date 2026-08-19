@@ -259,7 +259,7 @@ class HarvestRegistryTests(TempDirMixin, unittest.TestCase):
     def test_current_npm_coordinate_mapping_passes(self) -> None:
         result = run_script(HARVEST, REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("package coordinates: 4", result.stdout)
+        self.assertIn("package coordinates: 7", result.stdout)
         self.assertIn("install/build-script approvals: 0", result.stdout)
 
     def test_package_coordinate_unknown_harvest_id_fails(self) -> None:

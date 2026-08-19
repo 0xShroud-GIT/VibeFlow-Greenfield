@@ -155,7 +155,26 @@ entries:
   integration: DEPEND
   license: Apache-2.0
   source: https://github.com/drizzle-team/drizzle-orm
-  rule: Use SQL migrations committed to repo; do not use RC line without explicit upgrade mission.
+  package_coordinates:
+  - ecosystem: npm
+    name: drizzle-orm
+    harvest_id: H-011
+    approved_usage: production
+  - ecosystem: npm
+    name: pg
+    harvest_id: H-011
+    approved_usage: production
+  - ecosystem: npm
+    name: '@types/pg'
+    harvest_id: H-011
+    approved_usage: development
+  rule: Use SQL migrations committed to repo; do not use RC line without explicit upgrade
+    mission. Exact M-008 pins are drizzle-orm 0.45.2, pg 8.23.0 (official
+    drizzle-orm@0.45.2 node-postgres peer), and @types/pg 8.23.1. drizzle-kit is
+    not installed in this mission because its esbuild install/build scripts are
+    deny-by-default and no 0.45.2 kit release exists; committed SQL is the
+    migration authority. postgres.js is not selected because Unlicense is
+    outside the green license token set.
   use: Type-safe query building and SQL migration kit.
   ownership: Drizzle owns query building/migration mechanics; VibeFlow owns the schema and migration policy (SQL committed to repo).
   upgrade_policy: Stay on 0.45.2 stable; 1.0 line only via explicit upgrade mission (RC excluded).
