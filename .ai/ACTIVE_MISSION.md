@@ -1,29 +1,34 @@
 # Active Mission
 
-**Mission:** M-011 — Implement audit baseline
+**Mission:** M-012 — Implement Project authority
 
-**Status:** REVIEW
+**Status:** READY
 
-**Phase:** 2 — Identity & Tenant Authority
+**Phase:** 3 — Project Authority
 
 Authoritative mission row:
-`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-011)
+`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-012)
 
-M-001 through M-010 are accepted and `DONE`. M-011 is the sole active mission in `REVIEW`.
-M-012 and all later missions remain `LOCKED` and remain required for V1.
+M-001 through M-011 are accepted and `DONE`. M-012 is the sole ready mission.
+M-013 and all later missions remain `LOCKED` and remain required for V1.
 
-## M-011 scope
+## M-012 scope
 
-Implement the smallest coherent production-direction audit baseline required by
-the authoritative Greenfield architecture: durable, tenant/account-scoped,
-server-authoritative security and control-plane evidence for required identity,
-session, and authorization events. Audit records are not application logs;
-writes derive canonical actor, tenant, and resource authority from trusted
-server context, omit secrets, fail according to authoritative policy, resist
-ordinary mutation, and reads fail closed across tenant/account boundaries.
+Implement the smallest production-direction authoritative Project resource
+required by the Greenfield architecture: server-generated Project identity,
+canonical Organization ownership, server-controlled timestamps, integrity and
+FK constraints, indexes for canonical tenant/project lookup, tenant-safe reads
+and tenant-safe mutations. Project authority must derive from trusted
+server-side VibeFlow state. All authorization must pass through the existing
+M-010 authorization boundary extended to make Project a first-class protected
+resource. Cross-tenant Project access must fail closed. Revoked/stale
+membership must not retain Project access. Audit integration must use canonical
+server-side actor, tenant, and Project resource identity.
 
-Do not implement Project persistence/lifecycle (M-012), roles/group binding,
-enterprise SSO/SCIM, MFA breadth, an external authorization engine, provider
-bindings, observability/SIEM platforms, cryptographic non-repudiation, or any
-later mission. Authentication, authorization, and audit remain separate trust
-boundaries.
+Do not implement Artifact/ArtifactRelation (M-013), imports/templates lifecycle
+(M-014), full Project lifecycle E2E beyond M-012, provider bindings,
+AgentBinding, ModelBinding, WorkspaceBinding, RepositoryBinding, DataBinding,
+ObjectStorageBinding, DeploymentBinding, OpenHands integration, workspace
+provisioning, GitHub repo management, Monaco/web IDE, task/execution engine,
+Temporal, deployment, billing, collaboration roles/groups, enterprise SSO/SCIM,
+broad external authorization engine, or later mobile/UI work.
