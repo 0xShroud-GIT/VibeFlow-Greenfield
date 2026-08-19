@@ -33,22 +33,14 @@ export class AuditService {
     const metadata = sanitizeAuditMetadata(input.metadata);
     let organizationId: string | null = null;
     if (input.resource.type === "organization") {
-      try {
-        const organizations = await this.query<{ id: string }>("SELECT id FROM organizations WHERE id = $1", [resourceId]);
-        organizationId = organizations[0]?.id ?? null;
-      } catch {
-        // Unknown UUID targets remain account-scoped evidence, not tenant authority.
-      }
+      const organizations = await this.query<{ id: string }>("SELECT id FROM organizations WHERE id = $1", [resourceId]);
+      organizationId = organizations[0]?.id ?? null;
     } else if (input.resource.type === "project") {
-      try {
-        const projects = await this.query<{ organization_id: string }>(
-          "SELECT organization_id FROM projects WHERE id = $1",
-          [resourceId],
-        );
-        organizationId = projects[0]?.organization_id ?? null;
-      } catch {
-        // Unknown project remains account-scoped; organizationId stays null.
-      }
+      const projects = await this.query<{ organization_id: string }>(
+        "SELECT organization_id FROM projects WHERE id = $1",
+        [resourceId],
+      );
+      organizationId = projects[0]?.organization_id ?? null;
     }
     await this.insert({
       actorAccountId: actor.id,
