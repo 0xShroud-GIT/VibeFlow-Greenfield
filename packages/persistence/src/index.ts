@@ -13,6 +13,7 @@ export { isUuid, newId, requireId, requireNonEmpty } from "./ids.js";
 export { TenantRepository } from "./repositories.js";
 export {
   accounts,
+  auditEvents,
   CONTROL_PLANE_TABLES,
   identityUsers,
   ORGANIZATION_KINDS,
@@ -20,6 +21,7 @@ export {
   organizations,
   TENANT_TABLES,
   type AccountRow,
+  type AuditEventRow,
   type IdentityUserRow,
   type OrganizationKind,
   type OrganizationMembershipRow,

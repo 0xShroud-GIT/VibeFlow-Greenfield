@@ -1,0 +1,26 @@
+{
+  "name": "@vibeflow/audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VibeFlow authoritative append-only security audit baseline",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@vibeflow/authorization": "workspace:*",
+    "@vibeflow/identity": "workspace:*",
+    "@vibeflow/persistence": "workspace:*"
+  }
+}

@@ -43,6 +43,7 @@ describePostgres("M-009 Better Auth PostgreSQL session lifecycle", () => {
     await applyCommittedSqlMigrations(controlPlane.pool, defaultMigrationsDirectory());
     identity = new IdentityService({
       controlPlane,
+      audit: { async recordAuthenticationFailure() {} },
       baseURL,
       secret: testSecret,
     });

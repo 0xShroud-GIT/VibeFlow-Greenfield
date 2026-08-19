@@ -38,8 +38,18 @@ type AuthResultWithHeaders<Response> = Readonly<{
   headers: Headers;
 }>;
 
+export interface AuthenticationAuditRecorder {
+  recordAuthenticationFailure(input: {
+    email: string;
+    requestId?: string;
+    metadata?: unknown;
+  }): Promise<void>;
+}
+
 export type IdentityServiceOptions = Readonly<{
   controlPlane: ControlPlanePool;
+  /** Required server-side M-011 audit integration for attributable failures. */
+  audit: AuthenticationAuditRecorder;
   /** HTTPS application origin used for trusted-origin and cookie enforcement. */
   baseURL: string;
   /** At least 32 characters; supplied only through server configuration. */
@@ -203,6 +213,12 @@ export class IdentityService {
     } catch (error) {
       if (error instanceof IdentityInputError || error instanceof UntrustedIdentityOriginError) {
         throw error;
+      }
+      try {
+        await this.options.audit.recordAuthenticationFailure({ email: input.email });
+      } catch {
+        // The attempted authentication remains denied. Audit failure can never
+        // turn invalid credentials into a successful session.
       }
       throw new AuthenticationRejectedError("Invalid email or password");
     }

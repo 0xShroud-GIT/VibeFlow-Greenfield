@@ -51,6 +51,14 @@ function request(overrides: Partial<AuthorizationRequest> = {}): AuthorizationRe
   };
 }
 
+function makeService(auditFails = false): TenantAuthorizationService {
+  return new TenantAuthorizationService(fakeAuthority(), {
+    async recordAuthorizationDecision() {
+      if (auditFails) throw new Error("audit unavailable");
+    },
+  });
+}
+
 describe("M-010 authorization decision boundary", () => {
   it("registers the organization resource type and canonical actions", () => {
     expect(RESOURCE_TYPES).toEqual(["organization"]);
@@ -98,19 +106,23 @@ describe("M-010 authorization decision boundary", () => {
   });
 
   it("allows a member of the organization", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     await expect(service.authorize(request())).resolves.toEqual(ALLOW);
   });
 
+  it("fails closed when a required allow audit record cannot be written", async () => {
+    await expect(makeService(true).authorize(request())).resolves.toEqual(deny("audit_unavailable"));
+  });
+
   it("allows every known mutation action for a proven member", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     for (const action of ACTIONS) {
       await expect(service.authorize(request({ action }))).resolves.toEqual(ALLOW);
     }
   });
 
   it("denies an account with no membership", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     const outsider = "55555555-5555-4555-8555-555555555555";
     await expect(service.authorize(request({ accountId: outsider }))).resolves.toEqual(
       deny("no_membership"),
@@ -118,14 +130,14 @@ describe("M-010 authorization decision boundary", () => {
   });
 
   it("denies cross-tenant access to an organization the account does not belong to", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     await expect(
       service.authorize(request({ resource: { type: "organization", id: ORG_B } })),
     ).resolves.toEqual(deny("no_membership"));
   });
 
   it("denies a forged id that is not a real organization", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     const forged = "66666666-6666-4666-8666-666666666666";
     await expect(
       service.authorize(request({ resource: { type: "organization", id: forged } })),
@@ -133,14 +145,14 @@ describe("M-010 authorization decision boundary", () => {
   });
 
   it("denies an unknown resource type at the service boundary", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     await expect(
       service.authorize(request({ resource: { type: "workspace", id: ORG_A } })),
     ).resolves.toEqual(deny("unknown_resource_type"));
   });
 
   it("denies an unknown action at the service boundary", async () => {
-    const service = new TenantAuthorizationService(fakeAuthority());
+    const service = makeService();
     await expect(service.authorize(request({ action: "admin" }))).resolves.toEqual(
       deny("unknown_action"),
     );

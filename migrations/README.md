@@ -13,7 +13,9 @@ same recorded result rather than racing migration application.
 - `0002_identity_auth_sessions.sql` is M-009's Better Auth-compatible
   credential/session persistence plus its foreign-key link to a canonical
   VibeFlow Account.
+- `0003_audit_event_ledger.sql` is M-011's append-only AuditEvent ledger plus
+  transactional session creation/revocation audit triggers.
 
 The M-009 tables support authentication mechanics only. They do not define
-Organization/Project authorization, roles, OpenFGA tuples, audit events, or
-Project authority.
+Organization/Project authorization, roles, OpenFGA tuples, or Project authority.
+Audit events are isolated in the M-011 table and never contain raw session tokens.

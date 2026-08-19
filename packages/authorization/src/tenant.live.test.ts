@@ -36,7 +36,9 @@ describePostgres("M-010 PostgreSQL tenant/resource authorization", () => {
     controlPlane = createControlPlanePool(connectionString as string);
     await applyCommittedSqlMigrations(controlPlane.pool, defaultMigrationsDirectory());
     tenants = new TenantRepository(controlPlane.db);
-    authz = new TenantAuthorizationService(tenants);
+    authz = new TenantAuthorizationService(tenants, {
+      async recordAuthorizationDecision() {},
+    });
   });
 
   afterAll(async () => {

@@ -38,8 +38,21 @@ export interface MembershipAuthority {
   }): Promise<OrganizationMembershipRow>;
 }
 
+/** Narrow trusted integration implemented by @vibeflow/audit AuditService. */
+export interface AuthorizationAuditRecorder {
+  recordAuthorizationDecision(input: {
+    actorAccountId: string;
+    action: string;
+    resource: { type: string; id: string };
+    decision: AuthorizationDecision;
+  }): Promise<void>;
+}
+
 export class TenantAuthorizationService {
-  public constructor(private readonly tenants: MembershipAuthority) {}
+  public constructor(
+    private readonly tenants: MembershipAuthority,
+    private readonly audit: AuthorizationAuditRecorder,
+  ) {}
 
   /**
    * Decide whether the authenticated `accountId` may perform `action` on the
@@ -49,17 +62,39 @@ export class TenantAuthorizationService {
   public async authorize(request: AuthorizationRequest): Promise<AuthorizationDecision> {
     const invalid = validateRequest(request);
     if (invalid !== null) {
-      return invalid;
+      return this.recordRequiredAudit(request, invalid);
     }
 
     // Dispatch on the canonical resource type. Each type registers its own
     // tenant resolution so provider semantics never leak into the boundary.
+    let decision: AuthorizationDecision;
     switch (request.resource.type) {
       case "organization":
-        return this.authorizeOrganizationResource(request);
+        decision = await this.authorizeOrganizationResource(request);
+        break;
       default:
         // Defensive: validateRequest already rejects unknown types.
-        return deny("unknown_resource_type");
+        decision = deny("unknown_resource_type");
+    }
+    return this.recordRequiredAudit(request, decision);
+  }
+
+  private async recordRequiredAudit(
+    request: AuthorizationRequest,
+    decision: AuthorizationDecision,
+  ): Promise<AuthorizationDecision> {
+    try {
+      await this.audit.recordAuthorizationDecision({
+        actorAccountId: request.accountId,
+        action: request.action,
+        resource: request.resource,
+        decision,
+      });
+      return decision;
+    } catch {
+      // Security Master failure stance: an allow without its required durable
+      // security record is not permitted. Existing denials remain fail-closed.
+      return decision.allowed ? deny("audit_unavailable") : decision;
     }
   }
 

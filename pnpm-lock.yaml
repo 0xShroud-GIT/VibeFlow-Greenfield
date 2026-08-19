@@ -18,6 +18,18 @@ importers:
         specifier: 4.1.7
         version: 4.1.7(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0))
 
+  packages/audit:
+    devDependencies:
+      '@vibeflow/authorization':
+        specifier: workspace:*
+        version: link:../authorization
+      '@vibeflow/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@vibeflow/persistence':
+        specifier: workspace:*
+        version: link:../persistence
+
   packages/authorization:
     dependencies:
       '@vibeflow/persistence':
