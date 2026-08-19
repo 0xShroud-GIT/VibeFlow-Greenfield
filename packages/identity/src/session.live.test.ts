@@ -89,6 +89,55 @@ describePostgres("M-009 Better Auth PostgreSQL session lifecycle", () => {
     });
   });
 
+  it("rolls back the canonical Account when Better Auth fails after its creation point", async () => {
+    const displayName = `Atomic rollback ${randomUUID()}`;
+    const email = uniqueEmail("atomic-rollback");
+
+    await controlPlane.pool.query(`
+      CREATE OR REPLACE FUNCTION m009_force_identity_account_failure()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $$
+      BEGIN
+        RAISE EXCEPTION 'M-009 forced credential write failure';
+      END;
+      $$;
+    `);
+    await controlPlane.pool.query(`
+      CREATE TRIGGER m009_force_identity_account_failure
+      BEFORE INSERT ON identity_accounts
+      FOR EACH ROW
+      EXECUTE FUNCTION m009_force_identity_account_failure();
+    `);
+
+    try {
+      await expect(
+        identity.registerEmailPassword({
+          displayName,
+          email,
+          password: password(),
+          origin: baseURL,
+        }),
+      ).rejects.toBeInstanceOf(AuthenticationRejectedError);
+
+      const accounts = await controlPlane.pool.query<{ count: string }>(
+        "SELECT count(*) FROM accounts WHERE display_name = $1",
+        [displayName],
+      );
+      const authUsers = await controlPlane.pool.query<{ count: string }>(
+        "SELECT count(*) FROM identity_users WHERE email = $1",
+        [email],
+      );
+      expect(accounts.rows[0]?.count).toBe("0");
+      expect(authUsers.rows[0]?.count).toBe("0");
+    } finally {
+      await controlPlane.pool.query(
+        "DROP TRIGGER IF EXISTS m009_force_identity_account_failure ON identity_accounts",
+      );
+      await controlPlane.pool.query("DROP FUNCTION IF EXISTS m009_force_identity_account_failure()");
+    }
+  });
+
   it("rejects credentials from an untrusted origin before session creation", async () => {
     await expect(
       identity.signInEmailPassword({

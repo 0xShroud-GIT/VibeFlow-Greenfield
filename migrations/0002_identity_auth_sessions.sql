@@ -13,6 +13,30 @@ CREATE TABLE identity_users (
   vibeflow_account_id uuid NOT NULL UNIQUE REFERENCES accounts (id) ON DELETE RESTRICT
 );
 
+-- The trigger is deliberately BEFORE INSERT: it creates the canonical VibeFlow
+-- Account before the identity_users foreign key is checked, inside Better Auth's
+-- surrounding PostgreSQL signup transaction.
+CREATE FUNCTION identity_users_create_vibeflow_account()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO accounts (id, display_name, created_at, updated_at)
+  VALUES (
+    NEW.vibeflow_account_id,
+    NEW.name,
+    COALESCE(NEW.created_at, now()),
+    COALESCE(NEW.updated_at, now())
+  );
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER identity_users_create_vibeflow_account
+BEFORE INSERT ON identity_users
+FOR EACH ROW
+EXECUTE FUNCTION identity_users_create_vibeflow_account();
+
 CREATE TABLE identity_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   expires_at timestamptz NOT NULL,

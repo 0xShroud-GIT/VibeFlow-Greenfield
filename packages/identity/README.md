@@ -9,7 +9,10 @@ mobile, provider, authorization, or OpenFGA boundary.
 - Better Auth owns credential hashing, credential records, session tokens, and
   secure cookie mechanics.
 - VibeFlow owns the durable `Account` resource and the server-side
-  `identity_users.vibeflow_account_id` foreign-key link to that Account.
+  `identity_users.vibeflow_account_id` foreign-key link to that Account. A
+  PostgreSQL `BEFORE INSERT` trigger creates the Account inside Better Auth's
+  Kysely-backed signup transaction, so a later credential/session failure rolls
+  both records back rather than leaving an orphan Account.
 - A validated session yields **identity proof only**: a canonical Account ID,
   session ID, expiry, and freshness. It never yields an Organization, Project,
   role, grant, policy, or permission.

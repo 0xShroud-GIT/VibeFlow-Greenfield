@@ -37,6 +37,16 @@
       ],
       "usage": "Email/password and database-backed cookie session mechanics only, wrapped by @vibeflow/identity."
     },
+    "kysely": {
+      "package": "kysely",
+      "version": "0.29.5",
+      "license": "MIT",
+      "package_coordinate": "npm:kysely",
+      "registry_metadata": "https://registry.npmjs.org/kysely/0.29.5",
+      "upstream": "https://github.com/kysely-org/kysely",
+      "official_guidance": "https://kysely.dev/docs/getting-started?dialect=postgres",
+      "usage": "Better Auth's PostgreSQL adapter transaction context; it shares the ratified pg pool and is required for atomic signup."
+    },
     "postgresql": {
       "ratified_line": "18.x",
       "uuid_guidance": "https://www.postgresql.org/docs/18/functions-uuid.html",
@@ -60,6 +70,9 @@
       "Secure, HttpOnly, SameSite=Lax cookie attributes",
       "session cookie cache disabled so revocation resolves through PostgreSQL",
       "server-generated Better Auth PostgreSQL UUIDs",
+      "Kysely-backed Better Auth transaction spans user, credential, and session writes",
+      "PostgreSQL BEFORE INSERT trigger creates the canonical Account in that same transaction",
+      "a forced post-Account credential-write failure proves no orphan Account survives",
       "server-side Account link created in a Better Auth user-create hook",
       "client-supplied link fields ignored by the VibeFlow boundary",
       "unknown, expired, malformed, replayed, revoked, or unlinked sessions fail closed",
@@ -94,6 +107,7 @@
       "live_suite": "packages/identity/src/session.live.test.ts",
       "required_cases": [
         "canonical Account linkage",
+        "forced failure after the Account creation point rolls back the Account and identity user",
         "secure cookie attributes",
         "untrusted-origin rejection",
         "invalid credential rejection",

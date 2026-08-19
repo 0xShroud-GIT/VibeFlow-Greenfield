@@ -195,7 +195,14 @@ entries:
     version: 1.6.30
     license: MIT
     source: https://github.com/better-auth/better-auth
-  rule: Wrap behind Identity module; enterprise SAML/SCIM may later use dedicated provider. M-009 pins better-auth 1.6.30, the current stable release within the ratified 1.6.x line.
+  - ecosystem: npm
+    name: kysely
+    harvest_id: H-012
+    approved_usage: production
+    version: 0.29.5
+    license: MIT
+    source: https://github.com/kysely-org/kysely
+  rule: Wrap behind Identity module; enterprise SAML/SCIM may later use dedicated provider. M-009 pins better-auth 1.6.30, the current stable release within the ratified 1.6.x line, and its 0.29.5 Kysely PostgreSQL transaction dependency to preserve signup atomicity.
   use: Commodity authentication/session mechanics behind the VibeFlow Identity module.
   ownership: Better Auth supplies auth protocols/sessions; VibeFlow owns product identity linking and tenant/project authorization; never VibeFlow authority.
   upgrade_policy: Stay on 1.6.x stable; breaking changes via identity mission.

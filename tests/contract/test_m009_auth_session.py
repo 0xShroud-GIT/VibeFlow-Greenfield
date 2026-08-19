@@ -21,6 +21,7 @@ class M009AuthenticationSessionContractTests(unittest.TestCase):
         manifest = json.loads(IDENTITY_PACKAGE.read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "@vibeflow/identity")
         self.assertEqual(manifest["dependencies"]["better-auth"], "1.6.30")
+        self.assertEqual(manifest["dependencies"]["kysely"], "0.29.5")
         self.assertEqual(manifest["dependencies"]["@vibeflow/persistence"], "workspace:*")
 
     def test_committed_sql_persists_library_auth_and_canonical_account_link(self) -> None:
@@ -34,6 +35,8 @@ class M009AuthenticationSessionContractTests(unittest.TestCase):
         ):
             self.assertIn(f"CREATE TABLE {table}", sql)
         self.assertIn("vibeflow_account_id uuid NOT NULL UNIQUE REFERENCES accounts", sql)
+        self.assertIn("CREATE FUNCTION identity_users_create_vibeflow_account()", sql)
+        self.assertIn("CREATE TRIGGER identity_users_create_vibeflow_account", sql)
         self.assertIn("token text NOT NULL UNIQUE", sql)
         self.assertIn("user_id uuid NOT NULL REFERENCES identity_users", sql)
         self.assertIn("password text", sql)
@@ -56,6 +59,9 @@ class M009AuthenticationSessionContractTests(unittest.TestCase):
             'trustedOrigins: [this.baseOrigin]',
             'findAccountByIdentityUserId',
             'input: false',
+            'transaction: true',
+            'PostgresDialect',
+            'vibeflowAccountId: user.id',
             'authenticated: false',
         ):
             self.assertIn(required, source)
@@ -68,6 +74,7 @@ class M009AuthenticationSessionContractTests(unittest.TestCase):
         self.assertIn("M-009 PostgreSQL integration requires DATABASE_URL in CI", source)
         for required in (
             "secure HttpOnly session cookies",
+            "rolls back the canonical Account",
             "untrusted origin",
             "invalid credentials",
             "revokes logout sessions and rejects replay",

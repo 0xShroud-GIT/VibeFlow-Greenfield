@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { Kysely, PostgresDialect } from "kysely";
 import {
   type AccountRow,
   type ControlPlanePool,
@@ -137,19 +138,25 @@ export class IdentityService {
   private readonly tenantRepository: TenantRepository;
   private readonly baseOrigin: string;
   private readonly secret: string;
+  /**
+   * Better Auth's Kysely adapter runs its signup sequence in this PostgreSQL
+   * transaction context. The control-plane pool retains lifecycle ownership.
+   */
+  private readonly authDatabase: Kysely<{}>;
 
   public constructor(private readonly options: IdentityServiceOptions) {
     this.tenantRepository = new TenantRepository(options.controlPlane.db);
     this.baseOrigin = requireSecureOrigin(options.baseURL);
     this.secret = requireSecret(options.secret);
+    this.authDatabase = new Kysely<{}>({
+      dialect: new PostgresDialect({ pool: options.controlPlane.pool }),
+    });
   }
 
   public async registerEmailPassword(input: EmailPasswordRegistration): Promise<SessionStart> {
     const displayName = requiredText("displayName", input.displayName);
     const origin = this.requireTrustedOrigin(input.origin);
-    const auth = this.createAuth(async () =>
-      this.tenantRepository.createAccount({ displayName }),
-    );
+    const auth = this.createAuth();
 
     try {
       const result = (await auth.api.signUpEmail({
@@ -277,12 +284,18 @@ export class IdentityService {
     return account;
   }
 
-  private createAuth(createAccount?: () => Promise<AccountRow>) {
+  private createAuth() {
     return betterAuth({
       appName: "VibeFlow",
       baseURL: this.baseOrigin,
       secret: this.secret,
-      database: this.options.controlPlane.pool,
+      database: {
+        db: this.authDatabase,
+        type: "postgres",
+        // Better Auth's sign-up path wraps user, credential, and session writes
+        // in its adapter transaction when this is enabled.
+        transaction: true,
+      },
       trustedOrigins: [this.baseOrigin],
       advanced: {
         useSecureCookies: true,
@@ -371,18 +384,15 @@ export class IdentityService {
       databaseHooks: {
         user: {
           create: {
-            before: async (user) => {
-              if (createAccount === undefined) {
-                return false;
-              }
-              const account = await createAccount();
-              return {
-                data: {
-                  ...user,
-                  vibeflowAccountId: account.id,
-                },
-              };
-            },
+            before: async (user) => ({
+              data: {
+                ...user,
+                // Better Auth generates this UUID before its user-create hook.
+                // PostgreSQL's BEFORE INSERT trigger creates the VibeFlow Account
+                // with this same server-generated ID in the same transaction.
+                vibeflowAccountId: user.id,
+              },
+            }),
           },
         },
       },
