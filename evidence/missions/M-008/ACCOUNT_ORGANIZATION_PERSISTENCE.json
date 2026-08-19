@@ -11,9 +11,10 @@
   },
   "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
   "live_postgres": {
+    "ci_service": "postgres:18.4 on .github/workflows/repository-foundation.yml (preserved from 614b8a5)",
     "connection_env": ["VIBEFLOW_DATABASE_URL", "DATABASE_URL"],
     "executed_in_arena": false,
-    "reason": "No PostgreSQL 18 service in Arena or retained CI foundation. Arena cannot write .github/workflows/**. Live suite is describe.skipIf without a connection string.",
+    "reason": "No local PostgreSQL 18 in Arena. Live suite runs in foundation CI when DATABASE_URL is set; skipped otherwise.",
     "suite": "packages/persistence/src/persistence.live.test.ts"
   },
   "mission": "M-008",

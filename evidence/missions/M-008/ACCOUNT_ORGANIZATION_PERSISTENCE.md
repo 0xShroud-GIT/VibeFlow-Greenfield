@@ -80,9 +80,12 @@ Live PostgreSQL (`VIBEFLOW_DATABASE_URL` or `DATABASE_URL`):
   transaction, migration idempotency
 
 Those live cases are `describe.skipIf` when no connection string is present.
-This Arena workspace and the retained CI foundation have no PostgreSQL 18
-service. Arena cannot write `.github/workflows/**` to add one. Live durability
-is therefore **not claimed** from this environment.
+This Arena workspace has no local PostgreSQL 18. The session branch already
+carried an owner-added `postgres:18.4` service on
+`.github/workflows/repository-foundation.yml` (commit `614b8a5`); that service
+is preserved so exact-head `pnpm run check` can execute the live suite via
+`DATABASE_URL`. Live durability is claimed only from that CI job, not from
+this sandbox.
 
 Retained mutation suites after successor-package / ledger reconstruction:
 
