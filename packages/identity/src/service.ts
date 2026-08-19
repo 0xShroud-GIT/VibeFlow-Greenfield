@@ -170,7 +170,7 @@ export class IdentityService {
       if (error instanceof IdentityInputError || error instanceof UntrustedIdentityOriginError) {
         throw error;
       }
-      throw new AuthenticationRejectedError("Registration was rejected");
+      throw new AuthenticationRejectedError("Registration was rejected", { cause: error });
     }
   }
 
