@@ -15,7 +15,7 @@ Human or AI contributor:
 
 ## Current state
 
-M-001 through M-011 are accepted and `DONE` after independent verification and merge. The sole active mission is `M-012` (Implement Project authority), in `REVIEW`. M-013 and later missions remain `LOCKED` and remain required for V1.
+M-001 through M-012 are accepted and `DONE` after independent verification and merge. The sole active mission is `M-013` (Implement Artifact/ArtifactRelation), in `READY`. M-014 and later missions remain `LOCKED` and remain required for V1.
 
 M-006 added machine-enforced harvest-to-package reconciliation, deny-by-default install/build-script approvals, immutable scanner and GitHub Action pins, local Semgrep rules, full-history secret scanning, dependency/repository vulnerability gates, and an ephemeral CycloneDX repository SBOM. The active `VibeFlow main protection` repository ruleset protects `main`: pull requests and resolved review threads are required, force-pushes and deletion are blocked, branches must be current, and the established `verify`, `foundation`, `sanitize`, and `security-gate` contexts are required.
 
