@@ -11,6 +11,7 @@ import type { AuthorizationRequest } from "./types.js";
 const ACCOUNT_A = "11111111-1111-4111-8111-111111111111";
 const ORG_A = "22222222-2222-4222-8222-222222222222";
 const ORG_B = "33333333-3333-4333-8333-333333333333";
+const UNKNOWN_RESOURCE_TYPE = "__vibeflow_test_unknown_resource_type__";
 
 function orgRow(id: string): OrganizationRow {
   return {
@@ -94,11 +95,8 @@ describe("M-010/M-012 authorization decision boundary", () => {
     );
   });
 
-  it("rejects unknown resource types and unknown actions", () => {
-    expect(validateRequest(request({ resource: { type: "workspace", id: ORG_A } }))).toEqual(
-      deny("unknown_resource_type"),
-    );
-    expect(validateRequest(request({ resource: { type: "task", id: ORG_A } }))).toEqual(
+  it("rejects an unregistered sentinel resource type and unknown actions", () => {
+    expect(validateRequest(request({ resource: { type: UNKNOWN_RESOURCE_TYPE, id: ORG_A } }))).toEqual(
       deny("unknown_resource_type"),
     );
     expect(validateRequest(request({ action: "deploy" }))).toEqual(deny("unknown_action"));
@@ -150,10 +148,10 @@ describe("M-010/M-012 authorization decision boundary", () => {
     ).resolves.toEqual(deny("unknown_resource"));
   });
 
-  it("denies an unknown resource type at the service boundary", async () => {
+  it("denies an unregistered sentinel resource type at the service boundary", async () => {
     const service = makeService();
     await expect(
-      service.authorize(request({ resource: { type: "workspace", id: ORG_A } })),
+      service.authorize(request({ resource: { type: UNKNOWN_RESOURCE_TYPE, id: ORG_A } })),
     ).resolves.toEqual(deny("unknown_resource_type"));
   });
 
