@@ -12,6 +12,12 @@
     "256a54e265bd7455128e81418dc00326f937e824",
     "8d8a26ae2d3d665c55d8ac73e1272cd4a92f15fc"
   ],
+  "test_stabilization_commits": [
+    "b0d1c2f63c4ec94292f90d82cbe09c3f450e42fe",
+    "89c5b13e07221743c4e55a096053d5c604f4bbce",
+    "a26985990505fea2cb08334f1efc827965a145b0",
+    "bcd4f07beddc107a1a3ae9a457e8f3d9a75f2619"
+  ],
   "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence. This file does not contain its own SHA to avoid self-referential evidence.",
   "branch_protection": {
     "observed_before_repository_edits": "active ruleset",
@@ -43,6 +49,7 @@
     "packages/authorization/src/decision.test.ts",
     "packages/authorization/src/project.live.test.ts",
     "packages/authorization/src/service.ts",
+    "packages/authorization/src/tenant.live.test.ts",
     "packages/authorization/src/types.ts",
     "packages/persistence/README.md",
     "packages/persistence/src/index.ts",
@@ -57,6 +64,8 @@
     "packages/project/tsconfig.json",
     "pnpm-lock.yaml",
     "scripts/run-m012-project-integration.py",
+    "tests/contract/test_m005_contract_codegen.py",
+    "tests/contract/test_m007_local_dev.py",
     "tests/contract/test_m010_authz.py",
     "tests/contract/test_m012_project.py"
   ],
@@ -120,6 +129,12 @@
       "m010": "8 tests PASS after README update",
       "m011": "8 tests PASS",
       "m012": "9 tests PASS"
+    },
+    "retained_gate_stabilization": {
+      "m005": "Replaced a current-branch assertion that permanently required M-011 active with durable M-001..M-005 DONE + exactly-one-active-mission invariants.",
+      "m007": "Historical M-007 fixture now reconstructs all 405 accepted capability statuses in one pass instead of manually resetting capability IDs advanced by later missions.",
+      "authorization_unknown_type": "Retained M-010/M-012 unknown-resource-type tests now use a reserved test-only sentinel instead of canonical resource names such as project/workspace/task that can become supported later.",
+      "security_strength": "No fail-closed or negative-path assertion was weakened; only historical/current-state coupling was removed."
     },
     "live_postgres": {
       "required_version": "18.4",
