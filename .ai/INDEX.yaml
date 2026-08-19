@@ -17,6 +17,7 @@ machine_readable:
   events: master-build-system/03_BACKEND/EVENT_CATALOG.yaml
   frontend_backend: master-build-system/09_CONTRACTS/FRONTEND_BACKEND_MATRIX.yaml
   dependencies: master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml
+  implementation_references: master-build-system/04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml
   missions: master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml
   acceptance: master-build-system/11_VERIFICATION/V1_ACCEPTANCE.yaml
 context_rule: Load only files referenced by the current mission plus relevant invariants.

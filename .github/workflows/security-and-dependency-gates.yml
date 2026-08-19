@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '23 3 * * *'
 
 permissions:
   contents: read
@@ -52,6 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Install checksum-verified vulnerability scanners
         shell: bash
@@ -64,19 +67,104 @@ jobs:
       - name: Scan repository vulnerabilities and misconfigurations with Trivy
         shell: bash
         run: scripts/security/run-trivy.sh
+      - name: Classify dev-image security verification depth
+        id: scope
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci/classify-verification-scope.py --base "$BASE_SHA" --head HEAD --github-output "$GITHUB_OUTPUT"
       - name: Pull exact dev container base image by digest
+        if: ${{ steps.scope.outputs.dev_image == 'true' }}
         shell: bash
         run: docker pull docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d
       - name: Build exact dev container image
+        if: ${{ steps.scope.outputs.dev_image == 'true' }}
         uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
         with:
           imageName: vibeflow-dev
           push: never
+      - name: Freeze exact dev image archive
+        if: ${{ steps.scope.outputs.dev_image == 'true' }}
+        shell: bash
+        run: |
+          docker image inspect vibeflow-dev:latest --format '{{.Id}}' > "$RUNNER_TEMP/vibeflow-dev-image.id"
+          docker save -o "$RUNNER_TEMP/vibeflow-dev-image.tar" vibeflow-dev:latest
+          sha256sum "$RUNNER_TEMP/vibeflow-dev-image.tar" > "$RUNNER_TEMP/vibeflow-dev-image.tar.sha256"
       - name: Scan exact dev image with Trivy
+        id: devscan
+        if: ${{ steps.scope.outputs.dev_image == 'true' }}
         env:
-          DEV_IMAGE: vibeflow-dev:latest
+          DEV_IMAGE_INPUT: ${{ runner.temp }}/vibeflow-dev-image.tar
         shell: bash
         run: scripts/security/scan-dev-image.sh
+      - name: Generate ephemeral CycloneDX dev-image SBOM
+        id: devsbom
+        if: ${{ steps.scope.outputs.dev_image == 'true' }}
+        env:
+          DEV_IMAGE_INPUT: ${{ runner.temp }}/vibeflow-dev-image.tar
+        shell: bash
+        run: scripts/security/generate-dev-image-sbom.sh "$RUNNER_TEMP/vibeflow-dev-image.cdx.json"
+      - name: Record candidate-bound dev-image verification evidence
+        if: ${{ always() }}
+        shell: bash
+        env:
+          REQUIRED: ${{ steps.scope.outputs.dev_image }}
+          REASONS: ${{ steps.scope.outputs.reasons }}
+          SCAN_RESULT: ${{ steps.devscan.outcome }}
+          SBOM_RESULT: ${{ steps.devsbom.outcome }}
+          CANDIDATE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TESTED_REVISION_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          export EVIDENCE_PATH="$RUNNER_TEMP/vibeflow-dev-image-verification.json"
+          if [ "$REQUIRED" = "true" ]; then
+            test "$SCAN_RESULT" = "success"
+            test "$SBOM_RESULT" = "success"
+            test -s "$RUNNER_TEMP/vibeflow-dev-image.id"
+            test -s "$RUNNER_TEMP/vibeflow-dev-image.tar.sha256"
+            test -s "$RUNNER_TEMP/vibeflow-dev-image.cdx.json.sha256"
+            export EXECUTED=true
+            export IMAGE_ID="$(cat "$RUNNER_TEMP/vibeflow-dev-image.id")"
+            export ARCHIVE_SHA256="$(awk '{print $1}' "$RUNNER_TEMP/vibeflow-dev-image.tar.sha256")"
+            export SBOM_SHA256="$(awk '{print $1}' "$RUNNER_TEMP/vibeflow-dev-image.cdx.json.sha256")"
+          else
+            export EXECUTED=false
+            export IMAGE_ID=""
+            export ARCHIVE_SHA256=""
+            export SBOM_SHA256=""
+          fi
+          python3 - <<'PY'
+          import json, os
+          payload = {
+              "candidate_head_sha": os.environ["CANDIDATE_HEAD_SHA"],
+              "tested_revision_sha": os.environ["TESTED_REVISION_SHA"],
+              "event_name": os.environ["EVENT_NAME"],
+              "applicable": os.environ.get("REQUIRED") == "true",
+              "executed": os.environ.get("EXECUTED") == "true",
+              "classification_reasons": os.environ.get("REASONS", ""),
+              "scan_result": os.environ.get("SCAN_RESULT", "skipped"),
+              "sbom_result": os.environ.get("SBOM_RESULT", "skipped"),
+              "docker_image_id": os.environ.get("IMAGE_ID") or None,
+              "image_archive_sha256": os.environ.get("ARCHIVE_SHA256") or None,
+              "sbom_sha256": os.environ.get("SBOM_SHA256") or None,
+          }
+          with open(os.environ["EVIDENCE_PATH"], "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+      - name: Upload candidate-bound dev-image verification evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vibeflow-dev-image-cyclonedx-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            ${{ runner.temp }}/vibeflow-dev-image-verification.json
+            ${{ runner.temp }}/vibeflow-dev-image.id
+            ${{ runner.temp }}/vibeflow-dev-image.tar.sha256
+            ${{ runner.temp }}/vibeflow-dev-image.cdx.json
+            ${{ runner.temp }}/vibeflow-dev-image.cdx.json.sha256
+          if-no-files-found: error
+          retention-days: 7
 
   sast:
     runs-on: ubuntu-latest
@@ -94,7 +182,7 @@ jobs:
 
   sbom:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -112,28 +200,6 @@ jobs:
           path: |
             ${{ runner.temp }}/vibeflow-repository.cdx.json
             ${{ runner.temp }}/vibeflow-repository.cdx.json.sha256
-          if-no-files-found: error
-          retention-days: 7
-      - name: Pull exact dev container base image by digest
-        shell: bash
-        run: docker pull docker.io/library/node:24.19.0-trixie-slim@sha256:0711b541c1c33a8a530ac4f0d391baa9a15b3d804695b1b24a47daa5fb60e74d
-      - name: Build exact dev container image
-        uses: devcontainers/ci@513af61f4de4f75d37e4438f184ba4358f0fc1ca # v0.3.1900000450
-        with:
-          imageName: vibeflow-dev
-          push: never
-      - name: Generate ephemeral CycloneDX dev-image SBOM
-        env:
-          DEV_IMAGE: vibeflow-dev:latest
-        shell: bash
-        run: scripts/security/generate-dev-image-sbom.sh "$RUNNER_TEMP/vibeflow-dev-image.cdx.json"
-      - name: Upload ephemeral dev-image CycloneDX evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: vibeflow-dev-image-cyclonedx
-          path: |
-            ${{ runner.temp }}/vibeflow-dev-image.cdx.json
-            ${{ runner.temp }}/vibeflow-dev-image.cdx.json.sha256
           if-no-files-found: error
           retention-days: 7
 
