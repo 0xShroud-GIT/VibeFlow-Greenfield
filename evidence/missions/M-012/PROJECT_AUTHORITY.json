@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0",
+  "mission": "M-012",
+  "title": "Implement authoritative Project resource",
+  "mission_status": "REVIEW",
+  "phase": "3 - Project Authority",
+  "branch": "arena/01a01bbd-vibeflow-greenfield",
+  "starting_main_sha": "b9f68c7c9062298e2be7d07cdd2c1d0976f5c13f",
+  "m011_closure_commit": "83f01bbbbb16007b1f0e50c24539f2ddbef8b682",
+  "m012_start_commit": "caffe9c484a033c219402e8bd83709164d490f30",
+  "implementation_commits": [
+    "256a54e265bd7455128e81418dc00326f937e824",
+    "8d8a26ae2d3d665c55d8ac73e1272cd4a92f15fc"
+  ],
+  "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence. This file does not contain its own SHA to avoid self-referential evidence.",
+  "branch_protection": {
+    "observed_before_repository_edits": "active ruleset",
+    "ruleset_id": 21053541,
+    "ruleset_name": "VibeFlow main protection",
+    "enforcement": "active",
+    "target": "refs/heads/main",
+    "strict_required_status_checks_policy": true,
+    "required_contexts": ["verify", "foundation", "sanitize", "security-gate"],
+    "other_rules": ["pull_request", "required_review_thread_resolution", "deletion blocked", "non_fast_forward blocked"],
+    "current_user_can_bypass": "never",
+    "note": "Ruleset verified via repository ruleset API before edits; legacy branch-protection endpoint returned 403. No mutation needed."
+  },
+  "changed_file_scope": [
+    ".ai/ACTIVE_MISSION.md",
+    "README.md",
+    "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+    "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv",
+    "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml",
+    "master-build-system/09_CONTRACTS/CAPABILITY_CONTRACT_TRACE.csv",
+    "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml",
+    "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv",
+    "master-build-system/SHA256SUMS.txt",
+    "migrations/0004_project_authority.sql",
+    "migrations/README.md",
+    "package.json",
+    "packages/audit/src/service.ts",
+    "packages/authorization/README.md",
+    "packages/authorization/src/decision.test.ts",
+    "packages/authorization/src/project.live.test.ts",
+    "packages/authorization/src/service.ts",
+    "packages/authorization/src/types.ts",
+    "packages/persistence/README.md",
+    "packages/persistence/src/index.ts",
+    "packages/persistence/src/project.live.test.ts",
+    "packages/persistence/src/repositories.ts",
+    "packages/persistence/src/schema.ts",
+    "packages/project/package.json",
+    "packages/project/src/errors.ts",
+    "packages/project/src/index.ts",
+    "packages/project/src/project.live.test.ts",
+    "packages/project/src/service.ts",
+    "packages/project/tsconfig.json",
+    "pnpm-lock.yaml",
+    "scripts/run-m012-project-integration.py",
+    "tests/contract/test_m010_authz.py",
+    "tests/contract/test_m012_project.py"
+  ],
+  "project_authority_model": {
+    "identity": "Server-generated UUID via newId() / randomUUID, never client/provider supplied",
+    "ownership": "Canonical organizations.id FK, organization_memberships proves tenant membership on every decision",
+    "timestamps": "Server-controlled created_at/updated_at, updated_at refreshed on mutation",
+    "integrity": "FK to organizations, CHECK name non-empty, provider authority keys rejected",
+    "indexes": ["projects_organization_id_idx", "projects_organization_id_created_at_idx"],
+    "tenant_safe_reads": "listProjectsForOrganization scoped to canonical organization_id; getProjectById returns canonical row for authz to resolve tenant",
+    "tenant_safe_mutations": "createProject requires organization membership via authz; updateProject requires project membership via authz"
+  },
+  "persistence": {
+    "migration": "migrations/0004_project_authority.sql",
+    "table": "projects",
+    "fields": ["id", "organization_id", "name", "created_at", "updated_at"],
+    "constraints": ["PRIMARY KEY id", "FK organization_id -> organizations.id", "CHECK char_length(trim(name)) > 0"],
+    "indexes": ["projects_organization_id_idx", "projects_organization_id_created_at_idx"],
+    "repository": "packages/persistence/src/repositories.ts ProjectRepository",
+    "server_authority": "id via newId(), timestamps via now(), organizationId via requireId, name via requireNonEmpty, rejectProviderAuthority"
+  },
+  "authorization_integration": {
+    "resource_types": ["organization", "project"],
+    "project_tenant_resolution": "ProjectRow.organizationId resolved from persistence, then OrganizationRow resolved, then membership required",
+    "decision_boundary": "TenantAuthorizationService.authorize returns explicit allow/deny, never throws for outcome",
+    "negative_paths": {
+      "unauthenticated": "malformed_request / invalid_identifier",
+      "authenticated_non_member": "no_membership",
+      "cross_org_project_read": "no_membership",
+      "cross_org_project_mutation": "no_membership",
+      "forged_organization_id": "unknown_resource or no_membership via FK and authz",
+      "forged_project_ownership": "tenant resolved from persistence, not client claim",
+      "random_unknown_project": "unknown_resource",
+      "revoked_membership": "no_membership after DELETE",
+      "stale_tenant_info": "client org claim ignored, canonical persistence used"
+    },
+    "service_layer": "@vibeflow/project ProjectService uses authz for create (org check) and read/list/update (project check)"
+  },
+  "audit_integration": {
+    "authorization_audit": "AuthorizationAuditRecorder records project decisions; organization_id resolved via SELECT organization_id FROM projects WHERE id = $1",
+    "server_authority": "actorAccountId canonical, resourceId canonical UUID, organizationId resolved from canonical row, not client metadata",
+    "metadata_safety": "sanitizeAuditMetadata omits secret keys and redacts secret values, rejects authority-shaped keys",
+    "negative": ["cross-account read denied", "cross-tenant read denied", "forged metadata rejected", "append-only trigger"]
+  },
+  "api_service_boundary": {
+    "package": "@vibeflow/project",
+    "methods": ["createProject", "getProject", "listProjects", "updateProject"],
+    "exposed": "Minimal CRUD for unbound/empty Project; no Artifact, import, binding, lifecycle E2E, delete/archive",
+    "server_owned": ["id", "organization_id", "created_at", "updated_at"],
+    "client_supplied": ["organizationId (checked via membership, not trusted as authority)", "name (non-empty, trimmed, 200 char max)"]
+  },
+  "testing": {
+    "unit": {
+      "decision": "13/13 PASS after M-012 update (was 13/13 for M-010, now includes project)",
+      "metadata": "4/4 PASS",
+      "authority": "5 tests in persistence authority.test.ts"
+    },
+    "contract": {
+      "m008": "7 tests PASS",
+      "m009": "6 tests PASS",
+      "m010": "8 tests PASS after README update",
+      "m011": "8 tests PASS",
+      "m012": "9 tests PASS"
+    },
+    "live_postgres": {
+      "required_version": "18.4",
+      "workflow_service": "postgres:18.4 in Repository Foundation",
+      "runners": [
+        "scripts/run-m012-project-integration.py runs persistence, authorization, project live suites"
+      ],
+      "suites": {
+        "persistence": "packages/persistence/src/project.live.test.ts 8 cases: canonical creation, ownership, FK, tenant-safe list, unknown UUID, mutation, indexes, provider authority rejection",
+        "authorization": "packages/authorization/src/project.live.test.ts 10+ cases: same-tenant success, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, canonical persistence, non-member, unauthenticated",
+        "project_service": "packages/project/src/project.live.test.ts 11 cases: creation, same-tenant read, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, stale tenant, canonical persistence + audit scoping, tenant-safe list"
+      },
+      "status_at_evidence_creation": "NOT EXECUTED locally (no DATABASE_URL); must be executed in CI exact-head; not represented as PASS"
+    },
+    "local_checks": {
+      "pnpm_install": "PASS (with --no-frozen-lockfile to update lock for new @vibeflow/project dep)",
+      "typecheck": "16/16 packages PASS",
+      "test": "16/16 packages PASS (live skipped without DB, expected)",
+      "check_contracts": "PASS",
+      "foundation_validate": "PASS",
+      "master_contracts_validate": "PASS",
+      "security_validate": "PASS",
+      "dev_validate": "PASS",
+      "git_diff_check": "PASS"
+    }
+  },
+  "capability_status": {
+    "VF-IAM-010": "IMPLEMENTED (Project ownership: canonical org ownership + membership resolution)",
+    "VF-PRJ-005": "IMPLEMENTED (Unbound/empty Project: creation without bindings)",
+    "VF-PRJ-015": "IMPLEMENTED (Project: creation with server-generated id)",
+    "VF-PRJ-016": "NOT_STARTED (Project Profile beyond name not in M-012 scope)",
+    "rationale": "M-012 implements authoritative Project existence, id, org ownership, timestamps, FK, indexes, tenant-safe CRUD and authorization. Artifact, import, full lifecycle, bindings remain LOCKED.",
+    "unrelated_capabilities_changed": []
+  },
+  "known_limitations": [
+    "Project update only supports name change; no full lifecycle state machine (M-015).",
+    "No Artifact/ArtifactRelation (M-013), imports/templates (M-014), provider bindings (M-016+).",
+    "Audit for project uses organization_id resolved from projects table; project-specific audit catalog beyond authorization remains future.",
+    "PostgreSQL live suites require DATABASE_URL and are not executed locally; CI must run them exact-head.",
+    "M-012 remains REVIEW, not DONE, until independent review and merge."
+  ],
+  "out_of_scope_confirmed": [
+    "M-013 Artifact/ArtifactRelation not implemented",
+    "M-014 imports/templates lifecycle not implemented",
+    "M-015 full Project lifecycle E2E beyond M-012 not implemented",
+    "M-016+ provider bindings: AgentBinding, ModelBinding, WorkspaceBinding, RepositoryBinding, DataBinding, ObjectStorageBinding, DeploymentBinding not implemented",
+    "OpenHands integration, workspace provisioning, GitHub repo management, Monaco/web IDE, task/execution engine, Temporal, deployment, billing, collaboration roles/groups, enterprise SSO/SCIM, broad external authorization engine, later mobile/UI work not implemented"
+  ],
+  "overclaim_check": "M-012 is REVIEW, not DONE. VF-IAM-010, VF-PRJ-005, VF-PRJ-015 are IMPLEMENTED, not VERIFIED/COMPLETE. PostgreSQL live is not claimed locally. M-013+ remain LOCKED."
+}
