@@ -18,6 +18,10 @@
     "a26985990505fea2cb08334f1efc827965a145b0",
     "bcd4f07beddc107a1a3ae9a457e8f3d9a75f2619"
   ],
+  "independent_review_remediation_commits": [
+    "3bf6b815d4117c5e7434144382cfc4b13ef6e61c",
+    "fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373"
+  ],
   "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence. This file does not contain its own SHA to avoid self-referential evidence.",
   "branch_protection": {
     "observed_before_repository_edits": "active ruleset",
@@ -44,6 +48,7 @@
     "migrations/0004_project_authority.sql",
     "migrations/README.md",
     "package.json",
+    "packages/audit/src/project-scope.live.test.ts",
     "packages/audit/src/service.ts",
     "packages/authorization/README.md",
     "packages/authorization/src/decision.test.ts",
@@ -100,15 +105,17 @@
       "forged_project_ownership": "tenant resolved from persistence, not client claim",
       "random_unknown_project": "unknown_resource",
       "revoked_membership": "no_membership after DELETE",
-      "stale_tenant_info": "client org claim ignored, canonical persistence used"
+      "stale_tenant_info": "client org claim ignored, canonical persistence used",
+      "audit_scope_resolution_failure": "otherwise-allowed decision becomes audit_unavailable"
     },
     "service_layer": "@vibeflow/project ProjectService uses authz for create (org check) and read/list/update (project check)"
   },
   "audit_integration": {
     "authorization_audit": "AuthorizationAuditRecorder records project decisions; organization_id resolved via SELECT organization_id FROM projects WHERE id = $1",
     "server_authority": "actorAccountId canonical, resourceId canonical UUID, organizationId resolved from canonical row, not client metadata",
+    "scope_resolution_failure": "Database errors while resolving canonical Organization or Project tenant scope propagate to TenantAuthorizationService; an otherwise-allowed decision is converted to DENY audit_unavailable instead of writing an unscoped allowed event. Missing resources still resolve to zero rows and may remain account-scoped denial evidence.",
     "metadata_safety": "sanitizeAuditMetadata omits secret keys and redacts secret values, rejects authority-shaped keys",
-    "negative": ["cross-account read denied", "cross-tenant read denied", "forged metadata rejected", "append-only trigger"]
+    "negative": ["cross-account read denied", "cross-tenant read denied", "forged metadata rejected", "append-only trigger", "Project audit scope database failure denies authorization"]
   },
   "api_service_boundary": {
     "package": "@vibeflow/project",
@@ -140,12 +147,14 @@
       "required_version": "18.4",
       "workflow_service": "postgres:18.4 in Repository Foundation",
       "runners": [
+        "pnpm run check executes all package Vitest suites, including packages/audit/src/project-scope.live.test.ts",
         "scripts/run-m012-project-integration.py runs persistence, authorization, project live suites"
       ],
       "suites": {
         "persistence": "packages/persistence/src/project.live.test.ts 8 cases: canonical creation, ownership, FK, tenant-safe list, unknown UUID, mutation, indexes, provider authority rejection",
         "authorization": "packages/authorization/src/project.live.test.ts 10+ cases: same-tenant success, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, canonical persistence, non-member, unauthenticated",
-        "project_service": "packages/project/src/project.live.test.ts 11 cases: creation, same-tenant read, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, stale tenant, canonical persistence + audit scoping, tenant-safe list"
+        "project_service": "packages/project/src/project.live.test.ts 11 cases: creation, same-tenant read, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, stale tenant, canonical persistence + audit scoping, tenant-safe list",
+        "audit_scope_failure": "packages/audit/src/project-scope.live.test.ts proves a forced canonical Project audit-scope query failure converts an otherwise-valid ALLOW to audit_unavailable and persists no false allowed Project audit row"
       },
       "status_at_evidence_creation": "NOT EXECUTED locally (no DATABASE_URL); must be executed in CI exact-head; not represented as PASS"
     },
