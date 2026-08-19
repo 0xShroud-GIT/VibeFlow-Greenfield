@@ -10,7 +10,7 @@ export {
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
 export { isUuid, newId, requireId, requireNonEmpty } from "./ids.js";
-export { TenantRepository } from "./repositories.js";
+export { ProjectRepository, TenantRepository } from "./repositories.js";
 export {
   accounts,
   auditEvents,
@@ -19,6 +19,7 @@ export {
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
+  projects,
   TENANT_TABLES,
   type AccountRow,
   type AuditEventRow,
@@ -26,4 +27,5 @@ export {
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,
+  type ProjectRow,
 } from "./schema.js";

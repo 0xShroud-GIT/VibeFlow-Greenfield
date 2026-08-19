@@ -39,6 +39,9 @@ function fakeAuthority(): MembershipAuthority {
       }
       throw Object.assign(new Error("not found"), { name: "NotFoundError" });
     },
+    async getProjectById() {
+      throw Object.assign(new Error("not found"), { name: "NotFoundError" });
+    },
   };
 }
 
@@ -59,9 +62,9 @@ function makeService(auditFails = false): TenantAuthorizationService {
   });
 }
 
-describe("M-010 authorization decision boundary", () => {
-  it("registers the organization resource type and canonical actions", () => {
-    expect(RESOURCE_TYPES).toEqual(["organization"]);
+describe("M-010/M-012 authorization decision boundary", () => {
+  it("registers the organization and project resource types and canonical actions", () => {
+    expect([...RESOURCE_TYPES].sort()).toEqual(["organization", "project"].sort());
     expect(ACTIONS).toEqual(["read", "create", "update", "delete", "list"]);
   });
 
@@ -92,7 +95,10 @@ describe("M-010 authorization decision boundary", () => {
   });
 
   it("rejects unknown resource types and unknown actions", () => {
-    expect(validateRequest(request({ resource: { type: "project", id: ORG_A } }))).toEqual(
+    expect(validateRequest(request({ resource: { type: "workspace", id: ORG_A } }))).toEqual(
+      deny("unknown_resource_type"),
+    );
+    expect(validateRequest(request({ resource: { type: "task", id: ORG_A } }))).toEqual(
       deny("unknown_resource_type"),
     );
     expect(validateRequest(request({ action: "deploy" }))).toEqual(deny("unknown_action"));

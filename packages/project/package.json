@@ -1,0 +1,25 @@
+{
+  "name": "@vibeflow/project",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VibeFlow authoritative Project resource: server-owned identity, canonical Organization ownership, tenant-safe persistence and authorization",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@vibeflow/audit": "workspace:*",
+    "@vibeflow/authorization": "workspace:*",
+    "@vibeflow/persistence": "workspace:*"
+  }
+}

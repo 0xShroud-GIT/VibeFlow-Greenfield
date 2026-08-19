@@ -16,10 +16,12 @@ import {
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
+  projects,
   type AccountRow,
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,
+  type ProjectRow,
 } from "./schema.js";
 
 export interface CreateAccountInput {
@@ -34,6 +36,16 @@ export interface CreateOrganizationInput {
 export interface CreateMembershipInput {
   organizationId: string;
   accountId: string;
+}
+
+export interface CreateProjectInput {
+  organizationId: string;
+  name: string;
+}
+
+export interface UpdateProjectInput {
+  id: string;
+  name: string;
 }
 
 function now(): Date {
@@ -222,5 +234,81 @@ export class TenantRepository {
       });
       return { organization, membership };
     });
+  }
+}
+
+export class ProjectRepository {
+  public constructor(private readonly db: ControlPlaneDatabase) {}
+
+  /**
+   * Canonical Project creation.
+   * Server-generated id, canonical organization ownership, server-controlled
+   * timestamps, FK integrity. Provider/external ids are never accepted.
+   */
+  public async createProject(input: CreateProjectInput): Promise<ProjectRow> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const organizationId = requireId("organizationId", input.organizationId);
+    const name = requireNonEmpty("name", input.name);
+    const createdAt = now();
+    const row = {
+      id: newId(),
+      organizationId,
+      name,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    try {
+      const inserted = await this.db.insert(projects).values(row).returning();
+      const created = inserted[0];
+      if (!created) {
+        throw new PersistenceInputError("project insert returned no row");
+      }
+      return created;
+    } catch (error) {
+      mapDatabaseError(error);
+    }
+  }
+
+  public async getProjectById(projectId: string): Promise<ProjectRow> {
+    const id = requireId("projectId", projectId);
+    const rows = await this.db.select().from(projects).where(eq(projects.id, id));
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundError(`project not found: ${id}`);
+    }
+    return row;
+  }
+
+  /**
+   * Tenant-safe list: projects are listed only for one canonical organization id.
+   * There is no unscoped project catalog.
+   */
+  public async listProjectsForOrganization(organizationId: string): Promise<ProjectRow[]> {
+    const id = requireId("organizationId", organizationId);
+    return this.db.select().from(projects).where(eq(projects.organizationId, id));
+  }
+
+  public async updateProject(input: UpdateProjectInput): Promise<ProjectRow> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const id = requireId("id", input.id);
+    const name = requireNonEmpty("name", input.name);
+    const updatedAt = now();
+    try {
+      const updated = await this.db
+        .update(projects)
+        .set({ name, updatedAt })
+        .where(eq(projects.id, id))
+        .returning();
+      const row = updated[0];
+      if (!row) {
+        throw new NotFoundError(`project not found: ${id}`);
+      }
+      return row;
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      mapDatabaseError(error);
+    }
   }
 }

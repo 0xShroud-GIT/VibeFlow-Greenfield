@@ -83,11 +83,28 @@ export const auditEvents = pgTable("audit_events", {
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull(),
 });
 
+/**
+ * M-012 authoritative Project resource.
+ * VibeFlow-owned stable container with canonical Organization ownership.
+ * Server-generated id, server-controlled timestamps, FK integrity, and
+ * tenant indexes. No provider/external identifier ever establishes authority.
+ */
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+});
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationMembershipRow = typeof organizationMemberships.$inferSelect;
 export type IdentityUserRow = typeof identityUsers.$inferSelect;
 export type AuditEventRow = typeof auditEvents.$inferSelect;
+export type ProjectRow = typeof projects.$inferSelect;
 
 /** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
@@ -96,9 +113,10 @@ export const TENANT_TABLES = {
   organizationMemberships,
 } as const;
 
-/** All Drizzle tables queried by VibeFlow control-plane modules through M-011. */
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-012. */
 export const CONTROL_PLANE_TABLES = {
   ...TENANT_TABLES,
   identityUsers,
   auditEvents,
+  projects,
 } as const;

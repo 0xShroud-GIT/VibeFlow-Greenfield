@@ -7,16 +7,16 @@
  * organization id, role, permission, ownership claim, or resource relationship
  * as authority, and it never returns `allowed` unless membership is proven.
  *
- * Only the `organization` resource type is registered in M-010. Later resource
- * types (Project, Task, Connection, Workspace, repository, deployment, ...)
- * register a canonical tenant resolver in their owning mission; until then
- * they are denied by default, which is the correct fail-closed posture.
+ * M-010 registered `organization`. M-012 registers `project` as a first-class
+ * protected resource: its canonical Organization ownership is resolved from
+ * persistence and membership is proven against that Organization. Unknown
+ * types continue to fail closed.
  */
 
 import type {
   OrganizationMembershipRow,
   OrganizationRow,
-  TenantRepository,
+  ProjectRow,
 } from "@vibeflow/persistence";
 
 import { validateRequest } from "./decision.js";
@@ -28,7 +28,8 @@ import type {
 
 /**
  * Narrow canonical-persistence authority the boundary depends on.
- * `TenantRepository` satisfies it structurally, and tests may provide a fake.
+ * `TenantRepository` + `ProjectRepository` satisfy it structurally, and tests
+ * may provide a fake.
  */
 export interface MembershipAuthority {
   getOrganizationById(organizationId: string): Promise<OrganizationRow>;
@@ -36,6 +37,7 @@ export interface MembershipAuthority {
     organizationId: string;
     accountId: string;
   }): Promise<OrganizationMembershipRow>;
+  getProjectById(projectId: string): Promise<ProjectRow>;
 }
 
 /** Narrow trusted integration implemented by @vibeflow/audit AuditService. */
@@ -71,6 +73,9 @@ export class TenantAuthorizationService {
     switch (request.resource.type) {
       case "organization":
         decision = await this.authorizeOrganizationResource(request);
+        break;
+      case "project":
+        decision = await this.authorizeProjectResource(request);
         break;
       default:
         // Defensive: validateRequest already rejects unknown types.
@@ -117,6 +122,52 @@ export class TenantAuthorizationService {
     }
 
     // Membership is resolved from canonical persistence on every decision.
+    try {
+      await this.tenants.getMembership({
+        organizationId: organization.id,
+        accountId: request.accountId,
+      });
+    } catch {
+      return deny("no_membership");
+    }
+
+    return ALLOW;
+  }
+
+  /**
+   * Project authority: canonical Project ownership is resolved from
+   * persistence. The Project's canonical Organization is its tenant.
+   * Access requires a membership row for that Organization.
+   *
+   * Never trusts client/provider supplied organization id, ownership claim,
+   * or resource relationship; only the canonical Project row establishes the
+   * tenant.
+   */
+  private async authorizeProjectResource(
+    request: AuthorizationRequest,
+  ): Promise<AuthorizationDecision> {
+    const projectId = request.resource.id;
+
+    // The project must exist as a canonical VibeFlow row. A forged, swapped,
+    // or random UUID that is not a real project fails closed as unknown.
+    let project: ProjectRow;
+    try {
+      project = await this.tenants.getProjectById(projectId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    // The project's canonical organization must exist; if it does not,
+    // treat as unknown to avoid leaking tenant existence.
+    let organization: OrganizationRow;
+    try {
+      organization = await this.tenants.getOrganizationById(project.organizationId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    // Membership is resolved from canonical persistence on every decision.
+    // Revoked/stale membership fails closed.
     try {
       await this.tenants.getMembership({
         organizationId: organization.id,

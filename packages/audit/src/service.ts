@@ -39,6 +39,16 @@ export class AuditService {
       } catch {
         // Unknown UUID targets remain account-scoped evidence, not tenant authority.
       }
+    } else if (input.resource.type === "project") {
+      try {
+        const projects = await this.query<{ organization_id: string }>(
+          "SELECT organization_id FROM projects WHERE id = $1",
+          [resourceId],
+        );
+        organizationId = projects[0]?.organization_id ?? null;
+      } catch {
+        // Unknown project remains account-scoped; organizationId stays null.
+      }
     }
     await this.insert({
       actorAccountId: actor.id,
