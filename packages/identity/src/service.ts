@@ -315,7 +315,9 @@ export class IdentityService {
         additionalFields: {
           vibeflowAccountId: {
             type: "string",
-            required: true,
+            // The hook supplies this server-side before persistence. Keep it
+            // optional to Better Auth input parsing so a client can never send it.
+            required: false,
             input: false,
             returned: true,
             fieldName: "vibeflow_account_id",
