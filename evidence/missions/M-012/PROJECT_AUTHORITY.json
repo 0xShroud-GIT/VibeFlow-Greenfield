@@ -20,7 +20,8 @@
   ],
   "independent_review_remediation_commits": [
     "3bf6b815d4117c5e7434144382cfc4b13ef6e61c",
-    "fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373"
+    "fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373",
+    "e345d726917d9f719a055878e47e6dcd65c44e09"
   ],
   "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence. This file does not contain its own SHA to avoid self-referential evidence.",
   "branch_protection": {
@@ -50,6 +51,7 @@
     "package.json",
     "packages/audit/src/project-scope.live.test.ts",
     "packages/audit/src/service.ts",
+    "packages/audit/tsconfig.json",
     "packages/authorization/README.md",
     "packages/authorization/src/decision.test.ts",
     "packages/authorization/src/project.live.test.ts",
@@ -147,7 +149,7 @@
       "required_version": "18.4",
       "workflow_service": "postgres:18.4 in Repository Foundation",
       "runners": [
-        "pnpm run check executes all package Vitest suites, including packages/audit/src/project-scope.live.test.ts",
+        "pnpm run check executes package Vitest suites, including packages/audit/src/project-scope.live.test.ts",
         "scripts/run-m012-project-integration.py runs persistence, authorization, project live suites"
       ],
       "suites": {
@@ -156,6 +158,7 @@
         "project_service": "packages/project/src/project.live.test.ts 11 cases: creation, same-tenant read, cross-tenant read/mutation fail, forged org/actor, unknown, revoked, stale tenant, canonical persistence + audit scoping, tenant-safe list",
         "audit_scope_failure": "packages/audit/src/project-scope.live.test.ts proves a forced canonical Project audit-scope query failure converts an otherwise-valid ALLOW to audit_unavailable and persists no false allowed Project audit row"
       },
+      "build_isolation": "packages/audit/tsconfig.json excludes the live regression from production tsc build while Vitest still executes it; existing test/typecheck policy is otherwise unchanged.",
       "status_at_evidence_creation": "NOT EXECUTED locally (no DATABASE_URL); must be executed in CI exact-head; not represented as PASS"
     },
     "local_checks": {
