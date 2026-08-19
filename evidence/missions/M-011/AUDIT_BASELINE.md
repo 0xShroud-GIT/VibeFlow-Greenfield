@@ -3,8 +3,8 @@
 ## Identity and state
 
 - Starting authoritative `main`: `3800772ec963a4776f1c84881f93455dc7bf4a48`
-- M-010 closure commit: `179312a89251165c16975ee48273b05b60fc3d9b`
-- M-011 implementation commit: `7dbb75cd9a140e164a53c2a965673c11be1e795c`
+- M-010 closure commit: `07a93da5961526e749715c3f08eb2201f8914a8e`
+- M-011 implementation commit: `9ebe4ac8f231c91acdf8717d2889e1731848d944`
 - Arena branch: `arena/01a01b69-vibeflow-greenfield` (session-fixed)
 - Final mission state: `M-001..M-010 DONE`, `M-011 REVIEW`, `M-012..M-151 LOCKED`
 - Capability: `VF-IAM-004 Audit Event Ledger` → `IMPLEMENTED`, not
