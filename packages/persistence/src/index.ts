@@ -9,6 +9,7 @@ export {
   rejectProviderAuthority,
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
+export { isUuid, newId, requireId, requireNonEmpty } from "./ids.js";
 export { TenantRepository } from "./repositories.js";
 export {
   accounts,

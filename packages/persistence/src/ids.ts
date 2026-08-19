@@ -24,3 +24,12 @@ export function requireId(name: string, value: string): string {
   }
   return id;
 }
+
+/**
+ * True when `value` is a canonical VibeFlow UUID shape. Used by the M-010
+ * authorization boundary to reject client/provider/scoped identifiers that are
+ * never authoritative for a tenant/resource decision.
+ */
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}

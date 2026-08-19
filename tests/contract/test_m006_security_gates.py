@@ -160,8 +160,8 @@ class M006Tests(unittest.TestCase):
         box = self.box()
         box.set_status("M-006", "DONE")
         box.set_status("M-007", "REVIEW")
-        box.set_status("M-008", "LOCKED")
-        box.set_status("M-009", "LOCKED")
+        for index in range(8, 152):
+            box.set_status(f"M-{index:03d}", "LOCKED")
         box.point_to("M-007", "REVIEW")
         return box
 
@@ -176,7 +176,8 @@ class M006Tests(unittest.TestCase):
         """
         box = self.box()
         box.set_status("M-006", "REVIEW")
-        box.set_status("M-007", "LOCKED")
+        for index in range(7, 152):
+            box.set_status(f"M-{index:03d}", "LOCKED")
         box.point_to("M-006", "REVIEW")
         lock = json.loads(box.read("security/ci-toolchain.lock.json"))
         lock["github_actions"].pop("devcontainers/ci", None)

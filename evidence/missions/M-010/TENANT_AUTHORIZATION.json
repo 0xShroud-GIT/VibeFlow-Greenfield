@@ -1,0 +1,112 @@
+{
+  "schema_version": "1.0",
+  "mission": "M-010",
+  "title": "VibeFlow tenant/resource authorization boundary",
+  "mission_status": "REVIEW",
+  "mission_title": "Implement tenant/resource authorization",
+  "phase": "2 - Identity & Tenant Authority",
+  "adr_required": false,
+  "branch": "arena/01a01a93-vibeflow-greenfield",
+  "starting_main_sha": "6c1b74fa9eba410823a7f2e5608e777ee3e30761",
+  "mission_states": {
+    "M-001..M-009": "DONE",
+    "M-010": "REVIEW",
+    "M-011..M-151": "LOCKED"
+  },
+  "accepted_predecessor": {
+    "mission": "M-009",
+    "accepted_merge_commit": "6c1b74fa9eba410823a7f2e5608e777ee3e30761",
+    "evidence": "evidence/missions/M-009/AUTH_SESSION_IMPLEMENTATION.json"
+  },
+  "head_binding_policy": "Acceptance binds to the exact final pushed PR head reported at handoff; every later push invalidates prior exact-head review.",
+  "authority": {
+    "project": [
+      "master-build-system/03_BACKEND/BACKEND_MASTER.md",
+      "master-build-system/02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
+      "master-build-system/08_SECURITY/SECURITY_MASTER.md",
+      "master-build-system/08_SECURITY/THREAT_MODEL.md"
+    ],
+    "implementation_reference_policy": "master-build-system/04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml"
+  },
+  "dependency_decision": "No external authorization engine is introduced for this slice. The M-010 decision boundary is plain TypeScript over the canonical PostgreSQL authority (organization_memberships). OpenFGA and peers remain candidate/reference only; nothing is added just because the capability ledger names one.",
+  "implementation": {
+    "package": "@vibeflow/authorization",
+    "path": "packages/authorization",
+    "boundary": [
+      "packages/authorization/src/types.ts - typed decision boundary (ResourceRef, AuthorizationRequest, AuthorizationDecision, DenyReason)",
+      "packages/authorization/src/decision.ts - pure deny-by-default request validation (canonical UUIDs, registered resource-type/action tokens)",
+      "packages/authorization/src/service.ts - TenantAuthorizationService resolving membership from canonical persistence on every decision"
+    ],
+    "canonical_authority": "organization_memberships (M-008) via TenantRepository.getMembership and getOrganizationById",
+    "deny_reasons": [
+      "malformed_request",
+      "invalid_identifier",
+      "unknown_resource_type",
+      "unknown_action",
+      "unknown_resource",
+      "no_membership"
+    ],
+    "security_controls": [
+      "authorization is server-side and deny-by-default; every malformed/unknown/unauthorized input yields an explicit deny decision",
+      "authentication (M-009) proves only Account identity; the boundary never treats it as an implicit Organization/resource grant",
+      "membership and resource relationships are resolved from canonical VibeFlow persistence on every decision",
+      "client/provider-supplied organization ids, roles, permissions, ownership claims, and resource relationships are never trusted as authority",
+      "resource type and action are validated against registered canonical tokens; unknown types/actions fail closed",
+      "canonical VibeFlow UUIDs are required; client/provider/scoped identifiers are rejected",
+      "P0 negative tests prove IDOR and cross-tenant reads and mutations fail closed",
+      "the request boundary carries no client-claimed organizationId field; the tenant is resolved from persistence"
+    ],
+    "non_authority_statement": "M-010 does not implement Project ownership/persistence (M-012), roles/group binding, or full resource policy; those are not claimed here. VF-IAM-010 remains NOT_STARTED until canonical Project authority exists."
+  },
+  "capability_status": {
+    "VF-IAM-010": "NOT_STARTED (Project ownership requires canonical Project authority in M-012; not claimed)",
+    "VF-IAM-011": "IN_PROGRESS - typed deny-by-default tenant/resource decision boundary implemented and tenant-isolation tested; full resource policy remains pending",
+    "VF-IAM-012": "NOT_STARTED (Role/Group binding not implemented)",
+    "VF-IAM-016": "IN_PROGRESS (unchanged; canonical Organization + Membership authority underpins this boundary)"
+  },
+  "verification": {
+    "static_and_local_commands": [
+      "pnpm run check",
+      "pnpm --filter @vibeflow/authorization typecheck",
+      "pnpm --filter @vibeflow/authorization test",
+      "python3 tests/contract/test_m010_authz.py"
+    ],
+    "unit_suite": "packages/authorization/src/decision.test.ts (no database)",
+    "local_database_result": {
+      "executed": false,
+      "reason": "The Arena workspace has no PostgreSQL service. The runner emits an explicit NOT EXECUTED message; it does not treat the skipped suite as verification."
+    },
+    "ci_requirement": {
+      "runner": "scripts/run-m010-authz-integration.py",
+      "condition": "CI fails if DATABASE_URL and VIBEFLOW_DATABASE_URL are both absent; otherwise it runs the M-010 live suite directly.",
+      "live_suite": "packages/authorization/src/tenant.live.test.ts",
+      "ci_workflow_step": "The runner is invoked by `pnpm run check` (the repository-foundation workflow 'Run foundation check' step), which supplies PostgreSQL 18.4 via DATABASE_URL. No workflow file edit is required; the builder GitHub App lacks `workflows` permission.",
+      "required_cases": [
+        "allowed canonical membership",
+        "no membership anywhere",
+        "cross-tenant read (IDOR) denied",
+        "cross-tenant mutations (create/update/delete) denied",
+        "forged/swapped organization id denied",
+        "deleted/stale membership denied",
+        "malformed and unknown resource/action denied",
+        "authenticated account denied outside its own tenant (IDOR mutation)"
+      ],
+      "candidate_binding": "The final protected CI record must match the final PR head. This file does not preclaim a future CI result."
+    }
+  },
+  "non_goals_respected": [
+    "no M-012 Project persistence/lifecycle",
+    "no M-011 audit baseline",
+    "no roles/group binding",
+    "no enterprise SSO/SCIM",
+    "no MFA / OAuth breadth",
+    "no ConnectionGrant / approvals",
+    "no provider policy",
+    "no external authorization engine added"
+  ],
+  "test_counts": {
+    "M-010_contract": 8,
+    "authorization_always_on": 12,
+    "authorization_live_skipped_without_db": 9
+  }
+}
