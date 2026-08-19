@@ -71,6 +71,18 @@ importers:
         specifier: 8.23.1
         version: 8.23.1
 
+  packages/project:
+    dependencies:
+      '@vibeflow/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@vibeflow/authorization':
+        specifier: workspace:*
+        version: link:../authorization
+      '@vibeflow/persistence':
+        specifier: workspace:*
+        version: link:../persistence
+
   packages/provider-sdk: {}
 
   packages/remote: {}

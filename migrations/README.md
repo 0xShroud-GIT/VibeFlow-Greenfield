@@ -15,7 +15,13 @@ same recorded result rather than racing migration application.
   VibeFlow Account.
 - `0003_audit_event_ledger.sql` is M-011's append-only AuditEvent ledger plus
   transactional session creation/revocation audit triggers.
+- `0004_project_authority.sql` is M-012's authoritative Project resource with
+  canonical Organization ownership, server-controlled timestamps, FK
+  integrity, and tenant indexes. No provider/external identifier ever
+  establishes Project authority.
 
 The M-009 tables support authentication mechanics only. They do not define
-Organization/Project authorization, roles, OpenFGA tuples, or Project authority.
-Audit events are isolated in the M-011 table and never contain raw session tokens.
+Organization authorization beyond membership, roles, OpenFGA tuples, or later
+Project/Artifact lifecycle. Audit events are isolated in the M-011 table and
+never contain raw session tokens. Project rows are VibeFlow-owned and require
+canonical Organization ownership.

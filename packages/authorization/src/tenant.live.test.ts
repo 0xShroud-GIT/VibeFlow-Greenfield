@@ -16,6 +16,7 @@ import { TenantAuthorizationService } from "./service.js";
 import { ALLOW, deny } from "./types.js";
 
 const connectionString = process.env["VIBEFLOW_DATABASE_URL"] ?? process.env["DATABASE_URL"];
+const UNKNOWN_RESOURCE_TYPE = "__vibeflow_test_unknown_resource_type__";
 
 if (connectionString === undefined && process.env["CI"] === "true") {
   throw new Error("M-010 PostgreSQL authorization requires DATABASE_URL in CI");
@@ -142,12 +143,12 @@ describePostgres("M-010 PostgreSQL tenant/resource authorization", () => {
   });
 
   it("denies malformed and unknown resource/action inputs (P0 negative)", async () => {
-    // Unknown resource type.
+    // Use a test-only sentinel that can never become a canonical future resource.
     await expect(
       authz.authorize({
         accountId: alice.id,
         action: "read",
-        resource: { type: "project", id: orgA.id },
+        resource: { type: UNKNOWN_RESOURCE_TYPE, id: orgA.id },
       }),
     ).resolves.toEqual(deny("unknown_resource_type"));
 

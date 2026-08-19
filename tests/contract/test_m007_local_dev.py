@@ -146,6 +146,50 @@ class Sandbox:
         self.resync_hash(LEDGER_CSV)
         self.resync_hash(LEDGER_YAML)
 
+    def restore_m007_capability_snapshot(self) -> None:
+        """Restore the immutable accepted M-007 capability snapshot in one pass.
+
+        Retained historical fixtures must not enumerate whichever capabilities
+        happen to advance in later missions. At accepted M-007, every capability
+        was NOT_STARTED except the M-006 release baseline and VF-ENV-005, which
+        M-007 advanced to IN_PROGRESS. Reconstruct that snapshot generically so
+        future mission progress cannot leak backward into this fixture.
+        """
+        historical = {
+            "VF-REL-002": "IMPLEMENTED",
+            "VF-REL-003": "IMPLEMENTED",
+            "VF-REL-004": "IMPLEMENTED",
+            "VF-REL-005": "IN_PROGRESS",
+            "VF-ENV-005": "IN_PROGRESS",
+        }
+
+        with self.path(LEDGER_CSV).open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            rows = list(reader)
+            fields = reader.fieldnames or []
+        for row in rows:
+            vf_id = row["vf_id"]
+            row["status"] = historical.get(vf_id, "NOT_STARTED")
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fields, lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+        self.write(LEDGER_CSV, output.getvalue())
+
+        yaml_lines: list[str] = []
+        current_vf_id: str | None = None
+        for line in self.read(LEDGER_YAML).splitlines():
+            match = re.match(r"^- vf_id: (\S+)\s*$", line)
+            if match:
+                current_vf_id = match.group(1)
+            elif current_vf_id is not None and line.startswith("  status: "):
+                line = f"  status: {historical.get(current_vf_id, 'NOT_STARTED')}"
+                current_vf_id = None
+            yaml_lines.append(line)
+        self.write(LEDGER_YAML, "\n".join(yaml_lines) + "\n")
+        self.resync_hash(LEDGER_CSV)
+        self.resync_hash(LEDGER_YAML)
+
     def point_to(self, mission: str, status: str) -> None:
         self.write(
             ".ai/ACTIVE_MISSION.md",
@@ -182,13 +226,7 @@ class M007Tests(unittest.TestCase):
         for index in range(8, 152):
             sandbox.set_status(f"M-{index:03d}", "LOCKED")
         sandbox.point_to("M-007", "REVIEW")
-        # Successor IAM persistence work must not leak into the historical
-        # M-007 active snapshot, which freezes those rows at NOT_STARTED.
-        sandbox.set_capability_status("VF-IAM-004", "NOT_STARTED")
-        sandbox.set_capability_status("VF-IAM-005", "NOT_STARTED")
-        sandbox.set_capability_status("VF-IAM-006", "NOT_STARTED")
-        sandbox.set_capability_status("VF-IAM-011", "NOT_STARTED")
-        sandbox.set_capability_status("VF-IAM-016", "NOT_STARTED")
+        sandbox.restore_m007_capability_snapshot()
         return sandbox
 
     def assert_rejected(self, box: Sandbox, needle: str, *, mode: str | None = None) -> None:

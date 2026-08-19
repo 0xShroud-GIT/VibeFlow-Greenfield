@@ -114,7 +114,12 @@ class M010TenantAuthorizationContractTests(unittest.TestCase):
         readme = AUTHZ_README.read_text(encoding="utf-8")
         collapsed = " ".join(readme.lower().split())
         self.assertIn("deny-by-default", collapsed)
-        self.assertIn("does not implement project persistence/lifecycle (m-012)", collapsed)
+        # M-012 now registers project as first-class; README should state project
+        # authority is server-side and cross-tenant fails closed, and that later
+        # missions remain out of scope (artifact/artifactrelation M-013).
+        self.assertIn("project", collapsed)
+        self.assertIn("cross-tenant", collapsed)
+        self.assertIn("does not implement artifact", collapsed)
         self.assertIn("no external authorization engine is used", collapsed)
 
     def test_root_check_retains_m010_contract_and_explicit_live_runner(self) -> None:

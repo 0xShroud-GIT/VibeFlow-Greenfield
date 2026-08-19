@@ -1,10 +1,10 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: REVIEW (M-011 audit baseline)
-- Active mission: M-011 — Implement audit baseline (REVIEW)
-- Accepted missions: M-001..M-010 (DONE)
-- Locked missions: M-012..M-151 (deferred non-J1 missions remain required for V1)
+- Product implementation: REVIEW (M-012 Project authority)
+- Active mission: M-012 — Implement Project authority (REVIEW)
+- Accepted missions: M-001..M-011 (DONE)
+- Locked missions: M-013..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases
