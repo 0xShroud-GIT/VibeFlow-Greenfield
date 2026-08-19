@@ -260,7 +260,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: READY
+  status: REVIEW
 - mission_id: M-009
   phase: 2
   phase_name: Identity & Tenant Authority

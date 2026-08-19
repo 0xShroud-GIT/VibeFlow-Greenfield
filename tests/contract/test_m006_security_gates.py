@@ -188,7 +188,7 @@ class M006Tests(unittest.TestCase):
     def test_real_repository_and_direct_approved_coordinates_pass(self) -> None:
         result = run(VALIDATOR, REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("external_direct_dependencies: 4", result.stdout)
+        self.assertIn("external_direct_dependencies: 7", result.stdout)
 
     def test_unknown_external_direct_dependency_fails(self) -> None:
         box = self.box()

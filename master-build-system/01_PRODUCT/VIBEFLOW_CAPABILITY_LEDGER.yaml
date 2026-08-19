@@ -1024,7 +1024,7 @@ capabilities:
   authority_rule: VibeFlow is authoritative for VibeFlow Account Identity state/policy; external IDs are references, never
     the source of VibeFlow truth.
   verification_gate: AuthN/AuthZ tenant-isolation tests + audit evidence
-  status: NOT_STARTED
+  status: IN_PROGRESS
 - vf_id: VF-IAM-007
   domain: 04 Identity, organizations, tenancy and authorization
   domain_code: IAM
@@ -1170,7 +1170,7 @@ capabilities:
   authority_rule: VibeFlow is authoritative for Organization + Membership state/policy; external IDs are references, never
     the source of VibeFlow truth.
   verification_gate: AuthN/AuthZ tenant-isolation tests + audit evidence
-  status: NOT_STARTED
+  status: IN_PROGRESS
 - vf_id: VF-PRJ-001
   domain: 05 Projects, artifacts, imports and lifecycle
   domain_code: PRJ

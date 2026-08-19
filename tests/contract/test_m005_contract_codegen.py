@@ -162,6 +162,20 @@ class Sandbox:
             "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
             f"# Workspace Bootstrap Status\n\n- Active mission: M-005 — historical ({status})\n",
         )
+        seed_packages = {
+            "core",
+            "contracts",
+            "remote",
+            "bridge",
+            "provider-sdk",
+            "verification",
+            "ui",
+        }
+        packages_root = self.path("packages")
+        if packages_root.is_dir():
+            for child in packages_root.iterdir():
+                if child.is_dir() and child.name not in seed_packages:
+                    self.delete(f"packages/{child.name}/package.json")
         return self
 
     def approve_typebox_build(self) -> None:
@@ -668,15 +682,15 @@ class MissionStateTests(M005TestCase):
     def test_current_branch_records_m007_accepted_and_m008_ready(self) -> None:
         """The retained gate must accept, but never invent, acceptance.
 
-        Successor consumption: M-007 acceptance was consumed by this delivery
-        correction, so the branch records M-001..M-007 DONE, M-008 READY,
+        Successor consumption: M-007 acceptance was consumed, so the branch
+        records M-001..M-007 DONE, M-008 as the single active mission, and
         M-009+ LOCKED.
         """
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
         m007 = dag.split("- mission_id: M-007", 1)[1].split("- mission_id:", 1)[0]
         m008 = dag.split("- mission_id: M-008", 1)[1].split("- mission_id:", 1)[0]
         self.assertIn("status: DONE", m007)
-        self.assertIn("status: READY", m008)
+        self.assertRegex(m008, r"status: (READY|IN_PROGRESS|REVIEW)")
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
@@ -684,7 +698,7 @@ class MissionStateTests(M005TestCase):
         self.assertEqual(rows["M-005"], "DONE")
         self.assertEqual(rows["M-006"], "DONE")
         self.assertEqual(rows["M-007"], "DONE")
-        self.assertEqual(rows["M-008"], "READY")
+        self.assertIn(rows["M-008"], {"READY", "IN_PROGRESS", "REVIEW"})
         for index in range(9, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 

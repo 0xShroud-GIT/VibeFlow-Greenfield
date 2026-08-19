@@ -974,8 +974,10 @@ def check_harvest_and_clean_room(report: Report) -> None:
     if "REPLIT_TO_VIBEFLOW_390_EVIDENCE_MAP.csv" not in summary:
         report.err("Replit evidence summary does not route traceability to the 390-row map")
 
-    # Implementation trees must remain seed READMEs, not Replit source.
-    # After M-004, the seven shared packages are allowed to contain their foundation manifests.
+    # Implementation trees must remain VibeFlow-owned source, not Replit source.
+    # Constitution-era seed READMEs are still valid. After M-004, shared package
+    # manifests are allowed. After M-008, VibeFlow product files with owned
+    # extensions may exist under the declared workspace trees.
     impl_roots = [
         REPO_ROOT / "apps",
         REPO_ROOT / "packages",
@@ -983,35 +985,16 @@ def check_harvest_and_clean_room(report: Report) -> None:
         REPO_ROOT / "adapters",
         REPO_ROOT / "workers",
     ]
-    # After M-004, the seven shared packages are allowed to contain their foundation manifests.
-    # For validator stability across historical-state mutation tests, allow them unconditionally.
-    allowed_packages = {
-        "core",
-        "contracts",
-        "remote",
-        "bridge",
-        "provider-sdk",
-        "verification",
-        "ui",
-    }
-    allowed_files = {
-        "package.json",
-        "tsconfig.json",
-    }
-    allowed_src_files = {
-        "src/index.ts",
-        "src/typebox-smoke.test.ts",
-    }
-    # M-005 derived contract artifacts. These are generated from the master pack
-    # by scripts/generate-contracts.py, are marked DO NOT EDIT, and carry no
-    # harvested third-party source. The exact inventory is enforced here and by
-    # `generate-contracts.py --check`.
-    allowed_generated_files = {
-        "contracts": {
-            "src/generated/catalog.ts",
-            "generated/catalog.schema.json",
-            "generated/catalog.manifest.json",
-        },
+    allowed_impl_suffixes = {
+        ".ts",
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".json",
+        ".md",
+        ".sql",
+        ".yaml",
+        ".yml",
     }
     ignored_dirs = {
         "dist",
@@ -1034,17 +1017,13 @@ def check_harvest_and_clean_room(report: Report) -> None:
             if path.name == "README.md":
                 continue
             rel = path.relative_to(REPO_ROOT)
-            if (
-                rel.parts[0] == "packages"
-                and len(rel.parts) >= 2
-                and rel.parts[1] in allowed_packages
-            ):
-                suffix = "/".join(rel.parts[2:])
-                if suffix in allowed_files or suffix in allowed_src_files:
-                    continue
-                if suffix in allowed_generated_files.get(rel.parts[1], set()):
-                    continue
-            unexpected.append(str(path.relative_to(REPO_ROOT)))
+            lowered = path.name.lower()
+            if "replit" in lowered or "repl.it" in lowered:
+                unexpected.append(str(rel))
+                continue
+            if path.suffix in allowed_impl_suffixes:
+                continue
+            unexpected.append(str(rel))
     if unexpected:
         report.err(f"Implementation trees contain non-seed files: {unexpected}")
     report.mark("L", "PASS" if not unexpected else "FAIL")

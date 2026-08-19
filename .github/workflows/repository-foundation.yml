@@ -12,6 +12,22 @@ jobs:
   foundation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: vibeflow
+          POSTGRES_PASSWORD: vibeflow
+          POSTGRES_DB: vibeflow_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vibeflow -d vibeflow_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://vibeflow:vibeflow@127.0.0.1:5432/vibeflow_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +58,11 @@ jobs:
       - name: Run foundation check
         shell: bash
         run: pnpm run check
+      - name: Verify M-008 persistence against PostgreSQL 18.4
+        shell: bash
+        run: |
+          test -n "$DATABASE_URL"
+          pnpm --filter @vibeflow/persistence exec vitest run src/persistence.live.test.ts
       - name: Pull exact dev container base image by digest
         if: ${{ steps.scope.outputs.dev_image == 'true' }}
         shell: bash
