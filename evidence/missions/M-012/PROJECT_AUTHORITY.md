@@ -7,7 +7,7 @@
 - M-012 start commit: `caffe9c484a033c219402e8bd83709164d490f30` (chore: start M-012)
 - M-012 implementation commits: `256a54e265bd7455128e81418dc00326f937e824` (feat: implement authoritative Project) and `8d8a26ae2d3d665c55d8ac73e1272cd4a92f15fc` (docs: mark REVIEW and advance ledger)
 - Retained-test stabilization commits: `b0d1c2f63c4ec94292f90d82cbe09c3f450e42fe`, `89c5b13e07221743c4e55a096053d5c604f4bbce`, `a26985990505fea2cb08334f1efc827965a145b0`, `bcd4f07beddc107a1a3ae9a457e8f3d9a75f2619`
-- Independent-review remediation commits: `3bf6b815d4117c5e7434144382cfc4b13ef6e61c` (propagate canonical audit scope-resolution errors) and `fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373` (PostgreSQL fail-closed regression)
+- Independent-review remediation commits: `3bf6b815d4117c5e7434144382cfc4b13ef6e61c` (propagate canonical audit scope-resolution errors), `fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373` (PostgreSQL fail-closed regression), and `e345d726917d9f719a055878e47e6dcd65c44e09` (exclude the new live test from the audit production build)
 - Arena branch: `arena/01a01bbd-vibeflow-greenfield` (session-fixed)
 - Final mission state: `M-001..M-011 DONE`, `M-012 REVIEW`, `M-013..M-151 LOCKED`
 - Capabilities advanced: `VF-IAM-010`, `VF-PRJ-005`, `VF-PRJ-015` → `IMPLEMENTED`
@@ -34,7 +34,9 @@ Independent review found that Project audit tenant-scope lookup errors were bein
 - `TenantAuthorizationService.recordRequiredAudit` converts an otherwise-allowed decision to `DENY / audit_unavailable`;
 - `packages/audit/src/project-scope.live.test.ts` injects a failure into `SELECT organization_id FROM projects WHERE id = $1`, proves `audit_unavailable`, and proves no false Project `allowed` audit row is persisted.
 
-This adds `packages/audit/src/project-scope.live.test.ts` to the exact changed-file scope.
+The first exact-head Foundation run after adding the regression also proved that the new live test was entering `@vibeflow/audit`'s production `tsc` build and pulling persistence/Drizzle declaration surfaces into that build. `packages/audit/tsconfig.json` now excludes only `src/project-scope.live.test.ts` in addition to the pre-existing `src/audit.live.test.ts` exclusion. Vitest still executes the live test under `pnpm run test`; no broad `skipLibCheck` or wildcard test exclusion was introduced.
+
+This adds `packages/audit/src/project-scope.live.test.ts` and `packages/audit/tsconfig.json` to the exact changed-file scope.
 
 ## Protection pre-flight
 
