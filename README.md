@@ -15,7 +15,7 @@ Human or AI contributor:
 
 ## Current state
 
-Repository foundation and M-008 Account/Organization persistence are accepted. The active mission is `M-009` (Implement authentication/session flows), in `IN_PROGRESS`. `M-001` through `M-008` are `DONE` after independent acceptance and merge. M-010 and later missions remain `LOCKED` and remain required for V1.
+Repository foundation and M-008 Account/Organization persistence are accepted. The active mission is `M-009` (Implement authentication/session flows), in `REVIEW`. `M-001` through `M-008` are `DONE` after independent acceptance and merge. M-010 and later missions remain `LOCKED` and remain required for V1.
 
 M-006 added machine-enforced harvest-to-package reconciliation, deny-by-default install/build-script approvals, immutable scanner and GitHub Action pins, local Semgrep rules, full-history secret scanning, dependency/repository vulnerability gates, and an ephemeral CycloneDX repository SBOM. Branch protection remains pending external reviewer application and is not represented as complete by workflow files.
 

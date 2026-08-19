@@ -184,6 +184,7 @@ class M007Tests(unittest.TestCase):
         sandbox.point_to("M-007", "REVIEW")
         # Successor IAM persistence work must not leak into the historical
         # M-007 active snapshot, which freezes those rows at NOT_STARTED.
+        sandbox.set_capability_status("VF-IAM-005", "NOT_STARTED")
         sandbox.set_capability_status("VF-IAM-006", "NOT_STARTED")
         sandbox.set_capability_status("VF-IAM-016", "NOT_STARTED")
         return sandbox

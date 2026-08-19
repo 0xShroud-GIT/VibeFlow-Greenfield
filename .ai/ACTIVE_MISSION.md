@@ -2,7 +2,7 @@
 
 **Mission:** M-009 — Implement authentication/session flows
 
-**Status:** IN_PROGRESS
+**Status:** REVIEW
 
 **Phase:** 2 — Identity & Tenant Authority
 
@@ -10,8 +10,8 @@ Authoritative mission row:
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-009)
 
 M-001 through M-008 are accepted and `DONE`. M-009 is the active mission in
-`IN_PROGRESS`. M-010 and all later missions remain `LOCKED` and remain required
-for V1.
+`REVIEW`. M-010 and all later missions remain `LOCKED` and remain required for
+V1.
 
 ## M-009 scope
 
