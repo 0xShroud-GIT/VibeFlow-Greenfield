@@ -510,7 +510,7 @@ class H025ReconciliationTests(M005TestCase):
             "    ESM) is the VibeFlow selected line, chosen by M-004 and pinned exactly at 1.3.6; "
             "`@sinclair/typebox` 0.x\n    remains upstream LTS for CJS but is not the VibeFlow selected line.",
             "    ESM) is the current line; 0.x (`@sinclair/typebox`) remains upstream LTS for CJS "
-            "\u2014 choose one at M-004.",
+            "— choose one at M-004.",
         )
         box.refresh_pack_hash("06_HARVEST/OSS_HARVEST_REGISTRY.yaml")
         self.assert_rejected(box, "H-025")
@@ -679,40 +679,37 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_current_branch_records_m010_accepted_and_m011_active(self) -> None:
-        """The retained gate accepts the next consumed mission without inventing one.
+    def test_current_branch_records_durable_m005_and_one_active_mission(self) -> None:
+        """Retained M-005 checks durable invariants, never a specific successor.
 
-        M-010 has accepted exact-head evidence, so M-001..M-010 are DONE.
-        Either M-011 is the sole active mission (historical), or M-011 is DONE
-        and M-012 is the sole active mission (M-012 implementation). M-013+
-        remain LOCKED in both cases. This makes the retained M-005 gate
-        progression-aware for M-012.
+        Once M-005 is accepted, M-001..M-005 must remain DONE forever and the
+        repository must have exactly one active mission. Which later mission is
+        active is intentionally delegated to the generic progression validator.
         """
-        dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        m010 = dag.split("- mission_id: M-010", 1)[1].split("- mission_id:", 1)[0]
-        m011 = dag.split("- mission_id: M-011", 1)[1].split("- mission_id:", 1)[0]
-        m012 = dag.split("- mission_id: M-012", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: DONE", m010)
-        # Accept either M-011 active (historical) or M-011 DONE + M-012 active (current M-012)
-        if "status: DONE" in m011:
-            self.assertIn("status: DONE", m011)
-            self.assertRegex(m012, r"status: (IN_PROGRESS|REVIEW)")
-        else:
-            self.assertRegex(m011, r"status: (IN_PROGRESS|REVIEW)")
-            self.assertIn("status: LOCKED", m012)
-
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
-        for index in range(4, 11):
+
+        for index in range(1, 6):
             self.assertEqual(rows[f"M-{index:03d}"], "DONE")
-        if rows.get("M-011") == "DONE":
-            self.assertIn(rows.get("M-012"), {"IN_PROGRESS", "REVIEW"})
-            for index in range(13, 152):
-                self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
-        else:
-            self.assertIn(rows["M-011"], {"IN_PROGRESS", "REVIEW"})
-            for index in range(12, 152):
-                self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
+
+        active = {
+            mission_id: status
+            for mission_id, status in rows.items()
+            if status in {"READY", "IN_PROGRESS", "REVIEW", "BLOCKED"}
+        }
+        self.assertEqual(len(active), 1, f"expected exactly one active mission, got {active}")
+        active_id, active_status = next(iter(active.items()))
+        self.assertNotEqual(active_id, "M-005")
+
+        dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
+        active_block = dag.split(f"- mission_id: {active_id}", 1)[1].split(
+            "- mission_id:", 1
+        )[0]
+        self.assertIn(f"status: {active_status}", active_block)
+
+        pointer = (REPO_ROOT / ".ai/ACTIVE_MISSION.md").read_text(encoding="utf-8")
+        self.assertIn(f"**Mission:** {active_id}", pointer)
+        self.assertIn(f"**Status:** {active_status}", pointer)
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:
         box = self.box()
