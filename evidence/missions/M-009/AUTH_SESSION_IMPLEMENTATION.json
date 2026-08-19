@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "mission": "M-009",
+  "title": "VibeFlow authentication and session implementation reference",
+  "mission_status_at_evidence_creation": "IN_PROGRESS",
+  "accepted_predecessor": {
+    "mission": "M-008",
+    "accepted_merge_commit": "01823bc1b7eec3cb847566d62c02b8aaa199fcd5",
+    "evidence": "evidence/missions/M-008/ACCOUNT_ORGANIZATION_PERSISTENCE.json"
+  },
+  "authority": {
+    "project": [
+      "master-build-system/03_BACKEND/BACKEND_MASTER.md",
+      "master-build-system/02_ARCHITECTURE/CANONICAL_RESOURCE_MODEL.yaml",
+      "master-build-system/08_SECURITY/THREAT_MODEL.md",
+      "master-build-system/06_HARVEST/OSS_HARVEST_REGISTRY.yaml"
+    ],
+    "implementation_reference_policy": "master-build-system/04_AI_AGENT/IMPLEMENTATION_REFERENCE_POLICY.yaml"
+  },
+  "version_applicability": {
+    "better_auth": {
+      "package": "better-auth",
+      "version": "1.6.30",
+      "ratified_line": "1.6.x",
+      "license": "MIT",
+      "package_coordinate": "npm:better-auth",
+      "registry_metadata": "https://registry.npmjs.org/better-auth/1.6.30",
+      "upstream": "https://github.com/better-auth/better-auth",
+      "exact_release": "https://github.com/better-auth/better-auth/releases/tag/v1.6.30",
+      "exact_release_commit": "e84ec5e76d30e10fd692e8084177360484d538c1",
+      "official_guidance": [
+        "https://better-auth.com/docs/authentication/email-password",
+        "https://better-auth.com/docs/concepts/api",
+        "https://better-auth.com/docs/concepts/session-management",
+        "https://better-auth.com/docs/concepts/database",
+        "https://better-auth.com/docs/reference/options"
+      ],
+      "usage": "Email/password and database-backed cookie session mechanics only, wrapped by @vibeflow/identity."
+    },
+    "postgresql": {
+      "ratified_line": "18.x",
+      "uuid_guidance": "https://www.postgresql.org/docs/18/functions-uuid.html",
+      "usage": "Durable Account link and Better Auth-compatible session schema."
+    }
+  },
+  "implementation": {
+    "identity_boundary": "packages/identity/src/service.ts",
+    "package": "@vibeflow/identity",
+    "persistence_link": "identity_users.vibeflow_account_id -> accounts.id",
+    "migration": "migrations/0002_identity_auth_sessions.sql",
+    "library_tables": [
+      "identity_users",
+      "identity_sessions",
+      "identity_accounts",
+      "identity_verifications"
+    ],
+    "security_controls": [
+      "HTTPS-only configured base origin",
+      "exact trusted-origin comparison before direct Better Auth API calls",
+      "Secure, HttpOnly, SameSite=Lax cookie attributes",
+      "session cookie cache disabled so revocation resolves through PostgreSQL",
+      "server-generated Better Auth PostgreSQL UUIDs",
+      "server-side Account link created in a Better Auth user-create hook",
+      "client-supplied link fields ignored by the VibeFlow boundary",
+      "unknown, expired, malformed, replayed, revoked, or unlinked sessions fail closed",
+      "no raw session token is persisted or returned as ordinary VibeFlow product state"
+    ],
+    "non_authority_statement": "Authentication validates an Account identity only. It does not return or decide Organization, Project, role, grant, policy, or permission authority."
+  },
+  "verification": {
+    "static_and_local_commands": [
+      "pnpm run check",
+      "pnpm --filter @vibeflow/identity typecheck",
+      "pnpm --filter @vibeflow/identity test",
+      "python3 tests/contract/test_m009_auth_session.py"
+    ],
+    "local_database_result": {
+      "executed": false,
+      "reason": "The Arena workspace has no PostgreSQL service. The runner emits an explicit NOT EXECUTED message; it does not treat the skipped suite as verification."
+    },
+    "ci_requirement": {
+      "runner": "scripts/run-m009-auth-integration.py",
+      "condition": "CI fails if DATABASE_URL and VIBEFLOW_DATABASE_URL are both absent; otherwise it runs the M-009 live suite directly.",
+      "live_suite": "packages/identity/src/session.live.test.ts",
+      "required_cases": [
+        "canonical Account linkage",
+        "secure cookie attributes",
+        "untrusted-origin rejection",
+        "invalid credential rejection",
+        "logout/revocation replay rejection",
+        "expired/stale session rejection",
+        "absence of tenant/resource authority in a validated identity result"
+      ],
+      "candidate_binding": "The final protected CI record must match the final PR head. This file does not preclaim a future CI result."
+    }
+  },
+  "scope_exclusions": [
+    "M-010 tenant/resource authorization, roles, policy, and OpenFGA",
+    "M-011 audit baseline",
+    "M-012 Project authority",
+    "enterprise SSO/SCIM",
+    "federated login and broad MFA work",
+    "mobile UI or HTTP route surface"
+  ]
+}

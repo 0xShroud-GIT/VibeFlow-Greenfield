@@ -12,11 +12,14 @@ export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedS
 export { TenantRepository } from "./repositories.js";
 export {
   accounts,
+  CONTROL_PLANE_TABLES,
+  identityUsers,
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
   TENANT_TABLES,
   type AccountRow,
+  type IdentityUserRow,
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,

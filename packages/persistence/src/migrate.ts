@@ -18,6 +18,13 @@ export async function listCommittedSqlMigrations(migrationsDir = DEFAULT_MIGRATI
   return entries.filter((name) => /^\d{4}_.+\.sql$/.test(name)).sort();
 }
 
+const MIGRATION_ADVISORY_LOCK = 9_009_001;
+
+/**
+ * Applies committed SQL under one PostgreSQL advisory lock. This makes a
+ * concurrent startup/test runner observe the recorded migration rather than
+ * racing to apply the same durable transition twice.
+ */
 export async function applyCommittedSqlMigrations(
   pool: pg.Pool,
   migrationsDir = DEFAULT_MIGRATIONS_DIR,
@@ -25,35 +32,42 @@ export async function applyCommittedSqlMigrations(
   const files = await listCommittedSqlMigrations(migrationsDir);
   const applied: string[] = [];
   const skipped: string[] = [];
+  const client = await pool.connect();
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS vibeflow_schema_migrations (
-      id text PRIMARY KEY,
-      applied_at timestamptz NOT NULL DEFAULT now()
-    )
-  `);
+  try {
+    await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_ADVISORY_LOCK]);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vibeflow_schema_migrations (
+        id text PRIMARY KEY,
+        applied_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
 
-  for (const file of files) {
-    const existing = await pool.query<{ id: string }>(
-      "SELECT id FROM vibeflow_schema_migrations WHERE id = $1",
-      [file],
-    );
-    if ((existing.rowCount ?? existing.rows.length) > 0) {
-      skipped.push(file);
-      continue;
+    for (const file of files) {
+      const existing = await client.query<{ id: string }>(
+        "SELECT id FROM vibeflow_schema_migrations WHERE id = $1",
+        [file],
+      );
+      if ((existing.rowCount ?? existing.rows.length) > 0) {
+        skipped.push(file);
+        continue;
+      }
+
+      const sql = await readFile(path.join(migrationsDir, file), "utf8");
+      try {
+        await client.query("BEGIN");
+        await client.query(sql);
+        await client.query("INSERT INTO vibeflow_schema_migrations (id) VALUES ($1)", [file]);
+        await client.query("COMMIT");
+        applied.push(file);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
     }
-
-    const sql = await readFile(path.join(migrationsDir, file), "utf8");
-    const client = await pool.connect();
+  } finally {
     try {
-      await client.query("BEGIN");
-      await client.query(sql);
-      await client.query("INSERT INTO vibeflow_schema_migrations (id) VALUES ($1)", [file]);
-      await client.query("COMMIT");
-      applied.push(file);
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
+      await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_ADVISORY_LOCK]);
     } finally {
       client.release();
     }

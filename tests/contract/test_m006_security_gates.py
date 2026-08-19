@@ -161,6 +161,7 @@ class M006Tests(unittest.TestCase):
         box.set_status("M-006", "DONE")
         box.set_status("M-007", "REVIEW")
         box.set_status("M-008", "LOCKED")
+        box.set_status("M-009", "LOCKED")
         box.point_to("M-007", "REVIEW")
         return box
 
@@ -188,7 +189,7 @@ class M006Tests(unittest.TestCase):
     def test_real_repository_and_direct_approved_coordinates_pass(self) -> None:
         result = run(VALIDATOR, REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("external_direct_dependencies: 7", result.stdout)
+        self.assertIn("external_direct_dependencies: 8", result.stdout)
 
     def test_unknown_external_direct_dependency_fails(self) -> None:
         box = self.box()

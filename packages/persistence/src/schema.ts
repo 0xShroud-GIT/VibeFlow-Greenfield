@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 /**
  * Minimal durable Account / Organization / membership schema.
@@ -46,12 +46,39 @@ export const organizationMemberships = pgTable(
   }),
 );
 
+/**
+ * Better Auth's library-owned user record. Its `vibeflowAccountId` is the
+ * canonical server-side link to VibeFlow's product Account; it is not a
+ * provider, tenant, project, or authorization identifier.
+ */
+export const identityUsers = pgTable("identity_users", {
+  id: uuid("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull(),
+  image: text("image"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+  vibeflowAccountId: uuid("vibeflow_account_id")
+    .notNull()
+    .unique()
+    .references(() => accounts.id),
+});
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationMembershipRow = typeof organizationMemberships.$inferSelect;
+export type IdentityUserRow = typeof identityUsers.$inferSelect;
 
+/** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
   accounts,
   organizations,
   organizationMemberships,
+} as const;
+
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-009. */
+export const CONTROL_PLANE_TABLES = {
+  ...TENANT_TABLES,
+  identityUsers,
 } as const;
