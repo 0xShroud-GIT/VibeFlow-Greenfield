@@ -160,6 +160,7 @@ class M006Tests(unittest.TestCase):
         box = self.box()
         box.set_status("M-006", "DONE")
         box.set_status("M-007", "REVIEW")
+        box.set_status("M-008", "LOCKED")
         box.point_to("M-007", "REVIEW")
         return box
 

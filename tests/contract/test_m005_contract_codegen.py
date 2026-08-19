@@ -665,25 +665,27 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_current_branch_records_m006_accepted_and_m007_review(self) -> None:
+    def test_current_branch_records_m007_accepted_and_m008_ready(self) -> None:
         """The retained gate must accept, but never invent, acceptance.
 
-        Successor consumption: M-006 acceptance was consumed by M-007, so the
-        branch records M-001..M-006 DONE, M-007 REVIEW, M-008+ LOCKED.
+        Successor consumption: M-007 acceptance was consumed by this delivery
+        correction, so the branch records M-001..M-007 DONE, M-008 READY,
+        M-009+ LOCKED.
         """
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        m006 = dag.split("- mission_id: M-006", 1)[1].split("- mission_id:", 1)[0]
         m007 = dag.split("- mission_id: M-007", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: DONE", m006)
-        self.assertIn("status: REVIEW", m007)
+        m008 = dag.split("- mission_id: M-008", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: DONE", m007)
+        self.assertIn("status: READY", m008)
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
         self.assertEqual(rows["M-004"], "DONE")
         self.assertEqual(rows["M-005"], "DONE")
         self.assertEqual(rows["M-006"], "DONE")
-        self.assertEqual(rows["M-007"], "REVIEW")
-        for index in range(8, 152):
+        self.assertEqual(rows["M-007"], "DONE")
+        self.assertEqual(rows["M-008"], "READY")
+        for index in range(9, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:

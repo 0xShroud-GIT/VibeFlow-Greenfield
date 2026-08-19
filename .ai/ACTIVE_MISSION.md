@@ -1,29 +1,20 @@
 # Active Mission
 
-**Mission:** M-007 — Establish local dev environment
+**Mission:** M-008 — Implement Account/Organization persistence
 
-**Status:** REVIEW
+**Status:** READY
 
-**Phase:** 1 — Repository Foundation
+**Phase:** 2 — Identity & Tenant Authority
 
 Authoritative mission row:
-`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-007)
+`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-008)
 
-M-001 through M-006 are accepted and `DONE`; M-006 acceptance was consumed
-by this successor mission. M-007 is the active mission in `REVIEW`; it must
-not be self-marked `DONE`. M-008..M-151 remain `LOCKED`.
+M-001 through M-007 are accepted and `DONE`. M-007 closeout used already-merged
+local-dev evidence; this PR does not implement M-008 product code. M-008 is
+the active mission in `READY`. Deferred non-J1 missions remain `LOCKED` and
+remain required for V1.
 
-## M-007 scope
+## M-008 scope
 
-M-007 establishes the ratified Dev Containers repository development
-environment: a digest-pinned `node:24.19.0` official image plus one
-digest-pinned registered python feature, a provenance/security policy lock
-under `infrastructure/dev/`, stdlib-only doctor/bootstrap/runtime-smoke
-scripts, a retained static validator and adversarial mutation suite, and
-CI evidence for pulling the exact image, running the runtime smoke inside
-it, scanning it with the locked Trivy toolchain, and generating an ephemeral
-dev-image CycloneDX SBOM.
-
-M-007 is infrastructure for building VibeFlow. It is not the VibeFlow
-Workspace product, a hosted sandbox, a deployment environment, or a product
-runtime descriptor implementation.
+Implement Account/Organization persistence. Do not implement later J1 missions
+in the same change. Work only this mission's contracts, tests, and evidence.

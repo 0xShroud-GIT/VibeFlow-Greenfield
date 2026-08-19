@@ -176,7 +176,12 @@ class M007Tests(unittest.TestCase):
         self._tmp.cleanup()
 
     def box(self) -> Sandbox:
-        return Sandbox(self.temp)
+        """Historical M-007 REVIEW snapshot. Live repo may already be durable."""
+        sandbox = Sandbox(self.temp)
+        sandbox.set_status("M-007", "REVIEW")
+        sandbox.set_status("M-008", "LOCKED")
+        sandbox.point_to("M-007", "REVIEW")
+        return sandbox
 
     def assert_rejected(self, box: Sandbox, needle: str, *, mode: str | None = None) -> None:
         extra = (f"--mode", mode) if mode else ()
@@ -190,12 +195,19 @@ class M007Tests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     # ---------- positive: real repository (active M-007 snapshot) ----------
-    def test_real_repository_passes_active_snapshot(self) -> None:
+    def test_real_repository_passes_durable_mode(self) -> None:
         result = run(VALIDATOR, REPO_ROOT)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("mode: active", result.stdout)
+        self.assertIn("mode: durable", result.stdout)
         self.assertIn("capabilities: 405", result.stdout)
         self.assertIn("devcontainer_features: 2", result.stdout)
+
+    def test_historical_m007_review_snapshot_passes_active_mode(self) -> None:
+        box = self.box()
+        self.assert_accepted(box, mode="active")
+        result = run(VALIDATOR, box.root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("mode: active", result.stdout)
 
     # ---------- image provenance (official digest-pinned slim image, no Dockerfile) ----------
     def test_floating_image_reference_fails(self) -> None:

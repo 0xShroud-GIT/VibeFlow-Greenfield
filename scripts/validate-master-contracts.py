@@ -27,9 +27,24 @@ MBS = REPO_ROOT / "master-build-system"
 
 MISSION_STATUS_VOCAB = {"LOCKED", "READY", "IN_PROGRESS", "REVIEW", "DONE", "BLOCKED"}
 CAPABILITY_STATUS_VOCAB = {"NOT_STARTED", "IN_PROGRESS", "IMPLEMENTED", "VERIFIED", "COMPLETE"}
-# Unlocked but not yet accepted. Under normal serial progression exactly one
-# mission is in this set and every earlier mission is DONE.
+# Unlocked but not yet accepted. Exactly one mission is in this set. Activation
+# is governed by explicit DAG dependencies, not mission-ID or register position.
 ACTIVE_MISSION_STATUSES = {"READY", "IN_PROGRESS", "REVIEW", "BLOCKED"}
+
+# Owner-approved J1-ALPHA jump edges that differ from sequential numbering.
+# Deferred missions keep their existing definitions and remain required for V1.
+J1_JUMP_EDGES = {
+    "M-012": ("M-010",),
+    "M-016": ("M-012",),
+    "M-020": ("M-016",),
+    "M-024": ("M-021",),
+    "M-033": ("M-028",),
+    "M-038": ("M-035",),
+    "M-043": ("M-039",),
+    "M-046": ("M-044",),
+    "M-052": ("M-048",),
+    "M-072": ("M-054",),
+}
 
 EXPECTED = {
     "vibeflow_capabilities": 405,
@@ -734,18 +749,17 @@ def check_missions(report: Report) -> None:
     done_ids = [mid for mid in mission_ids if str(by_id[mid].get("status")) == "DONE"]
 
     # A mission may only be READY/IN_PROGRESS/REVIEW/BLOCKED when all its
-    # dependencies are DONE (accepted).
+    # explicit dependencies are DONE (accepted).
     for mid in active_ids:
         not_done = [dep for dep in graph.get(mid, []) if str(by_id[dep].get("status")) != "DONE"]
         if not_done:
             report.err(f"{mid} is unlocked but dependencies are not DONE: {not_done}")
 
-    # Accepted missions may precede the active mission, never follow it.
-    if active_id is not None:
-        active_index = mission_ids.index(active_id)
-        trailing_done = [mid for mid in done_ids if mission_ids.index(mid) > active_index]
-        if trailing_done:
-            report.err(f"DONE missions may not follow the active mission: {trailing_done}")
+    # Every accepted mission also requires every explicit dependency DONE.
+    for mid in done_ids:
+        not_done = [dep for dep in graph.get(mid, []) if str(by_id[dep].get("status")) != "DONE"]
+        if not_done:
+            report.err(f"{mid} is DONE but dependencies are not DONE: {not_done}")
 
     # Everything that is neither DONE nor the single active mission stays LOCKED.
     unlocked = [
@@ -787,16 +801,10 @@ def check_missions(report: Report) -> None:
                     f"Dependent missions of non-DONE {mid} must remain LOCKED: {sorted(bad_dependents)}"
                 )
 
-    # No mission may skip its dependency chain: dependencies must reference
-    # strictly earlier register/DAG entries (no forward references).
-    forward_refs = [
-        (mid, dep)
-        for mid in mission_ids
-        for dep in graph.get(mid, [])
-        if dep in mission_ids and mission_ids.index(dep) >= mission_ids.index(mid)
-    ]
-    if forward_refs:
-        report.err(f"Missions referencing same/later missions as dependencies: {forward_refs}")
+    for mid, expected in J1_JUMP_EDGES.items():
+        actual = tuple(graph.get(mid, []))
+        if actual != expected:
+            report.err(f"{mid} J1 jump edge must be {list(expected)}, got {list(actual)}")
 
     # Bootstrap chain remains a structural invariant of this mission system.
     if "M-001" not in graph.get("M-002", []):
@@ -874,6 +882,13 @@ def check_missions(report: Report) -> None:
                 report.err(
                     f"MISSION_REGISTER.csv status {row.get('status')} != DAG status "
                     f"{by_id[mid].get('status')} for {mid}"
+                )
+            register_deps = _parse_deps(row.get("depends_on"))
+            dag_deps = graph.get(mid, [])
+            if register_deps != dag_deps:
+                report.err(
+                    f"MISSION_REGISTER.csv depends_on {register_deps} != DAG depends_on "
+                    f"{dag_deps} for {mid}"
                 )
 
     build_phases = load_yaml_file(MBS / "10_IMPLEMENTATION" / "BUILD_PHASES.yaml")

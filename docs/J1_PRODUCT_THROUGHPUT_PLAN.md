@@ -1,6 +1,6 @@
 # J1 Product Throughput Plan
 
-Status: **OWNER-APPROVED DELIVERY CORRECTION — pending mission-DAG reconciliation in this branch**
+Status: **IMPLEMENTED / ACTIVE**
 
 This plan corrects delivery order, not product scope. The canonical V1 product promise, trust boundaries, security thresholds, state machines, dependency authority, and all 151 mission scopes remain required for V1.
 

@@ -15,11 +15,11 @@ Human or AI contributor:
 
 ## Current state
 
-Repository foundation established; product implementation has not started. The active mission is `M-007` (establish the local development environment), in `REVIEW`. `M-001` through `M-006` are `DONE` after independent acceptance and merge. `M-008` and later remain `LOCKED`.
+Repository foundation is accepted. The active mission is `M-008` (Implement Account/Organization persistence), in `READY`. `M-001` through `M-007` are `DONE` after independent acceptance and merge. Deferred non-J1 missions remain `LOCKED` and remain required for V1. This repository does not yet contain M-008 product implementation.
 
 M-006 added machine-enforced harvest-to-package reconciliation, deny-by-default install/build-script approvals, immutable scanner and GitHub Action pins, local Semgrep rules, full-history secret scanning, dependency/repository vulnerability gates, and an ephemeral CycloneDX repository SBOM. Branch protection remains pending external reviewer application and is not represented as complete by workflow files.
 
-M-007 adds a reproducible, secure, provider-neutral development environment: a Dev Containers descriptor (`.devcontainer/devcontainer.json`) pinned to the official `node:24.19.0` image by immutable digest, one digest-pinned registered python feature, a provenance/security policy lock (`infrastructure/dev/dev-environment-policy.json`), stdlib-only doctor/bootstrap/runtime-smoke commands (`pnpm run dev:doctor`, `pnpm run dev:bootstrap`), and a retained static validator plus adversarial mutation suite. The active M-007 dev container is deliberately boring: non-root user, no privileges, no host networking, no Docker socket, no forwarded product ports, and no product services. The repository development environment is not the VibeFlow Workspace product.
+M-007 adds a reproducible, secure, provider-neutral development environment: a Dev Containers descriptor (`.devcontainer/devcontainer.json`) pinned to the official `node:24.19.0` image by immutable digest, one digest-pinned registered python feature, a provenance/security policy lock (`infrastructure/dev/dev-environment-policy.json`), stdlib-only doctor/bootstrap/runtime-smoke commands (`pnpm run dev:doctor`, `pnpm run dev:bootstrap`), and a retained static validator plus adversarial mutation suite. The accepted M-007 repository dev container is deliberately boring: non-root user, no privileges, no host networking, no Docker socket, no forwarded product ports, and no product services. The repository development environment is not the VibeFlow Workspace product.
 
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` is authoritative for mission status; this section is a pointer to it.
 
