@@ -7,6 +7,7 @@
 - M-012 start commit: `caffe9c484a033c219402e8bd83709164d490f30` (chore: start M-012)
 - M-012 implementation commits: `256a54e265bd7455128e81418dc00326f937e824` (feat: implement authoritative Project) and `8d8a26ae2d3d665c55d8ac73e1272cd4a92f15fc` (docs: mark REVIEW and advance ledger)
 - Retained-test stabilization commits: `b0d1c2f63c4ec94292f90d82cbe09c3f450e42fe`, `89c5b13e07221743c4e55a096053d5c604f4bbce`, `a26985990505fea2cb08334f1efc827965a145b0`, `bcd4f07beddc107a1a3ae9a457e8f3d9a75f2619`
+- Independent-review remediation commits: `3bf6b815d4117c5e7434144382cfc4b13ef6e61c` (propagate canonical audit scope-resolution errors) and `fc8ce5938c2ab4d0e86c80c3386d3e24fdc83373` (PostgreSQL fail-closed regression)
 - Arena branch: `arena/01a01bbd-vibeflow-greenfield` (session-fixed)
 - Final mission state: `M-001..M-011 DONE`, `M-012 REVIEW`, `M-013..M-151 LOCKED`
 - Capabilities advanced: `VF-IAM-010`, `VF-PRJ-005`, `VF-PRJ-015` → `IMPLEMENTED`
@@ -23,6 +24,17 @@ M-012 exposed several retained tests that encoded historical current-state detai
 - Fail-closed, cross-tenant, malformed-input, unknown-resource, mutation, and security assertions remain enforced; only time-coupling was removed.
 
 These changes add the following candidate-scope files to the M-012 evidence set: `packages/authorization/src/tenant.live.test.ts`, `tests/contract/test_m005_contract_codegen.py`, and `tests/contract/test_m007_local_dev.py`.
+
+## Independent-review remediation
+
+Independent review found that Project audit tenant-scope lookup errors were being swallowed, allowing an otherwise-valid Project authorization to remain `ALLOW` even if the audit layer could not resolve canonical `organization_id`. The remediation removes that error swallowing for both canonical Organization and Project scope lookups:
+
+- a missing resource still produces zero rows and may be recorded as account-scoped denial evidence;
+- a database/query failure now propagates from `AuditService.recordAuthorizationDecision`;
+- `TenantAuthorizationService.recordRequiredAudit` converts an otherwise-allowed decision to `DENY / audit_unavailable`;
+- `packages/audit/src/project-scope.live.test.ts` injects a failure into `SELECT organization_id FROM projects WHERE id = $1`, proves `audit_unavailable`, and proves no false Project `allowed` audit row is persisted.
+
+This adds `packages/audit/src/project-scope.live.test.ts` to the exact changed-file scope.
 
 ## Protection pre-flight
 
@@ -85,6 +97,7 @@ This satisfies:
 - revoked/stale membership fails `no_membership`
 - stale tenant info supplied by client ignored
 - Project authorization uses canonical persistence
+- authoritative audit failure converts an otherwise-valid allow to `audit_unavailable`
 
 README updated to describe project authority, cross-tenant fail closed, no external engine.
 
@@ -110,6 +123,8 @@ New package `@vibeflow/project`:
 - For `organization` type: looks up `organizations` table for `organization_id`
 - For `project` type: `SELECT organization_id FROM projects WHERE id = $1` → sets `organization_id` for tenant-scoped audit
 - Actor, tenant, project resource identity all server-resolved; metadata cannot override authority keys
+- Database failures during canonical Organization/Project scope resolution propagate; they are not silently converted to `organizationId = null`
+- Because authorization requires durable audit for an allow, such a failure produces `DENY / audit_unavailable`
 - Secret handling preserved: `sanitizeAuditMetadata` omits secret-named keys, redacts secret-looking values
 - Reads fail closed across tenant/account boundaries; `UPDATE/DELETE` on `audit_events` rejected by trigger
 
@@ -138,8 +153,9 @@ Live PostgreSQL (requires DATABASE_URL, skipped locally, must run in CI exact-he
 - `packages/persistence/src/project.live.test.ts` 8 cases: canonical creation, ownership, FK forged org fail, tenant-safe list scoped, random UUID fail, tenant-safe mutation timestamps, indexes, provider authority rejection
 - `packages/authorization/src/project.live.test.ts` 10+ cases: same-tenant read success, cross-tenant read/mutation fail, forged org/actor, unknown UUID, revoked membership, canonical persistence, non-member, unauthenticated malformed
 - `packages/project/src/project.live.test.ts` 11 cases: same plus stale tenant, audit scoping, tenant-safe list, etc.
+- `packages/audit/src/project-scope.live.test.ts` 1 case: forced canonical Project audit-scope query failure must return `audit_unavailable` and persist no false `allowed` Project audit row
 
-Foundation CI supplies `postgres:18.4` via `DATABASE_URL`/`VIBEFLOW_DATABASE_URL`; runners `run-m012-project-integration.py` execute these suites.
+Foundation CI supplies `postgres:18.4` via `DATABASE_URL`/`VIBEFLOW_DATABASE_URL`; `pnpm run check` executes all package Vitest suites, and `run-m012-project-integration.py` executes the persistence/authorization/project suites explicitly.
 
 Local checks:
 
