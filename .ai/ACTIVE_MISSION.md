@@ -2,7 +2,7 @@
 
 **Mission:** M-012 — Implement Project authority
 
-**Status:** IN_PROGRESS
+**Status:** REVIEW
 
 **Phase:** 3 — Project Authority
 
@@ -10,7 +10,7 @@ Authoritative mission row:
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-012)
 
 M-001 through M-011 are accepted and `DONE`. M-012 is the sole active mission
-in `IN_PROGRESS`. M-013 and all later missions remain `LOCKED` and remain
+in `REVIEW`. M-013 and all later missions remain `LOCKED` and remain
 required for V1.
 
 ## M-012 scope

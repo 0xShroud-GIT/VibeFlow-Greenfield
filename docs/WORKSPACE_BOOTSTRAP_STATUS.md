@@ -1,8 +1,8 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: IN_PROGRESS (M-012 Project authority)
-- Active mission: M-012 — Implement Project authority (IN_PROGRESS)
+- Product implementation: REVIEW (M-012 Project authority)
+- Active mission: M-012 — Implement Project authority (REVIEW)
 - Accepted missions: M-001..M-011 (DONE)
 - Locked missions: M-013..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
