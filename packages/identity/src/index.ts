@@ -8,6 +8,7 @@ export {
 } from "./errors.js";
 export {
   IdentityService,
+  type AuthenticationAuditRecorder,
   type EmailPasswordRegistration,
   type EmailPasswordSignIn,
   type IdentityServiceOptions,

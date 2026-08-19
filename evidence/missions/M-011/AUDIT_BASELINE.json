@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "mission": "M-011",
+  "title": "Implement audit baseline",
+  "mission_status": "REVIEW",
+  "phase": "2 - Identity & Tenant Authority",
+  "branch": "arena/01a01b69-vibeflow-greenfield",
+  "starting_main_sha": "3800772ec963a4776f1c84881f93455dc7bf4a48",
+  "m010_closure_commit": "07a93da5961526e749715c3f08eb2201f8914a8e",
+  "implementation_commit": "9ebe4ac8f231c91acdf8717d2889e1731848d944",
+  "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence.",
+  "branch_protection": {
+    "observed_before_repository_edits": "active ruleset",
+    "ruleset_id": 21053541,
+    "ruleset_name": "VibeFlow main protection",
+    "enforcement": "active",
+    "target": "refs/heads/main",
+    "strict_required_status_checks_policy": true,
+    "required_contexts": ["verify", "foundation", "sanitize", "security-gate"],
+    "other_rules": ["pull_request", "required_review_thread_resolution", "deletion blocked", "non_fast_forward blocked"],
+    "current_user_can_bypass": "never",
+    "note": "Legacy branch-protection GET returned integration HTTP 403; repository ruleset GET succeeded and is the proof source. No platform mutation was necessary because enforcement was already active at first observation."
+  },
+  "implementation": {
+    "package": "@vibeflow/audit",
+    "migration": "migrations/0003_audit_event_ledger.sql",
+    "table": "audit_events",
+    "fields": ["id", "occurred_at", "actor_account_id", "subject_account_id", "organization_id", "action", "resource_type", "resource_id", "outcome", "reason", "request_id", "source", "metadata"],
+    "indexes": ["audit_events_account_order_idx", "audit_events_organization_account_order_idx", "audit_events_request_id_idx"],
+    "append_only_control": "BEFORE UPDATE OR DELETE trigger rejects ordinary mutation",
+    "server_authority": "PostgreSQL generates event UUID/time; canonical Account/Organization rows and membership resolve scope; metadata cannot override authority fields",
+    "ordering": "occurred_at DESC, id DESC with a composite cursor",
+    "write_surface": "narrow server-only authentication and authorization recorder methods; no generic client create API"
+  },
+  "event_behavior": {
+    "authentication_session": [
+      "session.created is inserted transactionally by PostgreSQL after identity_sessions insert",
+      "session.revoked is inserted transactionally before identity_sessions delete",
+      "attributable invalid-credential attempts record authentication.login_failed against the canonical subject Account with a null actor",
+      "unknown email attempts are not promoted to canonical Account authority and are not persisted in the account-scoped ledger"
+    ],
+    "authorization": [
+      "registered organization decisions record authorization.<action> allow/deny",
+      "canonical actor and existing Organization scope are server-resolved",
+      "unknown UUID resources remain account-scoped evidence",
+      "required allow audit write failure returns audit_unavailable and fails closed",
+      "denials remain denied if audit storage is unavailable"
+    ]
+  },
+  "security": {
+    "reads": "authenticated account must equal requested account; organization-filtered reads also require current canonical membership",
+    "metadata": "plain bounded JSON only; authority-shaped keys rejected; secret-named keys omitted; secret-looking values redacted",
+    "negative_tests": ["cross-account read", "cross-tenant read", "forged actor/organization/resource metadata", "secret input", "malformed metadata", "unknown resource", "stale membership regression", "ordinary UPDATE/DELETE", "audit write failure"]
+  },
+  "capability_status": {
+    "VF-IAM-004": "IMPLEMENTED",
+    "rationale": "The production-direction durable baseline and deterministic local tests exist. VERIFIED/COMPLETE are not claimed before exact-head PostgreSQL CI and independent acceptance.",
+    "unrelated_capabilities_changed": []
+  },
+  "local_verification": {
+    "node": "24.19.0",
+    "pnpm": "11.4.0",
+    "commands": ["pnpm install --frozen-lockfile", "pnpm run check", "python3 tests/contract/test_m011_audit.py", "pnpm --filter @vibeflow/audit typecheck", "pnpm --filter @vibeflow/audit test", "git diff --check"],
+    "results": {
+      "m011_contract": "8/8 PASS",
+      "audit_metadata_unit": "4/4 PASS",
+      "authorization_unit_regression": "13/13 PASS",
+      "identity_unit_regression": "3/3 PASS",
+      "root_check": "PASS",
+      "postgresql_live": "NOT EXECUTED locally because DATABASE_URL is absent; never represented as a pass"
+    }
+  },
+  "postgresql_ci": {
+    "required_version": "18.4",
+    "workflow_service": "postgres:18.4 in Repository Foundation",
+    "runner": "scripts/run-m011-audit-integration.py",
+    "suite": "packages/audit/src/audit.live.test.ts",
+    "cases": 9,
+    "status_at_evidence_creation": "OUTSTANDING exact-head GitHub Actions"
+  },
+  "known_limitations": [
+    "No Project authority or Project-scoped audit before M-012.",
+    "No organization-admin/role-based audit catalog; baseline reads are account-private.",
+    "Unknown-email and un-attributable malformed/revoked-token attempts have no canonical account scope and are not inserted into this ledger.",
+    "No SIEM export, OpenTelemetry platform, analytics, activity feed, cryptographic non-repudiation, or long-term retention controls.",
+    "Audit metadata redaction is defense in depth; narrow typed producers and no raw payload dumping remain the primary control."
+  ],
+  "out_of_scope_confirmed": ["M-012 Project authority not started", "roles/groups", "enterprise IAM", "SSO/SCIM", "MFA breadth", "OpenFGA", "ConnectionGrant", "approvals", "Temporal", "gateway/protocol", "observability platform", "SIEM", "billing", "deployment"],
+  "overclaim_check": "M-011 is REVIEW, not DONE. VF-IAM-004 is IMPLEMENTED, not VERIFIED or COMPLETE. PostgreSQL is not claimed locally. M-012 remains LOCKED."
+}

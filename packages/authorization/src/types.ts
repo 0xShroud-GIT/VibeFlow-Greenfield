@@ -54,7 +54,8 @@ export type DenyReason =
   | "unknown_resource_type"
   | "unknown_action"
   | "unknown_resource"
-  | "no_membership";
+  | "no_membership"
+  | "audit_unavailable";
 
 export type AuthorizationDecision =
   | { readonly allowed: true }

@@ -1,10 +1,10 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: REVIEW (M-010 tenant/resource authorization)
-- Active mission: M-010 — Implement tenant/resource authorization (REVIEW)
-- Accepted missions: M-001, M-002, M-003, M-004, M-005, M-006, M-007, M-008, M-009 (DONE)
-- Locked missions: M-011..M-151 (deferred non-J1 missions remain required for V1)
+- Product implementation: REVIEW (M-011 audit baseline)
+- Active mission: M-011 — Implement audit baseline (REVIEW)
+- Accepted missions: M-001..M-010 (DONE)
+- Locked missions: M-012..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases
@@ -28,5 +28,6 @@ evidence records the repository Dev Container, not the product Environment
 Definition verification gate (`Environment parsing/port/dependency
 reproducibility tests`), and explicitly forbids claiming
 IMPLEMENTED/VERIFIED/COMPLETE. A product-container scan remains N/A because no
-product image exists. Main branch protection is pending external reviewer
-application; workflow files alone do not protect main.
+product image exists. The active `VibeFlow main protection` repository ruleset
+protects `main` with pull-request, review-thread, update-branch, deletion,
+force-push, and established required-status-check enforcement.

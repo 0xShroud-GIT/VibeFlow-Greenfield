@@ -679,24 +679,24 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_current_branch_records_m009_accepted_and_m010_active(self) -> None:
+    def test_current_branch_records_m010_accepted_and_m011_active(self) -> None:
         """The retained gate accepts the next consumed mission without inventing one.
 
-        M-009 has accepted exact-head evidence, so M-001..M-009 are DONE,
-        M-010 is the sole active mission, and M-011+ remain LOCKED.
+        M-010 has accepted exact-head evidence, so M-001..M-010 are DONE,
+        M-011 is the sole active mission, and M-012+ remain LOCKED.
         """
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        m009 = dag.split("- mission_id: M-009", 1)[1].split("- mission_id:", 1)[0]
         m010 = dag.split("- mission_id: M-010", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: DONE", m009)
-        self.assertRegex(m010, r"status: (IN_PROGRESS|REVIEW)")
+        m011 = dag.split("- mission_id: M-011", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: DONE", m010)
+        self.assertRegex(m011, r"status: (IN_PROGRESS|REVIEW)")
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
-        for index in range(4, 10):
+        for index in range(4, 11):
             self.assertEqual(rows[f"M-{index:03d}"], "DONE")
-        self.assertIn(rows["M-010"], {"IN_PROGRESS", "REVIEW"})
-        for index in range(11, 152):
+        self.assertIn(rows["M-011"], {"IN_PROGRESS", "REVIEW"})
+        for index in range(12, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:

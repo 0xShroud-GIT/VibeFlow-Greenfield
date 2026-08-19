@@ -994,7 +994,7 @@ capabilities:
   authority_rule: VibeFlow is authoritative for Audit Event Ledger state/policy; external IDs are references, never the source
     of VibeFlow truth.
   verification_gate: AuthN/AuthZ tenant-isolation tests + audit evidence
-  status: NOT_STARTED
+  status: IMPLEMENTED
 - vf_id: VF-IAM-005
   domain: 04 Identity, organizations, tenancy and authorization
   domain_code: IAM

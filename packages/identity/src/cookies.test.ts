@@ -6,6 +6,8 @@ import { cookieRequestHeader, setCookieHeaders } from "./cookies.js";
 import { IdentityInputError } from "./errors.js";
 import { IdentityService } from "./service.js";
 
+const audit = { async recordAuthenticationFailure() {} };
+
 describe("M-009 cookie transport boundary", () => {
   it("forwards only cookie name/value pairs on a subsequent request", () => {
     expect(
@@ -31,6 +33,7 @@ describe("M-009 cookie transport boundary", () => {
       () =>
         new IdentityService({
           controlPlane,
+          audit,
           baseURL: "http://identity.vibeflow.test",
           secret: "this-secret-is-long-enough-to-reach-the-next-check",
         }),
@@ -39,6 +42,7 @@ describe("M-009 cookie transport boundary", () => {
       () =>
         new IdentityService({
           controlPlane,
+          audit,
           baseURL: "https://identity.vibeflow.test",
           secret: "too-short",
         }),

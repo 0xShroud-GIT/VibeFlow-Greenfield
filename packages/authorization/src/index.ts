@@ -1,6 +1,6 @@
 export { validateRequest } from "./decision.js";
 export { TenantAuthorizationService } from "./service.js";
-export type { MembershipAuthority } from "./service.js";
+export type { AuthorizationAuditRecorder, MembershipAuthority } from "./service.js";
 export {
   ACTIONS,
   ALLOW,

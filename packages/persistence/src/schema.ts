@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 /**
  * Minimal durable Account / Organization / membership schema.
@@ -65,10 +65,29 @@ export const identityUsers = pgTable("identity_users", {
     .references(() => accounts.id),
 });
 
+export const auditEvents = pgTable("audit_events", {
+  id: uuid("id").primaryKey(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "date" }).notNull(),
+  actorAccountId: uuid("actor_account_id").references(() => accounts.id),
+  subjectAccountId: uuid("subject_account_id")
+    .notNull()
+    .references(() => accounts.id),
+  organizationId: uuid("organization_id").references(() => organizations.id),
+  action: text("action").notNull(),
+  resourceType: text("resource_type").notNull(),
+  resourceId: uuid("resource_id"),
+  outcome: text("outcome").notNull(),
+  reason: text("reason"),
+  requestId: uuid("request_id"),
+  source: text("source").notNull(),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull(),
+});
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationMembershipRow = typeof organizationMemberships.$inferSelect;
 export type IdentityUserRow = typeof identityUsers.$inferSelect;
+export type AuditEventRow = typeof auditEvents.$inferSelect;
 
 /** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
@@ -77,8 +96,9 @@ export const TENANT_TABLES = {
   organizationMemberships,
 } as const;
 
-/** All Drizzle tables queried by VibeFlow control-plane modules through M-009. */
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-011. */
 export const CONTROL_PLANE_TABLES = {
   ...TENANT_TABLES,
   identityUsers,
+  auditEvents,
 } as const;
