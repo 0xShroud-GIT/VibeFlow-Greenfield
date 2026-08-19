@@ -142,12 +142,13 @@ describePostgres("M-010 PostgreSQL tenant/resource authorization", () => {
   });
 
   it("denies malformed and unknown resource/action inputs (P0 negative)", async () => {
-    // Unknown resource type.
+    // Unknown resource type: use a genuinely unknown/future type, not \"project\"
+    // which is now a canonical supported type since M-012.
     await expect(
       authz.authorize({
         accountId: alice.id,
         action: "read",
-        resource: { type: "project", id: orgA.id },
+        resource: { type: "artifact", id: orgA.id },
       }),
     ).resolves.toEqual(deny("unknown_resource_type"));
 
