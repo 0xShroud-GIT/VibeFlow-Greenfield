@@ -9,6 +9,7 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "src/audit.live.test.ts"
+    "src/audit.live.test.ts",
+    "src/project-scope.live.test.ts"
   ]
 }
