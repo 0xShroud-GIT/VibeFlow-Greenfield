@@ -1,0 +1,23 @@
+{
+  "name": "@vibeflow/authorization",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VibeFlow server-side tenant/resource authorization decision boundary",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@vibeflow/persistence": "workspace:*"
+  }
+}

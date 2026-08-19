@@ -63,6 +63,11 @@ jobs:
         run: |
           test -n "$DATABASE_URL"
           pnpm --filter @vibeflow/persistence exec vitest run src/persistence.live.test.ts
+      - name: Verify M-010 tenant/resource authorization against PostgreSQL 18.4
+        shell: bash
+        run: |
+          test -n "$DATABASE_URL"
+          pnpm --filter @vibeflow/authorization exec vitest run src/tenant.live.test.ts
       - name: Pull exact dev container base image by digest
         if: ${{ steps.scope.outputs.dev_image == 'true' }}
         shell: bash

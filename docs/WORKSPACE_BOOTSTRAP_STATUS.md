@@ -1,10 +1,10 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: REVIEW (M-009 authentication/session flows)
-- Active mission: M-009 — Implement authentication/session flows (REVIEW)
-- Accepted missions: M-001, M-002, M-003, M-004, M-005, M-006, M-007, M-008 (DONE)
-- Locked missions: M-010..M-151 (deferred non-J1 missions remain required for V1)
+- Product implementation: REVIEW (M-010 tenant/resource authorization)
+- Active mission: M-010 — Implement tenant/resource authorization (REVIEW)
+- Accepted missions: M-001, M-002, M-003, M-004, M-005, M-006, M-007, M-008, M-009 (DONE)
+- Locked missions: M-011..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases
