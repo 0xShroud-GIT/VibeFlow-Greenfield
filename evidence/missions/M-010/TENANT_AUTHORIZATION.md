@@ -92,5 +92,9 @@ Contract:
   overclaiming of later missions, and CI wiring.
 
 The local Arena workspace has no PostgreSQL, so the live suite is skipped here
-(an explicit non-verification notice, matching M-008/M-009). The Foundation CI
-workflow runs the M-010 live suite against PostgreSQL 18.4.
+(an explicit non-verification notice, matching M-008/M-009). In CI the
+`run-m010-authz-integration.py` runner (invoked by `pnpm run check` in the
+repository-foundation workflow, which supplies PostgreSQL 18.4 via
+`DATABASE_URL`) runs the M-010 live suite against PostgreSQL. No workflow file
+is edited by M-010; the builder GitHub App lacks `workflows` permission, and the
+runner needs no workflow change.

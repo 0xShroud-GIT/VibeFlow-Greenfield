@@ -80,7 +80,7 @@
       "runner": "scripts/run-m010-authz-integration.py",
       "condition": "CI fails if DATABASE_URL and VIBEFLOW_DATABASE_URL are both absent; otherwise it runs the M-010 live suite directly.",
       "live_suite": "packages/authorization/src/tenant.live.test.ts",
-      "ci_workflow_step": "Verify M-010 tenant/resource authorization against PostgreSQL 18.4 on .github/workflows/repository-foundation.yml",
+      "ci_workflow_step": "The runner is invoked by `pnpm run check` (the repository-foundation workflow 'Run foundation check' step), which supplies PostgreSQL 18.4 via DATABASE_URL. No workflow file edit is required; the builder GitHub App lacks `workflows` permission.",
       "required_cases": [
         "allowed canonical membership",
         "no membership anywhere",
