@@ -679,27 +679,24 @@ class MissionStateTests(M005TestCase):
         box.set_mission_status("M-004", "REVIEW")
         self.assert_rejected(box, "M-004 must be DONE")
 
-    def test_current_branch_records_m007_accepted_and_m008_ready(self) -> None:
-        """The retained gate must accept, but never invent, acceptance.
+    def test_current_branch_records_m008_accepted_and_m009_active(self) -> None:
+        """The retained gate accepts the next consumed mission without inventing one.
 
-        Successor consumption: M-007 acceptance was consumed, so the branch
-        records M-001..M-007 DONE, M-008 as the single active mission, and
-        M-009+ LOCKED.
+        M-008 has accepted exact-head evidence, so M-001..M-008 are DONE,
+        M-009 is the sole active mission, and M-010+ remain LOCKED.
         """
         dag = (REPO_ROOT / DAG).read_text(encoding="utf-8")
-        m007 = dag.split("- mission_id: M-007", 1)[1].split("- mission_id:", 1)[0]
         m008 = dag.split("- mission_id: M-008", 1)[1].split("- mission_id:", 1)[0]
-        self.assertIn("status: DONE", m007)
-        self.assertRegex(m008, r"status: (READY|IN_PROGRESS|REVIEW)")
+        m009 = dag.split("- mission_id: M-009", 1)[1].split("- mission_id:", 1)[0]
+        self.assertIn("status: DONE", m008)
+        self.assertRegex(m009, r"status: (IN_PROGRESS|REVIEW)")
 
         with (REPO_ROOT / REG).open(newline="", encoding="utf-8") as handle:
             rows = {row["mission_id"]: row["status"] for row in csv.DictReader(handle)}
-        self.assertEqual(rows["M-004"], "DONE")
-        self.assertEqual(rows["M-005"], "DONE")
-        self.assertEqual(rows["M-006"], "DONE")
-        self.assertEqual(rows["M-007"], "DONE")
-        self.assertIn(rows["M-008"], {"READY", "IN_PROGRESS", "REVIEW"})
-        for index in range(9, 152):
+        for index in range(4, 9):
+            self.assertEqual(rows[f"M-{index:03d}"], "DONE")
+        self.assertIn(rows["M-009"], {"IN_PROGRESS", "REVIEW"})
+        for index in range(10, 152):
             self.assertEqual(rows[f"M-{index:03d}"], "LOCKED")
 
     def test_m005_dag_register_desync_is_rejected(self) -> None:

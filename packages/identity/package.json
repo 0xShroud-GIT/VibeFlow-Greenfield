@@ -1,0 +1,25 @@
+{
+  "name": "@vibeflow/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VibeFlow identity authentication and session boundary",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@vibeflow/persistence": "workspace:*",
+    "better-auth": "1.6.30",
+    "kysely": "0.29.5"
+  }
+}

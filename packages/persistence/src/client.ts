@@ -1,9 +1,9 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
-import { TENANT_TABLES } from "./schema.js";
+import { CONTROL_PLANE_TABLES } from "./schema.js";
 
-export type ControlPlaneDatabase = NodePgDatabase<typeof TENANT_TABLES>;
+export type ControlPlaneDatabase = NodePgDatabase<typeof CONTROL_PLANE_TABLES>;
 
 export interface ControlPlanePool {
   readonly pool: pg.Pool;
@@ -13,7 +13,7 @@ export interface ControlPlanePool {
 
 export function createControlPlanePool(connectionString: string): ControlPlanePool {
   const pool = new pg.Pool({ connectionString });
-  const db = drizzle(pool, { schema: TENANT_TABLES });
+  const db = drizzle(pool, { schema: CONTROL_PLANE_TABLES });
   return {
     pool,
     db,

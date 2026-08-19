@@ -12,6 +12,7 @@ import {
 import { newId, requireId, requireNonEmpty } from "./ids.js";
 import {
   accounts,
+  identityUsers,
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
@@ -76,6 +77,25 @@ export class TenantRepository {
       throw new NotFoundError(`account not found: ${id}`);
     }
     return row;
+  }
+
+  /**
+   * Resolves an authenticated library user through the durable server-side
+   * VibeFlow Account link. It deliberately returns no organization/role state.
+   */
+  public async findAccountByIdentityUserId(identityUserId: string): Promise<AccountRow | undefined> {
+    const userId = requireId("identityUserId", identityUserId);
+    const links = await this.db
+      .select({ accountId: identityUsers.vibeflowAccountId })
+      .from(identityUsers)
+      .where(eq(identityUsers.id, userId));
+    const link = links[0];
+    if (!link) {
+      return undefined;
+    }
+
+    const rows = await this.db.select().from(accounts).where(eq(accounts.id, link.accountId));
+    return rows[0];
   }
 
   public async createOrganization(input: CreateOrganizationInput): Promise<OrganizationRow> {
