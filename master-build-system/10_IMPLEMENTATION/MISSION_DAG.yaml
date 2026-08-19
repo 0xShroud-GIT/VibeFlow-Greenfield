@@ -248,7 +248,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: REVIEW
+  status: DONE
 - mission_id: M-008
   phase: 2
   phase_name: Identity & Tenant Authority
@@ -260,7 +260,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: LOCKED
+  status: READY
 - mission_id: M-009
   phase: 2
   phase_name: Identity & Tenant Authority
@@ -302,7 +302,7 @@ missions:
   phase_name: Project Authority
   title: Implement Project authority
   scope: Project, Artifact, imports, lifecycle and canonical graph.
-  depends_on: M-011
+  depends_on: M-010
   capability_selector: PRJ
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -350,7 +350,7 @@ missions:
   phase_name: Provider Bindings
   title: Implement binding resource family
   scope: Agent/Model/Workspace/Repo/Data/Storage/Deployment bindings and capability discovery.
-  depends_on: M-015
+  depends_on: M-012
   capability_selector: AGT,WKS,GIT,DAT,DEP
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -398,7 +398,7 @@ missions:
   phase_name: Connections & Grants
   title: Implement Connection and SecretRef broker
   scope: Connections, SecretRef, grants, scopes, OAuth broker and approvals foundation.
-  depends_on: M-019
+  depends_on: M-016
   capability_selector: CON,POL
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -446,7 +446,7 @@ missions:
   phase_name: Durable Task & Execution
   title: Implement Task/Execution schemas
   scope: Task/Execution/Attempt state, Temporal workflows, idempotent commands, durable events.
-  depends_on: M-023
+  depends_on: M-021
   capability_selector: AGT,TRU
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -554,7 +554,7 @@ missions:
   phase_name: Mobile Shell
   title: Bootstrap Expo mobile app
   scope: Expo app, auth, projects, task/action center, notifications, secure storage.
-  depends_on: M-032
+  depends_on: M-028
   capability_selector: MOB,EXP,UX
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -614,7 +614,7 @@ missions:
   phase_name: Agent Integration
   title: Implement ACP gateway/profile
   scope: ACP profile, OpenHands adapter, capability negotiation, Plan/Build modes.
-  depends_on: M-037
+  depends_on: M-035
   capability_selector: AGT,AI
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -674,7 +674,7 @@ missions:
   phase_name: Model Integration
   title: Implement ModelBinding/BYOK
   scope: ModelBinding, BYOK broker, Vercel AI SDK/direct provider adapters, usage attribution.
-  depends_on: M-042
+  depends_on: M-039
   capability_selector: AGT,BIL
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -710,7 +710,7 @@ missions:
   phase_name: Model Integration
   title: Implement key redaction/security tests
   scope: 'Model Integration: Implement key redaction/security tests.'
-  depends_on: M-045
+  depends_on: M-044
   capability_selector: AGT,BIL
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -782,7 +782,7 @@ missions:
   phase_name: Workspace Web IDE
   title: Implement file tree/editor
   scope: Files, Monaco, terminal, preview, logs, command palette, responsive mobile workspace.
-  depends_on: M-051
+  depends_on: M-048
   capability_selector: WKS,EXP
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
@@ -1022,7 +1022,7 @@ missions:
   phase_name: Verification & Evidence
   title: Implement Evidence store
   scope: Evidence store, build/test/security checks, candidate capture, independent completion verification.
-  depends_on: M-071
+  depends_on: M-054
   capability_selector: VER,TRU
   required_master_context: MASTER_OF_MASTERS + relevant master(s) + exact contracts + harvest entries + acceptance gates
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
