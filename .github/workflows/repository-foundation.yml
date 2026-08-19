@@ -58,6 +58,11 @@ jobs:
       - name: Run foundation check
         shell: bash
         run: pnpm run check
+      - name: Verify M-008 persistence against PostgreSQL 18.4
+        shell: bash
+        run: |
+          test -n "$DATABASE_URL"
+          pnpm --filter @vibeflow/persistence exec vitest run src/persistence.live.test.ts
       - name: Pull exact dev container base image by digest
         if: ${{ steps.scope.outputs.dev_image == 'true' }}
         shell: bash
