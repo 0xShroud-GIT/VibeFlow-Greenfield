@@ -6,11 +6,23 @@
 - M-011 closure commit: `83f01bbbbb16007b1f0e50c24539f2ddbef8b682` (chore: close M-011 and ready M-012)
 - M-012 start commit: `caffe9c484a033c219402e8bd83709164d490f30` (chore: start M-012)
 - M-012 implementation commits: `256a54e265bd7455128e81418dc00326f937e824` (feat: implement authoritative Project) and `8d8a26ae2d3d665c55d8ac73e1272cd4a92f15fc` (docs: mark REVIEW and advance ledger)
+- Retained-test stabilization commits: `b0d1c2f63c4ec94292f90d82cbe09c3f450e42fe`, `89c5b13e07221743c4e55a096053d5c604f4bbce`, `a26985990505fea2cb08334f1efc827965a145b0`, `bcd4f07beddc107a1a3ae9a457e8f3d9a75f2619`
 - Arena branch: `arena/01a01bbd-vibeflow-greenfield` (session-fixed)
 - Final mission state: `M-001..M-011 DONE`, `M-012 REVIEW`, `M-013..M-151 LOCKED`
 - Capabilities advanced: `VF-IAM-010`, `VF-PRJ-005`, `VF-PRJ-015` → `IMPLEMENTED`
 
 Machine-readable evidence in `PROJECT_AUTHORITY.json` is canonical. Final PR head and exact-head Actions runs are recorded in PR/final handoff because a commit cannot contain its own SHA.
+
+## Retained-test stabilization
+
+M-012 exposed several retained tests that encoded historical current-state details instead of durable invariants. Those tests were corrected without weakening security behavior:
+
+- M-005 no longer permanently asserts that M-011 is the active mission. It verifies the durable M-001..M-005 `DONE` baseline, exactly one active mission, DAG/register parity, and active-mission pointer parity.
+- Retained authorization unknown-resource-type tests use `__vibeflow_test_unknown_resource_type__` rather than names such as `project`, `workspace`, or `task` that may become canonical resources in later missions.
+- The historical M-007 fixture reconstructs the complete accepted capability snapshot in one pass: every capability returns to `NOT_STARTED` except `VF-REL-002/003/004=IMPLEMENTED`, `VF-REL-005=IN_PROGRESS`, and `VF-ENV-005=IN_PROGRESS`. Later mission capability progress can no longer leak into the historical fixture.
+- Fail-closed, cross-tenant, malformed-input, unknown-resource, mutation, and security assertions remain enforced; only time-coupling was removed.
+
+These changes add the following candidate-scope files to the M-012 evidence set: `packages/authorization/src/tenant.live.test.ts`, `tests/contract/test_m005_contract_codegen.py`, and `tests/contract/test_m007_local_dev.py`.
 
 ## Protection pre-flight
 
@@ -127,7 +139,7 @@ Live PostgreSQL (requires DATABASE_URL, skipped locally, must run in CI exact-he
 - `packages/authorization/src/project.live.test.ts` 10+ cases: same-tenant read success, cross-tenant read/mutation fail, forged org/actor, unknown UUID, revoked membership, canonical persistence, non-member, unauthenticated malformed
 - `packages/project/src/project.live.test.ts` 11 cases: same plus stale tenant, audit scoping, tenant-safe list, etc.
 
-Foundation CI supplies `postgres:18.4` via `DATABASE_URL`/`VIBEFLOW_DATABASE_URL`; runners `run-m012-project-integration.py` will execute these suites.
+Foundation CI supplies `postgres:18.4` via `DATABASE_URL`/`VIBEFLOW_DATABASE_URL`; runners `run-m012-project-integration.py` execute these suites.
 
 Local checks:
 
@@ -164,7 +176,7 @@ Trace file `CAPABILITY_CONTRACT_TRACE.csv` also updated for those three.
 - No provider bindings: AgentBinding, ModelBinding, WorkspaceBinding, RepositoryBinding, DataBinding, ObjectStorageBinding, DeploymentBinding (M-016+)
 - No OpenHands integration, workspace provisioning, GitHub repo management, Monaco/web IDE, task/execution engine, Temporal, deployment, billing, collaboration roles/groups, enterprise SSO/SCIM, broad external authorization engine, later mobile/UI
 - Project update only supports name; no state machine beyond existence
-- Audit for project is via authorizationaudit; no dedicated Project audit catalog beyond
+- Audit for project is via authorization audit; no dedicated Project audit catalog beyond
 - PostgreSQL live not executed locally; CI must run exact-head
 
 ## Overclaim check
