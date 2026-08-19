@@ -387,10 +387,11 @@ export class IdentityService {
             before: async (user) => ({
               data: {
                 ...user,
-                // Better Auth generates this UUID before its user-create hook.
-                // PostgreSQL's BEFORE INSERT trigger creates the VibeFlow Account
-                // with this same server-generated ID in the same transaction.
-                vibeflowAccountId: user.id,
+                // The VibeFlow server generates this opaque Account ID before
+                // inserting the Better Auth user. PostgreSQL's BEFORE INSERT
+                // trigger creates the canonical Account with the same ID in the
+                // surrounding signup transaction.
+                vibeflowAccountId: crypto.randomUUID(),
               },
             }),
           },

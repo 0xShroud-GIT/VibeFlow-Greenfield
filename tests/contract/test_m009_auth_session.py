@@ -61,7 +61,7 @@ class M009AuthenticationSessionContractTests(unittest.TestCase):
             'input: false',
             'transaction: true',
             'PostgresDialect',
-            'vibeflowAccountId: user.id',
+            'vibeflowAccountId: crypto.randomUUID()',
             'authenticated: false',
         ):
             self.assertIn(required, source)
