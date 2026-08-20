@@ -21,6 +21,10 @@ Read `master-build-system/00_MASTER/MASTER_OF_MASTERS.md` before changing archit
 
 ## Mission discipline
 
-Read `.ai/ACTIVE_MISSION.md` and work only that mission. Do not implement later phases “while here.”
+Read `.ai/ACTIVE_MISSION.md` and work only that mission. `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` is authoritative for mission status and dependencies; the active mission packet must agree with it.
+
+Treat `docs/` planning/status material and `evidence/` as historical or contextual unless the active mission explicitly references them. Never infer current mission status, build order, or scope from historical evidence or superseded plans.
+
+Do not delete scaffold packages, adapter/app/service/worker placeholders, retained validators, or mission evidence merely because they are not implemented or executed yet. The repository seed shape and retained verification surface are contract-tested.
 
 Every mission leaves code, tests, evidence, capability/mission status updates, and an ADR only if a master decision changed. Keep diffs reviewable; prefer boring explicit code over speculative abstraction.
