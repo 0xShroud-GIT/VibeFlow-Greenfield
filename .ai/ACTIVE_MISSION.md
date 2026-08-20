@@ -2,16 +2,22 @@
 
 **Mission:** M-014 — Implement imports/templates lifecycle
 
-**Status:** READY
+**Status:** REVIEW
 
 **Phase:** 3 — Project Authority
 
 Authoritative mission row:
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-014)
 
-M-001 through M-013 are accepted and `DONE`. M-014 is the sole active mission,
-in `READY` and next to be picked up. M-015 and all later missions remain
-`LOCKED` and remain required for V1.
+M-001 through M-013 are accepted and `DONE`. M-014 is the sole active mission
+and is `REVIEW`: implementation and verification are complete and handed off for
+independent review. It is deliberately NOT `DONE` — only an independent reviewer
+may accept it. M-015 and all later missions remain `LOCKED` and remain required
+for V1.
+
+M-014 delivered `VF-PRJ-004 Project Archive Import` and `VF-PRJ-007 Project
+Clone Plan` at `IMPLEMENTED`. Evidence:
+`evidence/missions/M-014/IMPORT_CLONE_LIFECYCLE.{json,md}`.
 
 ## M-014 scope
 

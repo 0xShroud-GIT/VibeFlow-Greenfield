@@ -27,6 +27,15 @@ export class CrossProjectArtifactRelationError extends PersistenceError {
   override readonly name = "CrossProjectArtifactRelationError";
 }
 
+/**
+ * A durable command with this (tenant, actor, idempotency key) was already
+ * applied. M-014 uses it to keep a retried import/clone command from creating
+ * a second Project.
+ */
+export class DuplicateIdempotentCommandError extends PersistenceError {
+  override readonly name = "DuplicateIdempotentCommandError";
+}
+
 /** A duplicate (project, subject, kind, object) relation edge. */
 export class DuplicateArtifactRelationError extends PersistenceError {
   override readonly name = "DuplicateArtifactRelationError";
