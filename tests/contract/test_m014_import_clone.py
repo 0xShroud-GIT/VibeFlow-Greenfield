@@ -694,6 +694,49 @@ class M014EvidenceTests(unittest.TestCase):
         ):
             self.assertIn(key, record)
 
+    def test_evidence_rejection_vocabulary_matches_implementation(self) -> None:
+        """Evidence must enumerate ARCHIVE_REJECTION_CODES exactly.
+
+        The evidence claims to list the authoritative rejection vocabulary, so a
+        stale or invented code there is an evidence-integrity defect even when
+        the scanner itself is correct. Both the JSON and the Markdown are
+        compared mechanically against the exported list.
+        """
+        source = ARCHIVE_ERRORS.read_text(encoding="utf-8")
+        match = re.search(
+            r"export const ARCHIVE_REJECTION_CODES\s*=\s*\[(.*?)\]\s*as const;",
+            source,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match, "ARCHIVE_REJECTION_CODES export not found")
+        body = re.sub(r"//[^\n]*", "", match.group(1))  # drop grouping comments
+        implementation = re.findall(r'"([^"]+)"', body)
+        self.assertTrue(implementation)
+
+        record = json.loads(EVIDENCE_JSON.read_text(encoding="utf-8"))
+        evidence = record["archive_scan_policy"]["rejection_codes"]
+        self.assertEqual(
+            evidence,
+            implementation,
+            "evidence JSON rejection_codes must equal ARCHIVE_REJECTION_CODES exactly, in order",
+        )
+
+        markdown = EVIDENCE_MD.read_text(encoding="utf-8")
+        section = re.search(
+            r"Rejection vocabulary[^:]*:(.*?)(?:\n\n|\n### )", markdown, re.DOTALL
+        )
+        self.assertIsNotNone(section, "evidence Markdown rejection vocabulary not found")
+        documented = [
+            token
+            for token in re.findall(r"`([^`]+)`", section.group(1))
+            if re.fullmatch(r"[a-z0-9_]+", token)
+        ]
+        self.assertEqual(
+            documented,
+            implementation,
+            "evidence Markdown vocabulary must equal ARCHIVE_REJECTION_CODES exactly, in order",
+        )
+
     def test_evidence_never_claims_done(self) -> None:
         record = json.loads(EVIDENCE_JSON.read_text(encoding="utf-8"))
         self.assertNotEqual(record["mission_status"], "DONE")

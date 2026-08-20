@@ -152,8 +152,13 @@
     "rejection_codes": [
       "malformed_archive",
       "unsupported_format",
-      "unsupported_compression",
-      "encrypted_archive",
+      "unsupported_compression_method",
+      "archive_too_large",
+      "too_many_entries",
+      "entry_too_large",
+      "total_size_exceeded",
+      "compression_ratio_exceeded",
+      "path_empty",
       "path_absolute",
       "path_traversal",
       "path_windows_drive",
@@ -162,17 +167,13 @@
       "path_invalid_characters",
       "path_too_long",
       "path_too_deep",
+      "duplicate_path",
+      "path_collision",
       "symlink_entry",
       "hardlink_entry",
       "special_entry",
-      "duplicate_path",
-      "path_collision",
-      "too_many_entries",
-      "entry_too_large",
-      "total_size_exceeded",
-      "archive_too_large",
-      "compression_ratio_exceeded",
-      "content_size_mismatch"
+      "content_size_mismatch",
+      "content_checksum_mismatch"
     ],
     "limits": {
       "provenance": "The Master Build System defines NO numeric thresholds for archive import; R2V-083 proves only the capability shape ('ZIP/tar upload + scanner'). Every value below is an IMPLEMENTATION SAFETY LIMIT chosen conservatively by M-014 and may be retuned by a later mission with evidence.",
@@ -203,7 +204,8 @@
       "payload_crc_verification": "After the actual uncompressed bytes are obtained (stored or inflated), their CRC-32 is verified against the authoritative ZIP entry CRC; a mismatch rejects as content_checksum_mismatch. This SUPPLEMENTS and does not replace SHA-256 manifest hashing: the CRC proves the container's own integrity claim, the SHA-256 remains VibeFlow's server-derived content identity.",
       "limits_preserved": "maxOutputLength remains enforced by the decompressor, and archive size, entry count, per-entry size, aggregate size, path depth, path length and compression-ratio limits are unchanged. Regression tests assert each still fires.",
       "mutation_proof": "Three independent mutations were injected and reverted: (1) removing reconciliation entirely failed 11 tests; (2) disabling payload CRC verification failed 3 tests; (3) replacing the byte comparison with a normalized-string comparison failed the NFC/NFD test. The regression suite therefore detects the real defect rather than asserting a tautology."
-    }
+    },
+    "rejection_codes_provenance": "Enumerates ARCHIVE_REJECTION_CODES from packages/project/src/archive/errors.ts exactly, in implementation order. Extracted mechanically from the source export rather than transcribed, and asserted by tests/contract/test_m014_import_clone.py so the evidence cannot silently drift from the code."
   },
   "manifest_hash_rules": {
     "manifest_version_tag": "vibeflow.archive.manifest.v1",
@@ -413,8 +415,9 @@
       {
         "suite": "tests/contract/test_m014_import_clone.py",
         "kind": "contract",
-        "tests": 47,
-        "result": "pass"
+        "tests": 48,
+        "result": "pass",
+        "note": "43 pre-remediation + 4 ZIP reconciliation invariants + 1 evidence-vocabulary drift check added by the evidence remediation"
       }
     ],
     "retained_regressions": "M-008 through M-013 contract suites and all M-009..M-013 live integration runners remain wired into the root check script and pass unchanged. No retained test was weakened.",
@@ -482,5 +485,14 @@
       "tests/contract/test_m014_import_clone.py"
     ],
     "scope_discipline": "No authority-model change, no new canonical resource, no provider/Git/workspace scope, and no additional capability-ledger advancement. Archive scanning still runs before canonical Project creation, still never extracts to disk, and still never executes content."
+  },
+  "review_remediation_evidence_only": {
+    "review_id": 4987241259,
+    "state": "CHANGES_REQUESTED (evidence hold; implementation passed re-review)",
+    "reviewed_head": "28bce7fcf63079cf2b920407f993a8dfec15da36",
+    "finding": "The evidence claimed to enumerate the authoritative rejection vocabulary but did not match ARCHIVE_REJECTION_CODES: it listed nonexistent 'unsupported_compression' and 'encrypted_archive', and omitted actual 'unsupported_compression_method', 'path_empty' and 'content_checksum_mismatch'.",
+    "resolution": "Both evidence files now enumerate ARCHIVE_REJECTION_CODES exactly, in implementation order. The list was extracted mechanically from the source export rather than transcribed, and tests/contract/test_m014_import_clone.py now asserts JSON and Markdown equality against the export so the evidence cannot silently drift again.",
+    "scope": "Evidence and its contract assertion only. No product code, scanner behaviour, migration, persistence, authorization, capability ledger, mission state or architecture change.",
+    "superseded_ci": "All four required contexts were green on 28bce7f (verify/foundation 32414934956, sanitize 32414934958, security-gate 32414934998). Those runs are superseded by this push and a fresh exact-head run set is required."
   }
 }

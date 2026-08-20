@@ -92,13 +92,15 @@ deciding, and imported content is never executed.**
   need sanitising is a rejected path, so normalization can never silently
   produce a different file than the archive declared.
 
-Rejection vocabulary: `malformed_archive`, `unsupported_format`,
-`unsupported_compression`, `encrypted_archive`, `path_absolute`,
-`path_traversal`, `path_windows_drive`, `path_unc`, `path_backslash`,
-`path_invalid_characters`, `path_too_long`, `path_too_deep`, `symlink_entry`,
-`hardlink_entry`, `special_entry`, `duplicate_path`, `path_collision`,
-`too_many_entries`, `entry_too_large`, `total_size_exceeded`,
-`archive_too_large`, `compression_ratio_exceeded`, `content_size_mismatch`.
+Rejection vocabulary (exactly `ARCHIVE_REJECTION_CODES` from
+`packages/project/src/archive/errors.ts`, in implementation order):
+`malformed_archive`, `unsupported_format`, `unsupported_compression_method`,
+`archive_too_large`, `too_many_entries`, `entry_too_large`,
+`total_size_exceeded`, `compression_ratio_exceeded`, `path_empty`,
+`path_absolute`, `path_traversal`, `path_windows_drive`, `path_unc`,
+`path_backslash`, `path_invalid_characters`, `path_too_long`, `path_too_deep`,
+`duplicate_path`, `path_collision`, `symlink_entry`, `hardlink_entry`,
+`special_entry`, `content_size_mismatch`, `content_checksum_mismatch`.
 
 ### 3.3 ZIP local-header / central-directory reconciliation
 
@@ -359,7 +361,7 @@ negative cases.
 | `packages/project/src/clone.live.test.ts` | live PG 18.4 | 22 | pass |
 | `packages/persistence/src/lifecycle.live.test.ts` | live PG 18.4, DB backstops | 16 | pass |
 | `packages/project` (all) | aggregate | 162 | pass |
-| `tests/contract/test_m014_import_clone.py` | contract | 47 | pass |
+| `tests/contract/test_m014_import_clone.py` | contract | 48 | pass |
 
 Negative coverage includes: malformed archives; absolute, traversal,
 Windows-drive, UNC, backslash and NUL paths; symlink, hardlink and device
