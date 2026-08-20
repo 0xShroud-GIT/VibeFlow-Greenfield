@@ -9,7 +9,7 @@ import {
   type ControlPlanePool,
   type OrganizationRow,
   type ProjectRow,
-  ProjectCapabilityRepository,
+  ProjectCapabilityRepository, ProjectProfileRepository,
   ProjectRepository,
   TenantRepository,
 } from "@vibeflow/persistence";
@@ -37,6 +37,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
   let authz: TenantAuthorizationService;
   let projectService: ProjectService;
   let capService: ProjectCapabilityProfileService;
+  let profilesRepo: ProjectProfileRepository;
 
   let alice: AccountRow;
   let bob: AccountRow;
@@ -50,6 +51,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
     tenants = new TenantRepository(controlPlane.db);
     projectsRepo = new ProjectRepository(controlPlane.db);
     capabilitiesRepo = new ProjectCapabilityRepository(controlPlane.db);
+    profilesRepo = new ProjectProfileRepository(controlPlane.db);
     audit = new AuditService(controlPlane.pool);
 
     const combined = {
@@ -253,4 +255,71 @@ describePostgres("M-015 Project Capability Profile service", () => {
       expect(rejected[0].reason).toBeInstanceOf(ProjectCapabilityProfileError);
     }
   });
+
+  it("capability replacement does NOT change ProjectProfile version", async () => {
+    const dcProject = await projectService.createProject({
+      accountId: alice.id,
+      organizationId: orgA.id,
+      name: "Decouple Cap Test",
+    });
+
+    // Set a profile description to create profile row
+    const desc = "Decouple test description";
+    const upd = await profilesRepo.upsertProfile({
+      projectId: dcProject.id,
+      expectedVersion: 0,
+      description: desc,
+      coverArtifactId: null,
+    });
+    const profileVersionBefore = upd.version;
+
+    // Now replace capabilities
+    await capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: dcProject.id,
+      expectedVersion: 0,
+      capabilities: ["runtime/node"],
+    });
+
+    // Profile row's version must be unchanged (only cap version changed)
+    const profileAfter = await profilesRepo.getProfileByProjectId(dcProject.id);
+    expect(profileAfter).toBeDefined();
+    expect(profileAfter!.version).toBe(profileVersionBefore);
+    expect(profileAfter!.description).toBe(desc);
+
+    // Capability version must have incremented
+    const capAfter = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: dcProject.id });
+    expect(capAfter.version).toBe(1);
+  });
+
+  it("ProjectProfile update does NOT alter capabilityProfileVersion", async () => {
+    const dcProject2 = await projectService.createProject({
+      accountId: alice.id,
+      organizationId: orgA.id,
+      name: "Decouple Cap Test 2",
+    });
+
+    // Set capabilities first
+    await capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: dcProject2.id,
+      expectedVersion: 0,
+      capabilities: ["runtime/node"],
+    });
+
+    const capVersionBefore = (await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: dcProject2.id })).version;
+
+    // Now update profile via repository (not service, to avoid extra authz overhead)
+    await profilesRepo.upsertProfile({
+      projectId: dcProject2.id,
+      expectedVersion: 0,
+      description: "Profile update",
+      coverArtifactId: null,
+    });
+
+    // Capability version must be unchanged
+    const capVersionAfter = (await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: dcProject2.id })).version;
+    expect(capVersionAfter).toBe(capVersionBefore);
+  });
+
 });

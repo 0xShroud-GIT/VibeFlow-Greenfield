@@ -636,7 +636,18 @@ export class ProjectCapabilityRepository {
     }
 
     return this.db.transaction(async (tx) => {
-      // Raw SQL for SELECT FOR UPDATE
+      // Transaction-safe creation/locking pattern:
+      // 1. INSERT ON CONFLICT DO NOTHING — never aborts the transaction
+      // 2. SELECT ... FOR UPDATE — acquires row lock, returns profile
+      // 3. Validate capability_profile_version against expectedVersion
+
+      const n2 = now();
+      await tx.execute(
+        sql`INSERT INTO project_profiles (project_id, version, capability_profile_version, created_at, updated_at)
+            VALUES (${projId}, 0, 0, ${n2}, ${n2})
+            ON CONFLICT (project_id) DO NOTHING`
+      );
+
       const lockResult = await tx.execute(
         sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
             FROM project_profiles
@@ -651,46 +662,10 @@ export class ProjectCapabilityRepository {
         version: number;
         capability_profile_version: number;
       };
-      let profile: LockRow | undefined = (lockResult.rows as LockRow[] | undefined)?.[0];
-
+      const rows = (lockResult.rows as LockRow[] | undefined) ?? [];
+      const profile = rows[0];
       if (!profile) {
-        try {
-          const n2 = now();
-          await tx.execute(
-            sql`INSERT INTO project_profiles (project_id, version, capability_profile_version, created_at, updated_at)
-                VALUES (${projId}, 0, 0, ${n2}, ${n2})`
-          );
-          const lock2 = await tx.execute(
-            sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
-                FROM project_profiles
-                WHERE project_id = ${projId}
-                FOR UPDATE`
-          );
-          profile = (lock2.rows as LockRow[] | undefined)?.[0];
-          if (!profile) {
-            throw new PersistenceError("concurrent profile creation failed");
-          }
-        } catch (insertErr: unknown) {
-          const err = insertErr as { code?: string };
-          if (err?.code === "23505") {
-            const lock2 = await tx.execute(
-              sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
-                  FROM project_profiles
-                  WHERE project_id = ${projId}
-                  FOR UPDATE`
-            );
-            profile = (lock2.rows as LockRow[] | undefined)?.[0];
-            if (!profile) {
-              throw new PersistenceError("concurrent profile creation retry failed");
-            }
-          } else {
-            throw insertErr;
-          }
-        }
-      }
-
-      if (!profile) {
-        throw new PersistenceError("profile not found after lock");
+        throw new PersistenceError("project_profiles row not found after insert/update");
       }
 
       if (profile.capability_profile_version !== input.expectedVersion) {
@@ -700,16 +675,13 @@ export class ProjectCapabilityRepository {
       }
 
       const newVersion = profile.capability_profile_version + 1;
-      const n2 = now();
 
       await tx.delete(projectCapabilities).where(eq(projectCapabilities.projectId, projId));
 
+      // Update ONLY capabilityProfileVersion — NOT profile.version or updatedAt
+      // (those belong to the independent ProjectProfile optimistic-concurrency domain)
       await tx.update(projectProfiles)
-        .set({
-          capabilityProfileVersion: newVersion,
-          version: profile.version + 1,
-          updatedAt: n2,
-        })
+        .set({ capabilityProfileVersion: newVersion })
         .where(eq(projectProfiles.projectId, projId));
 
       if (input.capabilities.length === 0) {

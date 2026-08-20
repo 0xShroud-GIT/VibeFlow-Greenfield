@@ -8,24 +8,28 @@
   "starting_main_sha": "55cec7b93bd2f0f1cb41e7707a986eb9ff4792ef",
   "implementation_commits": [
     {
-      "sha": "1001bde",
+      "sha": "1001bdedf9b8a45af49e49cd2662278a92e364ff",
       "summary": "M-015 initial implementation: migration 0007, services, tests, exports"
     },
     {
-      "sha": "dcbc008",
+      "sha": "dcbc008cb31bdbff7c6e128346871fa7e5815abb",
       "summary": "Fix capability ledger and contract trace entries"
     },
     {
-      "sha": "7ce73c9",
+      "sha": "7ce73c98dbd7a66e554eaff5400ad93deea7e37e",
       "summary": "Update evidence with commit SHA"
     },
     {
-      "sha": "39fd18b",
+      "sha": "39fd18b545953bf61a7c31cad2c224c8ae6e4451",
       "summary": "Update M-014 contract test to allow M-015 advancements"
     },
     {
-      "sha": "1631fcd",
+      "sha": "1631fcdc6e73b7a244625cce39a993555af9e6db",
       "summary": "Fix review defects: SHA256SUMS, ledger parity, durable version, FOR UPDATE CAS, profile partial-update semantics, concurrent race tests"
+    },
+    {
+      "sha": "5b5c02dda15f7bb3c445d98eb7ff390d31aa28a8",
+      "summary": "Update evidence files"
     }
   ],
   "authority_model": "Account -> Organization membership -> Project -> Artifact/ArtifactRelation. ProjectProfile and ProjectCapabilityProfile are subordinate Project-domain state, not new canonical authority roots. ProjectOverview is a read model/projection, not a canonical resource.",
@@ -131,31 +135,31 @@
       {
         "suite": "packages/project/src/exports.test.ts (M-015 sections)",
         "kind": "unit (package-root surface)",
-        "tests": 5,
+        "tests": 10,
         "result": "PASS"
       },
       {
         "suite": "packages/project/src/profile.live.test.ts",
         "kind": "live PostgreSQL 18.4",
-        "tests": 10,
-        "result": "PASS (skipped: no PostgreSQL)"
+        "tests": 16,
+        "result": "NOT RUN \u2014 local PostgreSQL unavailable"
       },
       {
         "suite": "packages/project/src/capability-profile.live.test.ts",
         "kind": "live PostgreSQL 18.4",
-        "tests": 10,
-        "result": "PASS (skipped: no PostgreSQL)"
+        "tests": 16,
+        "result": "NOT RUN \u2014 local PostgreSQL unavailable"
       },
       {
         "suite": "packages/project/src/overview.live.test.ts",
         "kind": "live PostgreSQL 18.4",
         "tests": 3,
-        "result": "PASS (skipped: no PostgreSQL)"
+        "result": "NOT RUN \u2014 local PostgreSQL unavailable"
       },
       {
         "suite": "tests/contract/test_m015_project_lifecycle.py",
         "kind": "contract",
-        "tests": 16,
+        "tests": 18,
         "result": "PASS"
       }
     ],
@@ -184,6 +188,8 @@
     "vf_prj_017_claimed": false
   },
   "handoff": "M-015 -> REVIEW. M-016 and later remain LOCKED. The pull request is not merged and not self-approved.",
-  "final_head": "1631fcd545953bf61a7c31cad2c224c8ae6e4451",
-  "last_updated": "2026-08-20T22:59:55.429505"
+  "last_updated": "2026-08-20T22:59:55.429505",
+  "implementation_head": "1631fcdc6e73b7a244625cce39a993555af9e6db",
+  "evidence_parent_head": "5b5c02dda15f7bb3c445d98eb7ff390d31aa28a8",
+  "changed_files_vs_main": 32
 }

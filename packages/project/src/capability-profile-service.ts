@@ -147,9 +147,9 @@ export class ProjectCapabilityProfileService {
       });
 
       const resultCapabilities = rows.map((r) => r.capabilityKey);
-      const firstRow = rows.length > 0 ? rows[0] : undefined;
-      const newVersion = firstRow ? firstRow.version : expectedVersion + 1;
-      const createdAt = firstRow ? firstRow.createdAt : null;
+      // Version is authoritative from the durable profile row, not from capability rows
+      const newVersion = await this.options.capabilities.getVersionByProjectId(projectId);
+      const createdAt = rows.length > 0 ? rows[0]!.createdAt : new Date();
 
       return {
         projectId,
