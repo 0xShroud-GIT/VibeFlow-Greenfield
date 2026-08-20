@@ -2,16 +2,16 @@
 
 **Mission:** M-014 — Implement imports/templates lifecycle
 
-**Status:** READY
+**Status:** IN_PROGRESS
 
 **Phase:** 3 — Project Authority
 
 Authoritative mission row:
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-014)
 
-M-001 through M-013 are accepted and `DONE`. M-014 is the sole active mission,
-in `READY` and next to be picked up. M-015 and all later missions remain
-`LOCKED` and remain required for V1.
+M-001 through M-013 are accepted and `DONE`. M-014 is the sole active mission
+and is `IN_PROGRESS`. M-015 and all later missions remain `LOCKED` and remain
+required for V1.
 
 ## M-014 scope
 
