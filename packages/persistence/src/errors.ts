@@ -41,6 +41,14 @@ export class DuplicateArtifactRelationError extends PersistenceError {
   override readonly name = "DuplicateArtifactRelationError";
 }
 
+/**
+ * An optimistic concurrency version conflict: the caller's expectedVersion
+ * does not match the current persisted version, so the mutation is rejected.
+ */
+export class StaleVersionError extends PersistenceError {
+  override readonly name = "StaleVersionError";
+}
+
 const PROVIDER_AUTHORITY_KEYS = [
   "providerId",
   "provider_id",

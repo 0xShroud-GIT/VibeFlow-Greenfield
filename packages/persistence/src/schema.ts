@@ -395,6 +395,66 @@ export type ProjectArchiveImportEntryRow = typeof projectArchiveImportEntries.$i
 export type ProjectClonePlanRow = typeof projectClonePlans.$inferSelect;
 export type ProjectCloneArtifactMapRow = typeof projectCloneArtifactMap.$inferSelect;
 
+/**
+ * M-015 Project Profile subordinate state.
+ *
+ * This is NOT a canonical resource. ProjectProfile is subordinate Project-domain
+ * state, not a new canonical authority root. Contains optional description and
+ * optional cover Artifact reference, with version for optimistic concurrency.
+ */
+export const projectProfiles = pgTable(
+  "project_profiles",
+  {
+    projectId: uuid("project_id").primaryKey(),
+    description: text("description"),
+    coverArtifactId: uuid("cover_artifact_id"),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    projectFk: foreignKey({
+      name: "project_profiles_project_fk",
+      columns: [table.projectId],
+      foreignColumns: [projects.id],
+    }),
+    coverFk: foreignKey({
+      name: "project_profiles_cover_fk",
+      columns: [table.projectId, table.coverArtifactId],
+      foreignColumns: [artifacts.projectId, artifacts.id],
+    }),
+  }),
+);
+
+/**
+ * M-015 ProjectCapabilityProfile subordinate state.
+ *
+ * Normalized set of capability/trait keys for a canonical Project.
+ * VibeFlow-owned, provider-neutral. Each key is a bounded namespaced token.
+ * The version tracks the EPOCH version of the whole set for atomic replacement.
+ */
+export const projectCapabilities = pgTable(
+  "project_capabilities",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id),
+    capabilityKey: text("capability_key").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    projectKeyUnique: unique("project_capabilities_project_key_uidx").on(
+      table.projectId,
+      table.capabilityKey,
+    ),
+  }),
+);
+
+export type ProjectProfileRow = typeof projectProfiles.$inferSelect;
+export type ProjectCapabilityRow = typeof projectCapabilities.$inferSelect;
+
 /** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
   accounts,
@@ -402,7 +462,7 @@ export const TENANT_TABLES = {
   organizationMemberships,
 } as const;
 
-/** All Drizzle tables queried by VibeFlow control-plane modules through M-014. */
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-015. */
 export const CONTROL_PLANE_TABLES = {
   ...TENANT_TABLES,
   identityUsers,
@@ -414,4 +474,6 @@ export const CONTROL_PLANE_TABLES = {
   projectArchiveImportEntries,
   projectClonePlans,
   projectCloneArtifactMap,
+  projectProfiles,
+  projectCapabilities,
 } as const;

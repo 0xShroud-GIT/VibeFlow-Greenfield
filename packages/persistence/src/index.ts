@@ -10,19 +10,24 @@ export {
   PersistenceInputError,
   ProviderAuthorityRejectedError,
   rejectProviderAuthority,
+  StaleVersionError,
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
 export {
   ARTIFACT_TYPE_TOKEN_MAX_LENGTH,
   ARTIFACT_TYPE_TOKEN_RE,
+  CAPABILITY_KEY_MAX_LENGTH,
+  CAPABILITY_KEY_RE,
   isArtifactTypeToken,
+  isCapabilityKeyToken,
   isUuid,
   newId,
   requireArtifactTypeToken,
+  requireCapabilityKey,
   requireId,
   requireNonEmpty,
 } from "./ids.js";
-export { ArtifactRepository, ProjectRepository, TenantRepository } from "./repositories.js";
+export { ArtifactRepository, ProjectProfileRepository, ProjectRepository, ProjectCapabilityRepository, TenantRepository } from "./repositories.js";
 export {
   ProjectLifecycleRepository,
   type ApplyArchiveImportInput,
@@ -49,8 +54,10 @@ export {
   PROJECT_CLONE_PLAN_KINDS,
   projectArchiveImportEntries,
   projectArchiveImports,
+  projectCapabilities,
   projectCloneArtifactMap,
   projectClonePlans,
+  projectProfiles,
   projects,
   TENANT_TABLES,
   type AccountRow,
@@ -67,8 +74,10 @@ export {
   type OrganizationRow,
   type ProjectArchiveImportEntryRow,
   type ProjectArchiveImportRow,
+  type ProjectCapabilityRow,
   type ProjectCloneArtifactMapRow,
   type ProjectClonePlanKind,
   type ProjectClonePlanRow,
+  type ProjectProfileRow,
   type ProjectRow,
 } from "./schema.js";

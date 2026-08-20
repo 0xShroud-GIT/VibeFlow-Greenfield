@@ -346,4 +346,32 @@ export class ProjectImportService {
 
     return this.options.lifecycle.listArchiveImportEntries(importRow.id);
   }
+
+  /**
+   * Get import provenance for a Project, if any.
+   * Authorizes Project read first. Returns undefined when no import exists.
+   */
+  public async getImportByProjectId(input: {
+    accountId: string;
+    projectId: string;
+  }): Promise<ProjectArchiveImportRow | undefined> {
+    const accountId = requireUuid("accountId", input.accountId);
+    const projectId = requireUuid("projectId", input.projectId);
+
+    // Authorize project read
+    const decision = await this.options.authz.authorize({
+      accountId,
+      action: "read",
+      resource: { type: "project", id: projectId },
+    });
+    if (!decision.allowed) {
+      return undefined;
+    }
+
+    try {
+      return await this.options.lifecycle.getArchiveImportByProjectId(projectId);
+    } catch {
+      return undefined;
+    }
+  }
 }

@@ -3,6 +3,10 @@ export { ArtifactService } from "./artifact-service.js";
 // M-014 Project import/template lifecycle services.
 export { ProjectImportService } from "./import-service.js";
 export { ProjectCloneService } from "./clone-service.js";
+// M-015 Project Profile / Capability Profile / Overview services.
+export { ProjectProfileService } from "./profile-service.js";
+export { ProjectCapabilityProfileService } from "./capability-profile-service.js";
+export { ProjectOverviewService } from "./overview-service.js";
 // Canonical Artifact relation vocabulary (closed kind set + its union type)
 // is part of the M-013 public contract. It is re-exported from the canonical
 // persistence vocabulary, not duplicated here.
@@ -17,11 +21,14 @@ export {
   ArtifactNotFoundError,
   ArtifactRelationError,
   ProjectAuthorizationError,
+  ProjectCapabilityProfileError,
   ProjectCloneError,
   ProjectError,
   ProjectImportError,
   ProjectInputError,
   ProjectNotFoundError,
+  ProjectOverviewError,
+  ProjectProfileError,
 } from "./errors.js";
 export type {
   CreateProjectInput,
@@ -49,6 +56,25 @@ export type {
   CloneProjectResult,
   ProjectCloneServiceOptions,
 } from "./clone-service.js";
+export type {
+  ProjectProfileServiceOptions,
+  GetProjectProfileInput,
+  UpdateProjectProfileInput,
+  ProjectProfileResult,
+} from "./profile-service.js";
+export type {
+  ProjectCapabilityProfileServiceOptions,
+  GetProjectCapabilityProfileInput,
+  ReplaceProjectCapabilityProfileInput,
+  ProjectCapabilityProfileResult,
+} from "./capability-profile-service.js";
+export type {
+  ProjectOverviewServiceOptions,
+  GetProjectOverviewInput,
+  ProjectOverview,
+  ImportProvenance,
+  CloneProvenance,
+} from "./overview-service.js";
 
 /**
  * M-014 structural archive scanner public surface.

@@ -309,4 +309,31 @@ export class ProjectCloneService {
 
     return plan;
   }
+
+  /**
+   * Get clone provenance for a target Project, if any.
+   * Authorizes Project read first. Returns undefined when no clone exists.
+   */
+  public async getClonePlanByProjectId(input: {
+    accountId: string;
+    projectId: string;
+  }): Promise<ProjectClonePlanRow | undefined> {
+    const accountId = requireUuid("accountId", input.accountId);
+    const projectId = requireUuid("projectId", input.projectId);
+
+    const decision = await this.options.authz.authorize({
+      accountId,
+      action: "read",
+      resource: { type: "project", id: projectId },
+    });
+    if (!decision.allowed) {
+      return undefined;
+    }
+
+    try {
+      return await this.options.lifecycle.getClonePlanByTargetProjectId(projectId);
+    } catch {
+      return undefined;
+    }
+  }
 }

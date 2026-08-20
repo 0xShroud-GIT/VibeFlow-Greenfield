@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0.0",
+  "mission": "M-015",
+  "title": "Project lifecycle E2E (Profile, CapabilityProfile, Overview)",
+  "mission_status": "REVIEW",
+  "phase": "J1 product implementation",
+  "branch": "arena/01a02144-vibeflow-greenfield",
+  "starting_main_sha": "55cec7b93bd2f0f1cb41e7707a986eb9ff4792ef",
+  "implementation_commits": [
+    {
+      "sha": "pending",
+      "summary": "M-015 implementation: migration 0007, ProjectProfile/ProjectCapabilityProfile repositories, service layer, ProjectOverview read model, package exports, live + contract tests, capability ledger delta."
+    }
+  ],
+  "authority_model": "Account -> Organization membership -> Project -> Artifact/ArtifactRelation. ProjectProfile and ProjectCapabilityProfile are subordinate Project-domain state, not new canonical authority roots. ProjectOverview is a read model/projection, not a canonical resource.",
+  "persistence_schema": {
+    "project_profiles": {
+      "columns": "project_id (PK/FK), description (nullable), cover_artifact_id (nullable), version (non-negative int), created_at, updated_at",
+      "constraints": [
+        "project_id PK references projects(id)",
+        "cover FK: (project_id, cover_artifact_id) references artifacts(project_id, id) - same-Project enforcement",
+        "description max 5000 characters (implementation safety constant)",
+        "version >= 0"
+      ]
+    },
+    "project_capabilities": {
+      "columns": "id (PK), project_id (FK), capability_key, version, created_at",
+      "constraints": [
+        "project_id FK references projects(id)",
+        "capability_key: open grammar ^[a-z][a-z0-9]*(/[a-z][a-z0-9]*)+$",
+        "capability_key max 200 characters",
+        "UNIQUE (project_id, capability_key)",
+        "version >= 0"
+      ]
+    }
+  },
+  "project_profile_implementation_subset": [
+    "VibeFlow-owned title/name (existing Project.name)",
+    "optional description",
+    "optional cover Artifact reference (same-Project enforced via composite FK)",
+    "version-based optimistic concurrency",
+    "sharing settings EXPLICITLY DEFERRED (M-117+)"
+  ],
+  "project_capability_profile_semantics": {
+    "vocabulary": "Open namespaced token grammar: ^[a-z][a-z0-9]*(/[a-z][a-z0-9]*)+$",
+    "optimistic_concurrency": "expectedVersion-based, version starts at 0 for deterministic empty state",
+    "replacement": "Atomic delete-all + insert in one transaction, deduplication, deterministic sort ordering",
+    "not": [
+      "ProviderCapability",
+      "provider capability discovery",
+      "binding health",
+      "workspace capability negotiation",
+      "provider advertisement",
+      "credential/configuration surface"
+    ]
+  },
+  "project_overview_contents": [
+    "Project identity / Organization ownership / name / timestamps",
+    "Project Profile (or deterministic empty default)",
+    "ProjectCapabilityProfile (or deterministic empty default)",
+    "canonical Artifacts",
+    "canonical ArtifactRelations",
+    "archive-import provenance summary when present",
+    "clone provenance summary when present"
+  ],
+  "project_overview_not_fabricated": [
+    "AgentBinding",
+    "ModelBinding",
+    "WorkspaceBinding",
+    "RepositoryBinding",
+    "DeploymentBinding",
+    "provider health",
+    "latest Task/Execution",
+    "latest Release",
+    "Repository state"
+  ],
+  "creation_mode_parity": {
+    "empty_project": "Server-generated id, canonical Organization ownership, default profile (version 0), default capability profile (version 0)",
+    "archive_import_project": "Same canonical guarantees; import provenance accessible via overview",
+    "clone_template_project": "Same canonical guarantees; clone provenance accessible via overview, new ids and remapped graph"
+  },
+  "no_project_state_machine_added": true,
+  "no_new_canonical_resource": true,
+  "no_new_event_family": true,
+  "no_provider_binding_work": true,
+  "no_collaboration_work": true,
+  "no_deletion_archive": true,
+  "vf_prj_017_still_not_started": true,
+  "capability_ledger_transitions": {
+    "VF-PRJ-014": "NOT_STARTED -> IMPLEMENTED",
+    "VF-PRJ-016": "NOT_STARTED -> IN_PROGRESS"
+  },
+  "capabilities_not_advanced": [
+    "VF-PRJ-001 Artifact Registry",
+    "VF-PRJ-002 ArtifactVersion",
+    "VF-PRJ-003 ArtifactGraph",
+    "VF-PRJ-006 Project Collection/Labels",
+    "VF-PRJ-008 Repository Import Adapter",
+    "VF-PRJ-009 Builder Migration Adapter",
+    "VF-PRJ-010 Design Import Adapter",
+    "VF-PRJ-011 Deployment-to-Repo Helper",
+    "VF-PRJ-012 RepositoryBinding import",
+    "VF-PRJ-017 Typed Artifact Graph"
+  ],
+  "capabilities_kept_unchanged": [
+    "VF-PRJ-004 IMPLEMENTED",
+    "VF-PRJ-005 IMPLEMENTED",
+    "VF-PRJ-007 IMPLEMENTED",
+    "VF-PRJ-013 IMPLEMENTED",
+    "VF-PRJ-015 IMPLEMENTED"
+  ],
+  "testing": {
+    "postgresql_version": "18.4",
+    "suites": [
+      {
+        "suite": "packages/project/src/exports.test.ts (M-015 sections)",
+        "kind": "unit (package-root surface)",
+        "tests": 5,
+        "result": "TBD"
+      },
+      {
+        "suite": "packages/project/src/profile.live.test.ts",
+        "kind": "live PostgreSQL 18.4",
+        "tests": 10,
+        "result": "TBD"
+      },
+      {
+        "suite": "packages/project/src/capability-profile.live.test.ts",
+        "kind": "live PostgreSQL 18.4",
+        "tests": 10,
+        "result": "TBD"
+      },
+      {
+        "suite": "packages/project/src/overview.live.test.ts",
+        "kind": "live PostgreSQL 18.4",
+        "tests": 3,
+        "result": "TBD"
+      },
+      {
+        "suite": "tests/contract/test_m015_project_lifecycle.py",
+        "kind": "contract",
+        "tests": 16,
+        "result": "TBD"
+      }
+    ],
+    "skipped_live_policy": "scripts/run-m015-lifecycle-integration.py hard-fails when DATABASE_URL is absent under CI=true. Outside CI it reports the skip loudly and returns 0."
+  },
+  "known_limitations": [
+    "Project Profile does not include sharing settings (deferred to M-117+).",
+    "ProjectCapabilityProfile is provider-neutral; no provider capability discovery is implemented.",
+    "ProjectOverview does not include future resources (AgentBinding, ModelBinding, etc.).",
+    "No durable event is emitted for profile or capability changes (M-026 owns event infrastructure).",
+    "PostgreSQL 18.4 live test results are TBD until CI run."
+  ],
+  "out_of_scope_confirmed": {
+    "canonical_resource_model_unchanged": true,
+    "event_catalog_unchanged": true,
+    "state_machines_unchanged": true,
+    "authorization_resource_types_unchanged": true,
+    "new_top_level_package": false
+  },
+  "overclaim_check": {
+    "mission_claimed_done": false,
+    "sharing_claimed": false,
+    "deletion_claimed": false,
+    "provider_integration_claimed": false,
+    "collaboration_claimed": false,
+    "vf_prj_017_claimed": false
+  },
+  "handoff": "M-015 -> REVIEW. M-016 and later remain LOCKED. The pull request is not merged and not self-approved."
+}
