@@ -2,7 +2,7 @@
 
 **Mission:** M-015 — Implement project lifecycle E2E
 
-**Status:** READY
+**Status:** REVIEW
 
 **Phase:** 3 — Project Authority
 

@@ -11,6 +11,7 @@ import {
   type ProjectRow,
   ArtifactRepository,
   ProjectCapabilityRepository,
+  ProjectLifecycleRepository,
   ProjectProfileRepository,
   ProjectRepository,
   TenantRepository,
@@ -64,6 +65,7 @@ describePostgres("M-015 Project Overview service", () => {
     artifactsRepo = new ArtifactRepository(controlPlane.db);
     profilesRepo = new ProjectProfileRepository(controlPlane.db);
     capabilitiesRepo = new ProjectCapabilityRepository(controlPlane.db);
+    const lifecycleRepo = new ProjectLifecycleRepository(controlPlane.db);
     audit = new AuditService(controlPlane.pool);
 
     const combined = {
@@ -79,6 +81,17 @@ describePostgres("M-015 Project Overview service", () => {
     artifactService = new ArtifactService({ artifacts: artifactsRepo, authz });
     profileService = new ProjectProfileService({ profiles: profilesRepo, artifacts: artifactsRepo, authz });
     capService = new ProjectCapabilityProfileService({ capabilities: capabilitiesRepo, authz });
+    const importService = new ProjectImportService({ lifecycle: lifecycleRepo, authz });
+    const cloneService = new ProjectCloneService({ projects: projectsRepo, lifecycle: lifecycleRepo, authz });
+    overviewService = new ProjectOverviewService({
+      projectService,
+      projectProfileService: profileService,
+      projectCapabilityProfileService: capService,
+      artifactService,
+      importService,
+      cloneService,
+      authz,
+    });
 
     alice = await tenants.createAccount({ displayName: "Overview Alice" });
     bob = await tenants.createAccount({ displayName: "Overview Bob" });
