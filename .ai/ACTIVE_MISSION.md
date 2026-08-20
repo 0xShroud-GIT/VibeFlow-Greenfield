@@ -2,7 +2,7 @@
 
 **Mission:** M-013 — Implement Artifact/ArtifactRelation
 
-**Status:** READY
+**Status:** IN_PROGRESS
 
 **Phase:** 3 — Project Authority
 
@@ -10,7 +10,7 @@ Authoritative mission row:
 `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-013)
 
 M-001 through M-012 are accepted and `DONE`. M-013 is the sole active mission
-in `READY`. M-014 and all later missions remain `LOCKED` and remain
+in `IN_PROGRESS`. M-014 and all later missions remain `LOCKED` and remain
 required for V1.
 
 ## M-013 scope

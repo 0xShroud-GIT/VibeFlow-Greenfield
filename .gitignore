@@ -23,6 +23,7 @@ dist/
 build/
 out/
 coverage/
+*.tsbuildinfo
 .expo/
 .next/
 .cache/
