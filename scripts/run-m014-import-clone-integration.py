@@ -8,9 +8,13 @@ Runs the M-014 live suites against a real PostgreSQL instance:
   * packages/project      src/clone.live.test.ts       (clone plan command path)
 
 In CI (CI=true) a database is mandatory: a missing DATABASE_URL is a hard
-failure, because a skipped live suite is not verification evidence. Locally the
-runner reports the skip loudly and exits non-zero unless
-VIBEFLOW_ALLOW_SKIPPED_LIVE=1 is set explicitly.
+failure, because a skipped live suite is not verification evidence.
+
+Outside CI the runner reports the skip loudly and returns 0, matching the
+established M-009..M-013 runner convention. That path exists so the dev
+container's postCreateCommand (`pnpm run check`, run without a PostgreSQL
+service) can complete; it deliberately prints that the skip is NOT verification
+evidence, and the CI `foundation` job always supplies DATABASE_URL.
 """
 
 from __future__ import annotations
@@ -43,22 +47,18 @@ def main() -> int:
     in_ci = os.environ.get("CI") == "true"
 
     if not database_url:
-        message = (
-            "M-014 live integration requires DATABASE_URL (or VIBEFLOW_DATABASE_URL) "
-            "pointing at PostgreSQL 18.4; a skipped live suite is not verification evidence."
-        )
         if in_ci:
-            print(f"FAIL: {message}", file=sys.stderr)
+            print(
+                "M-014 PostgreSQL import/clone lifecycle verification is required in CI "
+                "but DATABASE_URL is absent.",
+                file=sys.stderr,
+            )
             return 1
-        if os.environ.get("VIBEFLOW_ALLOW_SKIPPED_LIVE") == "1":
-            print(f"SKIP (explicitly allowed locally): {message}")
-            return 0
-        print(f"FAIL: {message}", file=sys.stderr)
         print(
-            "      set VIBEFLOW_ALLOW_SKIPPED_LIVE=1 to acknowledge a local skip.",
-            file=sys.stderr,
+            "M-014 PostgreSQL import/clone lifecycle NOT EXECUTED: DATABASE_URL is absent. "
+            "This local skip is not verification evidence."
         )
-        return 1
+        return 0
 
     pnpm = shutil.which("pnpm")
     if pnpm is None:

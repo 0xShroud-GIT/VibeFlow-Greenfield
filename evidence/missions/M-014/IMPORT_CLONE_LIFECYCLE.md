@@ -312,9 +312,21 @@ source probes; cross-Organization clone; and injected mid-command rollback.
 
 All M-008..M-013 contract suites and M-009..M-013 live integration runners remain
 wired into the root `check` script and pass unchanged. **No retained test was
-weakened.** `scripts/run-m014-import-clone-integration.py` hard-fails when
-`DATABASE_URL` is absent under `CI=true`, because a skipped live suite is not
-verification evidence.
+weakened.**
+
+`scripts/run-m014-import-clone-integration.py` hard-fails when `DATABASE_URL` is
+absent under `CI=true`, because a skipped live suite is not verification
+evidence. Outside CI it reports the skip loudly and returns 0, matching the
+established M-009..M-013 runner convention — this is required because the dev
+container's `postCreateCommand` runs `pnpm run check` inside an image with no
+PostgreSQL service. The CI `foundation` job always supplies `DATABASE_URL`, so
+the live suites are never silently skipped where they count.
+
+> **First exact-head run set (head `c910d9a`).** `verify`, `sanitize` and
+> `security-gate` passed; `foundation` failed *only* at the dev-container build
+> step for exactly the reason above. The runner was aligned with the retained
+> convention and a fresh exact-head run set was required — any push obsoletes
+> prior CI.
 
 ---
 
