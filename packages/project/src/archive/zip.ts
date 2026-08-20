@@ -12,10 +12,22 @@
  * - never executes archive content,
  * - never trusts a declared size before it is enforced,
  * - treats the central directory as the entry list (a local-header-only entry
- *   is not reachable) and cross-checks each local header.
+ *   is not reachable) and STRICTLY reconciles every local file header against
+ *   its central-directory record before the entry is accepted.
+ *
+ * ZIP AMBIGUITY IS A SECURITY BOUNDARY. The container format stores entry
+ * metadata twice, and nothing in the format forces the two copies to agree. A
+ * hostile archive can therefore present a safe filename in the central
+ * directory and a traversal-shaped filename in the local header, so a scanner
+ * that trusts only one copy blesses bytes that a later consumer interprets
+ * differently. This reader resolves that by requiring the two copies to agree
+ * exactly — on raw filename BYTES (not normalized strings), compression
+ * method, the semantically relevant general-purpose flag bits, CRC-32 and both
+ * sizes — and by verifying the CRC-32 of the bytes it actually obtained. Any
+ * disagreement is a rejection, never a repair or a preference for one copy.
  */
 
-import { inflateRawSync } from "node:zlib";
+import { crc32 as computeCrc32, inflateRawSync } from "node:zlib";
 
 import { ArchiveRejectedError } from "./errors.js";
 import type { ArchiveScanLimits } from "./limits.js";
@@ -32,6 +44,28 @@ const LOCAL_HEADER_MIN_SIZE = 30;
 const METHOD_STORE = 0;
 const METHOD_DEFLATE = 8;
 
+/** General-purpose bit 0: the entry is encrypted. */
+const FLAG_ENCRYPTED = 0x0001;
+/**
+ * General-purpose bit 3: sizes/CRC are zero in the local header and carried in
+ * a trailing data descriptor instead.
+ */
+const FLAG_DATA_DESCRIPTOR = 0x0008;
+/**
+ * The general-purpose flag bits M-014 treats as semantically significant, i.e.
+ * bits that change how the entry must be read or trusted:
+ *   bit 0  encryption
+ *   bit 3  data descriptor / streaming sizes
+ *   bit 6  strong encryption
+ *   bit 11 UTF-8 (EFS) filename encoding
+ *   bit 13 masked local header values (central directory encryption)
+ *
+ * Bits 1-2 are compression tuning hints that legitimately differ between
+ * writers and carry no security meaning, so they are excluded rather than
+ * causing false rejections of well-formed archives.
+ */
+const SIGNIFICANT_FLAG_MASK = 0x0001 | 0x0008 | 0x0040 | 0x0800 | 0x2000;
+
 /** POSIX file-type mask and the types we accept/reject. */
 const S_IFMT = 0o170000;
 const S_IFREG = 0o100000;
@@ -43,6 +77,16 @@ const MADE_BY_UNIX = 3;
 
 export interface RawZipEntry {
   readonly rawPath: string;
+  /**
+   * The exact filename bytes from the central directory.
+   *
+   * Reconciliation compares these RAW BYTES against the local header rather
+   * than comparing decoded/normalized strings, so no encoding round-trip or
+   * normalization step can make two different names look equal.
+   */
+  readonly rawPathBytes: Buffer;
+  /** General-purpose flags declared by the central directory. */
+  readonly flags: number;
   /** Uncompressed size declared by the central directory. */
   readonly declaredSize: number;
   readonly compressedSize: number;
@@ -153,7 +197,7 @@ export function readZipEntries(
 
     // Encrypted entries cannot be structurally inspected, so they cannot be
     // proven safe and are rejected rather than imported unverified.
-    if ((flags & 0x0001) !== 0) {
+    if ((flags & FLAG_ENCRYPTED) !== 0) {
       throw new ArchiveRejectedError(
         "unsupported_format",
         "encrypted ZIP entries cannot be structurally verified",
@@ -187,6 +231,9 @@ export function readZipEntries(
 
     entries.push({
       rawPath,
+      // Copy: the entry outlives this loop and must not alias the archive.
+      rawPathBytes: Buffer.from(nameBytes),
+      flags,
       declaredSize,
       compressedSize,
       compressionMethod,
@@ -204,17 +251,20 @@ export function readZipEntries(
 }
 
 /**
- * Decompress one entry's bytes with a hard output ceiling.
+ * Strictly reconcile an entry's local file header against its
+ * central-directory record and return where the entry's data begins.
  *
- * `maxOutputLength` makes zlib abort a decompression bomb instead of
- * allocating the attacker's chosen size, so the ceiling is enforced by the
- * decompressor itself rather than checked after the damage is done.
+ * The ZIP format stores this metadata twice and does not require the copies to
+ * agree. Accepting an entry while the two copies disagree is exactly the
+ * ambiguity that lets a hostile archive show a safe name to one reader and a
+ * traversal-shaped name to another, so every disagreement below is a hard
+ * rejection. Nothing here prefers one copy over the other or repairs a
+ * mismatch.
  */
-export function readZipEntryContent(
+function reconcileLocalHeader(
   buffer: Buffer,
   entry: RawZipEntry,
-  limits: ArchiveScanLimits,
-): Buffer {
+): { dataStart: number } {
   const offset = entry.localHeaderOffset;
   requireRange(buffer, offset, LOCAL_HEADER_MIN_SIZE, "local file header");
   if (buffer.readUInt32LE(offset) !== LOCAL_HEADER_SIGNATURE) {
@@ -225,47 +275,173 @@ export function readZipEntryContent(
     );
   }
 
+  const localFlags = buffer.readUInt16LE(offset + 6);
+  const localMethod = buffer.readUInt16LE(offset + 8);
+  const localCrc = buffer.readUInt32LE(offset + 14);
+  const localCompressedSize = buffer.readUInt32LE(offset + 18);
+  const localDeclaredSize = buffer.readUInt32LE(offset + 22);
   const nameLength = buffer.readUInt16LE(offset + 26);
   const extraLength = buffer.readUInt16LE(offset + 28);
-  const dataStart = offset + LOCAL_HEADER_MIN_SIZE + nameLength + extraLength;
+
+  // --- filename: compare RAW BYTES, never normalized strings ---------------
+  const nameStart = offset + LOCAL_HEADER_MIN_SIZE;
+  requireRange(buffer, nameStart, nameLength, "local file header name");
+  const localNameBytes = buffer.subarray(nameStart, nameStart + nameLength);
+  if (!localNameBytes.equals(entry.rawPathBytes)) {
+    throw new ArchiveRejectedError(
+      "malformed_archive",
+      "ZIP local file header name does not match the central directory name; " +
+        "the archive is ambiguous and cannot be structurally validated",
+      entry.rawPath,
+    );
+  }
+
+  // --- compression method --------------------------------------------------
+  if (localMethod !== entry.compressionMethod) {
+    throw new ArchiveRejectedError(
+      "malformed_archive",
+      `ZIP local file header compression method ${localMethod} does not match ` +
+        `central directory method ${entry.compressionMethod}`,
+      entry.rawPath,
+    );
+  }
+
+  // --- semantically significant general-purpose flags ----------------------
+  const localSignificant = localFlags & SIGNIFICANT_FLAG_MASK;
+  const centralSignificant = entry.flags & SIGNIFICANT_FLAG_MASK;
+  if (localSignificant !== centralSignificant) {
+    throw new ArchiveRejectedError(
+      "malformed_archive",
+      "ZIP local file header general-purpose flags do not match the central directory",
+      entry.rawPath,
+    );
+  }
+  if ((localFlags & FLAG_ENCRYPTED) !== 0) {
+    throw new ArchiveRejectedError(
+      "unsupported_format",
+      "encrypted ZIP entries cannot be structurally verified",
+      entry.rawPath,
+    );
+  }
+
+  // --- data descriptor (streaming) form ------------------------------------
+  //
+  // With flag bit 3 the local header legitimately carries zeros and the real
+  // CRC/sizes trail the data. Locating that descriptor requires scanning for a
+  // signature that may also occur inside compressed data, which is itself an
+  // ambiguity. M-014 therefore does not guess: it rejects the streaming form
+  // explicitly instead of silently accepting zeroed local values while
+  // trusting the central directory.
+  if ((entry.flags & FLAG_DATA_DESCRIPTOR) !== 0) {
+    throw new ArchiveRejectedError(
+      "unsupported_format",
+      "ZIP entries using a streaming data descriptor (general-purpose bit 3) are " +
+        "not accepted: their local header sizes/CRC are unauthoritative, so the " +
+        "entry cannot be unambiguously validated",
+      entry.rawPath,
+    );
+  }
+
+  // Without bit 3 the local values are authoritative and MUST agree. Zeros are
+  // not a permitted "unknown" here — that is precisely the ambiguous shape the
+  // reconciliation exists to reject.
+  if (localCrc !== entry.crc32) {
+    throw new ArchiveRejectedError(
+      "malformed_archive",
+      "ZIP local file header CRC-32 does not match the central directory",
+      entry.rawPath,
+    );
+  }
+  if (localCompressedSize !== entry.compressedSize) {
+    throw new ArchiveRejectedError(
+      "content_size_mismatch",
+      `ZIP local file header compressed size ${localCompressedSize} does not match ` +
+        `central directory size ${entry.compressedSize}`,
+      entry.rawPath,
+    );
+  }
+  if (localDeclaredSize !== entry.declaredSize) {
+    throw new ArchiveRejectedError(
+      "content_size_mismatch",
+      `ZIP local file header uncompressed size ${localDeclaredSize} does not match ` +
+        `central directory size ${entry.declaredSize}`,
+      entry.rawPath,
+    );
+  }
+
+  return { dataStart: nameStart + nameLength + extraLength };
+}
+
+/**
+ * Decompress one entry's bytes with a hard output ceiling, after proving the
+ * local and central metadata agree, and verify the result's CRC-32.
+ *
+ * `maxOutputLength` makes zlib abort a decompression bomb instead of
+ * allocating the attacker's chosen size, so the ceiling is enforced by the
+ * decompressor itself rather than checked after the damage is done. No buffer
+ * is ever allocated from a declared size before that ceiling applies.
+ */
+export function readZipEntryContent(
+  buffer: Buffer,
+  entry: RawZipEntry,
+  limits: ArchiveScanLimits,
+): Buffer {
+  const { dataStart } = reconcileLocalHeader(buffer, entry);
   requireRange(buffer, dataStart, entry.compressedSize, "entry data");
 
   const compressed = buffer.subarray(dataStart, dataStart + entry.compressedSize);
 
-  if (entry.compressionMethod === METHOD_STORE) {
-    if (entry.compressedSize !== entry.declaredSize) {
+  const content = ((): Buffer => {
+    if (entry.compressionMethod === METHOD_STORE) {
+      if (entry.compressedSize !== entry.declaredSize) {
+        throw new ArchiveRejectedError(
+          "content_size_mismatch",
+          "stored ZIP entry compressed and uncompressed sizes disagree",
+          entry.rawPath,
+        );
+      }
+      return Buffer.from(compressed);
+    }
+
+    if (entry.compressionMethod !== METHOD_DEFLATE) {
       throw new ArchiveRejectedError(
-        "content_size_mismatch",
-        "stored ZIP entry compressed and uncompressed sizes disagree",
+        "unsupported_compression_method",
+        `ZIP compression method ${entry.compressionMethod} is not accepted`,
         entry.rawPath,
       );
     }
-    return Buffer.from(compressed);
-  }
 
-  if (entry.compressionMethod !== METHOD_DEFLATE) {
+    try {
+      return inflateRawSync(compressed, { maxOutputLength: limits.maxEntryBytes });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "inflate failed";
+      if (/maxOutputLength|buffer.*larger|output length/i.test(message)) {
+        throw new ArchiveRejectedError(
+          "entry_too_large",
+          `ZIP entry expands beyond the per-entry limit of ${limits.maxEntryBytes} bytes`,
+          entry.rawPath,
+        );
+      }
+      throw new ArchiveRejectedError(
+        "malformed_archive",
+        "ZIP entry could not be decompressed",
+        entry.rawPath,
+      );
+    }
+  })();
+
+  // Verify the bytes we actually obtained against the authoritative ZIP CRC.
+  // This supplements — and never replaces — the SHA-256 manifest hash: the CRC
+  // proves the container's own integrity claim, the SHA-256 is VibeFlow's
+  // server-derived content identity.
+  const actualCrc = computeCrc32(content) >>> 0;
+  if (actualCrc !== entry.crc32) {
     throw new ArchiveRejectedError(
-      "unsupported_compression_method",
-      `ZIP compression method ${entry.compressionMethod} is not accepted`,
+      "content_checksum_mismatch",
+      "ZIP entry content CRC-32 does not match the value recorded in the archive",
       entry.rawPath,
     );
   }
 
-  try {
-    return inflateRawSync(compressed, { maxOutputLength: limits.maxEntryBytes });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "inflate failed";
-    if (/maxOutputLength|buffer.*larger|output length/i.test(message)) {
-      throw new ArchiveRejectedError(
-        "entry_too_large",
-        `ZIP entry expands beyond the per-entry limit of ${limits.maxEntryBytes} bytes`,
-        entry.rawPath,
-      );
-    }
-    throw new ArchiveRejectedError(
-      "malformed_archive",
-      "ZIP entry could not be decompressed",
-      entry.rawPath,
-    );
-  }
+  return content;
 }

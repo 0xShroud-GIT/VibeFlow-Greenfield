@@ -30,6 +30,40 @@ export interface ZipFixtureEntry {
   deflate?: boolean;
   /** Override the declared uncompressed size to forge a lying header. */
   forgeDeclaredSize?: number;
+
+  // -------------------------------------------------------------------------
+  // Local-vs-central divergence forgeries.
+  //
+  // A hostile ZIP can present one interpretation to a reader that trusts the
+  // central directory and a different one to a reader that walks local
+  // headers. These options build exactly those ambiguous containers so the
+  // scanner's reconciliation can be proven, not assumed.
+  // -------------------------------------------------------------------------
+
+  /** Write a DIFFERENT file name in the local header than in the central directory. */
+  localPath?: string;
+  /** Write a different compression method in the local header. */
+  localMethod?: number;
+  /** Write different general-purpose flags in the local header. */
+  localFlags?: number;
+  /** Write different general-purpose flags in the central directory. */
+  centralFlags?: number;
+  /** Write a different CRC-32 in the local header. */
+  localCrc?: number;
+  /** Write a different compressed size in the local header. */
+  localCompressedSize?: number;
+  /** Write a different uncompressed size in the local header. */
+  localDeclaredSize?: number;
+  /**
+   * Corrupt the CRC-32 recorded in BOTH headers so they agree with each other
+   * but disagree with the actual bytes.
+   */
+  corruptCrc?: boolean;
+  /**
+   * Emit the streaming/data-descriptor form: general-purpose flag bit 3 set,
+   * local CRC and sizes zeroed, and a trailing data descriptor record.
+   */
+  dataDescriptor?: boolean;
 }
 
 function crc32(buffer: Buffer): number {
@@ -56,21 +90,41 @@ export function buildZip(entries: readonly ZipFixtureEntry[]): Buffer {
     const method = useDeflate ? 8 : 0;
     const declaredSize = entry.forgeDeclaredSize ?? raw.length;
     const nameBytes = Buffer.from(entry.path, "utf8");
+    const localNameBytes =
+      entry.localPath === undefined ? nameBytes : Buffer.from(entry.localPath, "utf8");
+
+    // A CRC corruption is written into BOTH headers so the two agree with each
+    // other and only the actual bytes disprove them.
+    const recordedCrc = entry.corruptCrc === true ? (crc32(raw) ^ 0xffff_ffff) >>> 0 : crc32(raw);
+
+    const streaming = entry.dataDescriptor === true && !isDirectory;
+    const centralFlags = entry.centralFlags ?? (streaming ? 0x0008 : 0);
+    const localFlags = entry.localFlags ?? centralFlags;
 
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(20, 4); // version needed
-    local.writeUInt16LE(0, 6); // flags
-    local.writeUInt16LE(method, 8);
+    local.writeUInt16LE(localFlags, 6);
+    local.writeUInt16LE(entry.localMethod ?? method, 8);
     local.writeUInt16LE(0, 10); // mod time
     local.writeUInt16LE(0, 12); // mod date
-    local.writeUInt32LE(crc32(raw), 14);
-    local.writeUInt32LE(stored.length, 18);
-    local.writeUInt32LE(declaredSize, 22);
-    local.writeUInt16LE(nameBytes.length, 26);
+    // In the streaming form the local header carries zeros and the real values
+    // live in the trailing data descriptor.
+    local.writeUInt32LE(entry.localCrc ?? (streaming ? 0 : recordedCrc), 14);
+    local.writeUInt32LE(entry.localCompressedSize ?? (streaming ? 0 : stored.length), 18);
+    local.writeUInt32LE(entry.localDeclaredSize ?? (streaming ? 0 : declaredSize), 22);
+    local.writeUInt16LE(localNameBytes.length, 26);
     local.writeUInt16LE(0, 28); // extra length
 
-    const localBlock = Buffer.concat([local, nameBytes, stored]);
+    const descriptor = Buffer.alloc(streaming ? 16 : 0);
+    if (streaming) {
+      descriptor.writeUInt32LE(0x08074b50, 0); // optional descriptor signature
+      descriptor.writeUInt32LE(recordedCrc, 4);
+      descriptor.writeUInt32LE(stored.length, 8);
+      descriptor.writeUInt32LE(declaredSize, 12);
+    }
+
+    const localBlock = Buffer.concat([local, localNameBytes, stored, descriptor]);
     localParts.push(localBlock);
 
     const externalAttributes =
@@ -85,11 +139,11 @@ export function buildZip(entries: readonly ZipFixtureEntry[]): Buffer {
     central.writeUInt16LE(20, 4); // version made by (low)
     central.writeUInt8(3, 5); // host = UNIX so mode bits apply
     central.writeUInt16LE(20, 6); // version needed
-    central.writeUInt16LE(0, 8); // flags
+    central.writeUInt16LE(centralFlags, 8);
     central.writeUInt16LE(method, 10);
     central.writeUInt16LE(0, 12);
     central.writeUInt16LE(0, 14);
-    central.writeUInt32LE(crc32(raw), 16);
+    central.writeUInt32LE(recordedCrc, 16);
     central.writeUInt32LE(stored.length, 20);
     central.writeUInt32LE(declaredSize, 24);
     central.writeUInt16LE(nameBytes.length, 28);

@@ -83,7 +83,8 @@ deciding, and imported content is never executed.**
 
 * **ZIP** — hand-rolled central-directory reader (no new dependency). Rejects
   ZIP64, encrypted entries, non-UTF-8 names, and any method other than STORE and
-  DEFLATE. Verifies decompressed length equals the declared uncompressed size.
+  DEFLATE. Strictly reconciles every local file header against its
+  central-directory record (§3.3) and verifies the payload CRC-32.
 * **tar** — hand-rolled header reader validating the header checksum, honouring
   GNU `L` long names, skipping PAX/`K` metadata, and rejecting symlink,
   hardlink, character device, block device, FIFO and unknown typeflags.
@@ -99,7 +100,65 @@ Rejection vocabulary: `malformed_archive`, `unsupported_format`,
 `too_many_entries`, `entry_too_large`, `total_size_exceeded`,
 `archive_too_large`, `compression_ratio_exceeded`, `content_size_mismatch`.
 
-### 3.3 Limits — implementation constants, not master contract
+### 3.3 ZIP local-header / central-directory reconciliation
+
+> Added in remediation of independent review `4986985218`.
+
+A ZIP stores entry metadata **twice** and the format does not require the two
+copies to agree. A scanner that trusts only the central directory can therefore
+bless bytes that a later ZIP consumer reads completely differently — the
+security-relevant case being a **safe central-directory filename paired with a
+traversal-shaped local-header filename**. M-014 previously validated only the
+central copy while preserving and staging the original archive bytes.
+
+Every entry is now rejected unless the two copies agree exactly:
+
+| Field | Rule | Rejection |
+| --- | --- | --- |
+| Filename | raw **bytes** must be equal — never a normalized-string compare | `malformed_archive` |
+| Compression method | must be equal | `malformed_archive` |
+| General-purpose flags | significant bits (mask `0x2849`) must be equal | `malformed_archive` |
+| CRC-32 | must be equal | `malformed_archive` |
+| Compressed size | must be equal | `content_size_mismatch` |
+| Uncompressed size | must be equal | `content_size_mismatch` |
+
+The flag mask covers encryption (bit 0), data descriptor (bit 3), strong
+encryption (bit 6), UTF-8/EFS names (bit 11) and masked local values (bit 13).
+Compression-tuning bits 1–2 are deliberately excluded: they legitimately vary
+between writers and carry no security meaning, so including them would reject
+well-formed archives without closing any ambiguity.
+
+**Zeroed local values are not accepted as "unknown."** When the data-descriptor
+flag is absent, the local CRC and sizes are authoritative and must match; the
+all-zeros shape is exactly what an attacker reaches for, so it is rejected
+rather than resolved in favour of the central directory.
+
+**Data descriptors are handled explicitly.** Entries using the streaming form
+(general-purpose bit 3) are rejected as `unsupported_format`. Their local
+CRC/sizes are unauthoritative by design, and locating the trailing descriptor
+requires scanning for a signature that can legitimately occur inside compressed
+data — another ambiguity. M-014 rejects rather than guesses.
+
+**Payload CRC-32 is verified.** After the actual uncompressed bytes are obtained
+(stored or inflated), their CRC-32 is checked against the authoritative ZIP entry
+CRC; a mismatch rejects as `content_checksum_mismatch`. This **supplements and
+does not replace** SHA-256 manifest hashing: the CRC proves the container's own
+integrity claim, while the SHA-256 remains VibeFlow's server-derived content
+identity.
+
+**All resource-exhaustion protections are preserved.** `maxOutputLength` is still
+enforced by the decompressor, nothing is allocated from a hostile declared size
+before limits apply, and the archive-size, entry-count, per-entry-size,
+aggregate-size, path-depth, path-length and compression-ratio limits are
+unchanged — with regression tests asserting each still fires.
+
+**Mutation-proven.** Three mutations were injected and reverted: removing
+reconciliation failed **11** tests; disabling payload CRC verification failed
+**3**; replacing the byte comparison with a normalized-string comparison failed
+the NFC/NFD test. The suite detects the real defect rather than asserting a
+tautology.
+
+### 3.4 Limits — implementation constants, not master contract
 
 > The Master Build System defines **no numeric thresholds** for archive import.
 > R2V-083 proves only the capability shape ("ZIP/tar upload + scanner"). Every
@@ -124,7 +183,7 @@ small-container/large-expansion blind spot while avoiding unstable ratios
 dominated by fixed container overhead. An earlier "skip below the floor" variant
 was rejected for exactly that blind spot.
 
-### 3.4 Manifest, hashing and provenance
+### 3.5 Manifest, hashing and provenance
 
 * Manifest version tag `vibeflow.archive.manifest.v1`.
 * Per entry: normalized relative path, kind (`file`/`directory`), byte size,
@@ -137,7 +196,7 @@ was rejected for exactly that blind spot.
   count ‖ NUL-delimited `path|kind|size|contentHash` records.
 * Organization, Project, actor and timestamps are server-controlled.
 
-### 3.5 Blob / staging boundary
+### 3.6 Blob / staging boundary
 
 The staging port is the smallest private content-addressed `put`/`get`/`delete`
 port plus an in-memory adapter for tests. It is **not** a canonical
@@ -294,18 +353,18 @@ negative cases.
 
 | Suite | Kind | Tests | Result |
 | --- | --- | --- | --- |
-| `packages/project/src/archive/scanner.test.ts` | unit, hostile input | 50 | pass |
+| `packages/project/src/archive/scanner.test.ts` | unit, hostile input | 70 | pass |
 | `packages/project/src/exports.test.ts` | unit, package surface | 10 | pass |
 | `packages/project/src/import.live.test.ts` | live PG 18.4 | 30 | pass |
 | `packages/project/src/clone.live.test.ts` | live PG 18.4 | 22 | pass |
 | `packages/persistence/src/lifecycle.live.test.ts` | live PG 18.4, DB backstops | 16 | pass |
-| `packages/project` (all) | aggregate | 142 | pass |
-| `tests/contract/test_m014_import_clone.py` | contract | 43 | pass |
+| `packages/project` (all) | aggregate | 162 | pass |
+| `tests/contract/test_m014_import_clone.py` | contract | 47 | pass |
 
 Negative coverage includes: malformed archives; absolute, traversal,
 Windows-drive, UNC, backslash and NUL paths; symlink, hardlink and device
 entries; duplicate normalized paths and file/directory collisions; entry-count,
-entry-size, total-size, depth and expansion-ratio limits; declared-size lies;
+entry-size, total-size, depth and expansion-ratio limits; declared-size lies; ZIP local-vs-central filename/method/flag/CRC/size disagreement; zeroed local headers; streaming data descriptors; payload CRC corruption and post-hoc byte tampering;
 forged Organization; cross-tenant target Organization; revoked membership; random
 ids; authority-shaped field rejection; duplicate idempotency keys; cross-tenant
 source probes; cross-Organization clone; and injected mid-command rollback.

@@ -336,6 +336,68 @@ class M014ArchiveScannerTests(unittest.TestCase):
         ):
             self.assertIn(scenario, source, f"missing scanner negative: {scenario}")
 
+    def test_zip_reader_reconciles_local_and_central_metadata(self) -> None:
+        """A ZIP stores entry metadata twice; disagreement must be rejected.
+
+        Trusting only the central directory lets a hostile archive show a safe
+        name to the scanner and a traversal-shaped name to a later extractor.
+        """
+        source = ZIP_READER.read_text(encoding="utf-8")
+
+        # Raw filename BYTES, never normalized strings.
+        self.assertIn("localNameBytes.equals(entry.rawPathBytes)", source)
+        self.assertIn("rawPathBytes", source)
+
+        # Method, flags, CRC and both sizes are reconciled.
+        self.assertIn("localMethod !== entry.compressionMethod", source)
+        self.assertIn("localSignificant !== centralSignificant", source)
+        self.assertIn("localCrc !== entry.crc32", source)
+        self.assertIn("localCompressedSize !== entry.compressedSize", source)
+        self.assertIn("localDeclaredSize !== entry.declaredSize", source)
+
+        # Data descriptors are handled explicitly, not silently trusted.
+        self.assertIn("FLAG_DATA_DESCRIPTOR", source)
+        prose = flatten(source).lower()
+        self.assertIn("data descriptor", prose)
+
+    def test_zip_reader_verifies_payload_crc(self) -> None:
+        source = ZIP_READER.read_text(encoding="utf-8")
+        self.assertIn("computeCrc32(content)", source)
+        self.assertIn("actualCrc !== entry.crc32", source)
+        self.assertIn("content_checksum_mismatch", source)
+
+        # CRC supplements SHA-256 manifest hashing, it does not replace it.
+        self.assertIn("createHash(\"sha256\")", SCANNER.read_text(encoding="utf-8"))
+
+    def test_zip_reader_preserves_bounded_decompression(self) -> None:
+        source = ZIP_READER.read_text(encoding="utf-8")
+        # The ceiling stays enforced BY the decompressor.
+        self.assertIn("maxOutputLength: limits.maxEntryBytes", source)
+        self.assertIn("entry_too_large", source)
+        # No allocation sized from a hostile declared size.
+        self.assertNotIn("Buffer.alloc(entry.declaredSize", source)
+        self.assertNotIn("Buffer.allocUnsafe(entry.declaredSize", source)
+
+    def test_scanner_tests_cover_zip_ambiguity_negatives(self) -> None:
+        source = SCANNER_TEST.read_text(encoding="utf-8").lower()
+        for scenario in (
+            "traversal local name",
+            "absolute local name",
+            "differ without any traversal",
+            "raw filename bytes rather than normalized",
+            "compression-method mismatch",
+            "general-purpose flag mismatch",
+            "local-header crc that disagrees",
+            "compressed size that disagrees",
+            "uncompressed size that disagrees",
+            "zeroed local-header values",
+            "data-descriptor form",
+            "content crc does not match",
+            "tampered with after the crc",
+            "still accepts valid zips",
+        ):
+            self.assertIn(scenario, source, f"missing ZIP ambiguity negative: {scenario}")
+
 
 class M014StagingBoundaryTests(unittest.TestCase):
     def test_staging_is_not_a_canonical_object_storage_binding(self) -> None:

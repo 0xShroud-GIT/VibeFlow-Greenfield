@@ -548,3 +548,228 @@ describe("M-014 structural archive scanner — no side effects", () => {
     expect(rejection.name).toBe("ArchiveRejectedError");
   });
 });
+
+// ---------------------------------------------------------------------------
+// ZIP local-header / central-directory ambiguity (M-014 review remediation)
+//
+// The ZIP format stores entry metadata twice and does not require the copies
+// to agree. A scanner that trusts only the central directory can therefore
+// bless bytes that a later ZIP consumer reads completely differently — the
+// classic case being a safe central name paired with a traversal-shaped local
+// name. Every test below builds exactly that ambiguity and proves the scanner
+// rejects it rather than picking a copy.
+// ---------------------------------------------------------------------------
+
+describe("M-014 structural archive scanner — ZIP local/central reconciliation", () => {
+  it("rejects a safe central-directory name paired with a traversal local name", () => {
+    // THE headline attack: central says "notes.txt", the local header the
+    // extractor would honour says "../../etc/cron.d/pwn".
+    const bytes = buildZip([
+      {
+        path: "notes.txt",
+        localPath: "../../etc/cron.d/pwn",
+        content: "harmless looking\n",
+      },
+    ]);
+    const rejection = expectRejection(
+      () => scanArchive({ bytes, format: "zip" }),
+      "malformed_archive",
+    );
+    expect(rejection.message).toMatch(/name does not match/i);
+  });
+
+  it("rejects a safe central-directory name paired with an absolute local name", () => {
+    const bytes = buildZip([
+      { path: "config.json", localPath: "/etc/passwd", content: "{}\n" },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "malformed_archive");
+  });
+
+  it("rejects central and local filenames that differ without any traversal", () => {
+    // No traversal at all: mere disagreement is still unresolvable ambiguity.
+    const bytes = buildZip([
+      { path: "a.txt", localPath: "b.txt", content: "same length names\n" },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "malformed_archive");
+  });
+
+  it("compares raw filename bytes rather than normalized strings", () => {
+    // Both names normalize to the same visible text but differ in raw bytes
+    // (NFC vs NFD encoding of "é"). A string-normalizing comparison would
+    // wrongly treat these as equal.
+    const bytes = buildZip([
+      { path: "caf\u00e9.txt", localPath: "cafe\u0301.txt", content: "x\n" },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "malformed_archive");
+  });
+
+  it("rejects a compression-method mismatch between local and central headers", () => {
+    const bytes = buildZip([
+      { path: "data.bin", content: "compressible ".repeat(64), deflate: true, localMethod: 0 },
+    ]);
+    const rejection = expectRejection(
+      () => scanArchive({ bytes, format: "zip" }),
+      "malformed_archive",
+    );
+    expect(rejection.message).toMatch(/compression method/i);
+  });
+
+  it("rejects a significant general-purpose flag mismatch", () => {
+    // Bit 11 (UTF-8 name encoding) is semantically significant: disagreement
+    // means the two copies describe the name differently.
+    const bytes = buildZip([
+      { path: "flagged.txt", content: "x\n", localFlags: 0x0800, centralFlags: 0x0000 },
+    ]);
+    const rejection = expectRejection(
+      () => scanArchive({ bytes, format: "zip" }),
+      "malformed_archive",
+    );
+    expect(rejection.message).toMatch(/general-purpose flags/i);
+  });
+
+  it("rejects a local-header CRC that disagrees with the central directory", () => {
+    const bytes = buildZip([
+      { path: "crc.txt", content: "payload\n", localCrc: 0x1234_5678 },
+    ]);
+    const rejection = expectRejection(
+      () => scanArchive({ bytes, format: "zip" }),
+      "malformed_archive",
+    );
+    expect(rejection.message).toMatch(/CRC-32/i);
+  });
+
+  it("rejects a local-header compressed size that disagrees with the central directory", () => {
+    const bytes = buildZip([
+      { path: "size.txt", content: "payload\n", localCompressedSize: 999 },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "content_size_mismatch");
+  });
+
+  it("rejects a local-header uncompressed size that disagrees with the central directory", () => {
+    const bytes = buildZip([
+      { path: "size2.txt", content: "payload\n", localDeclaredSize: 999 },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "content_size_mismatch");
+  });
+
+  it("does not accept zeroed local-header values while trusting the central directory", () => {
+    // Zeros are the ambiguous shape an attacker reaches for when bit 3 is NOT
+    // set. They must not be silently treated as "unknown, trust central".
+    const bytes = buildZip([
+      {
+        path: "zeroed.txt",
+        content: "payload\n",
+        localCrc: 0,
+        localCompressedSize: 0,
+        localDeclaredSize: 0,
+      },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "malformed_archive");
+  });
+
+  it("explicitly rejects the streaming data-descriptor form rather than guessing", () => {
+    // Bit 3 makes the local sizes/CRC unauthoritative and locating the trailing
+    // descriptor requires scanning for a signature that can occur inside
+    // compressed data. M-014 rejects instead of guessing.
+    const bytes = buildZip([{ path: "streamed.txt", content: "payload\n", dataDescriptor: true }]);
+    const rejection = expectRejection(
+      () => scanArchive({ bytes, format: "zip" }),
+      "unsupported_format",
+    );
+    expect(rejection.message).toMatch(/data descriptor/i);
+  });
+});
+
+describe("M-014 structural archive scanner — ZIP payload CRC verification", () => {
+  it("rejects a stored entry whose content CRC does not match the archive metadata", () => {
+    // Both headers agree with each other and only the actual bytes disprove
+    // them, so nothing but real CRC verification can catch this.
+    const bytes = buildZip([{ path: "corrupt.txt", content: "payload\n", corruptCrc: true }]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "content_checksum_mismatch");
+  });
+
+  it("rejects a deflated entry whose content CRC does not match the archive metadata", () => {
+    const bytes = buildZip([
+      {
+        path: "corrupt-deflated.txt",
+        content: "compressible ".repeat(64),
+        deflate: true,
+        corruptCrc: true,
+      },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "content_checksum_mismatch");
+  });
+
+  it("rejects an entry whose stored bytes were tampered with after the CRC was written", () => {
+    // Flip a byte inside the stored payload; headers still describe the
+    // original content.
+    const bytes = buildZip([{ path: "tampered.txt", content: "AAAAAAAAAAAA\n" }]);
+    const payloadAt = bytes.indexOf(Buffer.from("AAAAAAAAAAAA\n", "utf8"));
+    expect(payloadAt).toBeGreaterThan(0);
+    bytes[payloadAt] = 0x42; // 'B'
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "content_checksum_mismatch");
+  });
+
+  it("still accepts valid ZIPs, including deflated entries, after CRC verification", () => {
+    const manifest = scanArchive({ bytes: validZipFixture(), format: "zip" });
+    expect(manifest.entryCount).toBe(3);
+
+    const deflated = scanArchive({
+      bytes: buildZip([
+        { path: "big.txt", content: "compressible ".repeat(256), deflate: true },
+        { path: "small.txt", content: "stored\n" },
+      ]),
+      format: "zip",
+    });
+    expect(deflated.entryCount).toBe(2);
+    // SHA-256 manifest hashing is preserved: CRC verification supplements it.
+    for (const entry of deflated.entries) {
+      expect(entry.contentSha256).toMatch(/^[0-9a-f]{64}$/);
+    }
+  });
+
+  it("keeps the SHA-256 manifest digest stable and independent of the CRC check", () => {
+    const first = scanArchive({ bytes: validZipFixture(), format: "zip" });
+    const second = scanArchive({ bytes: validZipFixture(), format: "zip" });
+    expect(first.manifestSha256).toBe(second.manifestSha256);
+    expect(first.manifestSha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
+describe("M-014 structural archive scanner — limits preserved under reconciliation", () => {
+  it("still enforces the per-entry decompression ceiling via the decompressor", () => {
+    // A deflate bomb must still be stopped by maxOutputLength, not by a
+    // post-hoc size check and not by the new CRC path.
+    const limits = { ...DEFAULT_ARCHIVE_SCAN_LIMITS, maxEntryBytes: 1024 };
+    const bytes = buildZip([
+      { path: "bomb.txt", content: Buffer.alloc(512 * 1024, 0x41), deflate: true },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip", limits }), "entry_too_large");
+  });
+
+  it("still enforces the entry-count limit before reading any entry content", () => {
+    const limits = { ...DEFAULT_ARCHIVE_SCAN_LIMITS, maxEntryCount: 2 };
+    const bytes = buildZip([
+      { path: "a.txt", content: "a\n" },
+      { path: "b.txt", content: "b\n" },
+      { path: "c.txt", content: "c\n" },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip", limits }), "too_many_entries");
+  });
+
+  it("still enforces the aggregate uncompressed-size limit", () => {
+    const limits = { ...DEFAULT_ARCHIVE_SCAN_LIMITS, maxTotalUncompressedBytes: 16 };
+    const bytes = buildZip([
+      { path: "a.txt", content: "aaaaaaaaaa\n" },
+      { path: "b.txt", content: "bbbbbbbbbb\n" },
+    ]);
+    expectRejection(() => scanArchive({ bytes, format: "zip", limits }), "total_size_exceeded");
+  });
+
+  it("still rejects path traversal declared consistently in both headers", () => {
+    // Reconciliation must not become the ONLY path check: a consistently
+    // hostile name is still a path rejection.
+    const bytes = buildZip([{ path: "../escape.txt", content: "x\n" }]);
+    expectRejection(() => scanArchive({ bytes, format: "zip" }), "path_traversal");
+  });
+});

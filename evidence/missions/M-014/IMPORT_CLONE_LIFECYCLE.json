@@ -24,6 +24,10 @@
     {
       "sha": "pending",
       "summary": "CI fix: remove an unhandled-rejection race in two opacity tests (import manifest read and clone plan read / cross-tenant probe). Each expected rejection is now awaited and captured immediately instead of being held as a pending rejected promise. The assertions themselves are unchanged and were verified stable over five consecutive live runs."
+    },
+    {
+      "sha": "pending",
+      "summary": "Review remediation (review 4986985218): strict ZIP local-header/central-directory reconciliation, explicit data-descriptor rejection, and payload CRC-32 verification, plus 20 hostile regression tests and contract assertions. Scanner/test scope only - no change to the authority model, the canonical resource model, or the capability ledger."
     }
   ],
   "final_head_policy": "The final candidate head is whatever commit the pull request points at after the evidence commit. This record deliberately does not assert its own containing SHA. Verification authority is the exact-head GitHub Actions run set for that head; any later push obsoletes prior CI.",
@@ -85,7 +89,9 @@
       "evidence/missions/M-014/IMPORT_CLONE_LIFECYCLE.json",
       "evidence/missions/M-014/IMPORT_CLONE_LIFECYCLE.md"
     ],
-    "no_new_package": "M-014 extends @vibeflow/project and @vibeflow/persistence. No new top-level package was created."
+    "no_new_package": "M-014 extends @vibeflow/project and @vibeflow/persistence. No new top-level package was created.",
+    "total_changed_files": 36,
+    "count_provenance": "Recomputed from GitHub PR #22 (changedFiles=36) and `git diff --name-only <base>` on the branch. An earlier report of 34 was inaccurate and is superseded."
   },
   "migrations": {
     "file": "migrations/0006_project_import_clone.sql",
@@ -141,7 +147,7 @@
     "term": "structural archive scanner",
     "explicit_non_claim": "This is NOT malware scanning. M-014 makes no malware or virus detection claim.",
     "decides_before_extracting": "Safety is decided from container metadata plus bounded in-memory decompression with a hard maxOutputLength; nothing is ever written to a filesystem while deciding.",
-    "zip_reader": "Hand-rolled central-directory reader (no new dependency). Rejects ZIP64, encrypted entries, non-UTF-8 names, and any compression method other than STORE and DEFLATE. Uses zlib inflateRawSync with maxOutputLength and verifies the decompressed length equals the declared uncompressed size.",
+    "zip_reader": "Hand-rolled central-directory reader (no new dependency). Rejects ZIP64, encrypted entries, non-UTF-8 names, and any compression method other than STORE and DEFLATE. Uses zlib inflateRawSync with maxOutputLength so the per-entry ceiling is enforced by the decompressor itself; no buffer is ever allocated from a hostile declared size.",
     "tar_reader": "Hand-rolled header reader validating the header checksum, honouring GNU 'L' long names, skipping PAX/'K' metadata, and rejecting symlink, hardlink, character device, block device, FIFO and unknown typeflags.",
     "rejection_codes": [
       "malformed_archive",
@@ -180,7 +186,24 @@
       "compressionRatioFloorBytes": 4096
     },
     "expansion_ratio_design_note": "The bomb check is totalUncompressed / max(archiveBytes, compressionRatioFloorBytes). Flooring the DENOMINATOR (instead of skipping the check for small archives) closes the small-container/large-expansion blind spot while avoiding unstable ratios dominated by fixed container overhead.",
-    "path_policy": "path-policy.ts rejects rather than repairs. A path that needs sanitising is a rejected path, so no normalization step can silently produce a different file than the archive declared."
+    "path_policy": "path-policy.ts rejects rather than repairs. A path that needs sanitising is a rejected path, so no normalization step can silently produce a different file than the archive declared.",
+    "zip_local_central_reconciliation": {
+      "why": "The ZIP format stores entry metadata twice and does not require the copies to agree. A scanner that trusts only the central directory can bless bytes that a later ZIP consumer interprets differently - the security-relevant case being a safe central-directory filename paired with a traversal-shaped local-header filename.",
+      "invariants_enforced": [
+        "raw filename BYTES from the local header must equal the central-directory name bytes (byte comparison, never a normalized-string comparison)",
+        "compression method must match",
+        "semantically significant general-purpose flag bits must match (mask 0x2849: encryption bit 0, data descriptor bit 3, strong encryption bit 6, UTF-8/EFS bit 11, masked local values bit 13; compression-tuning bits 1-2 are excluded because they legitimately vary between writers and carry no security meaning)",
+        "CRC-32 recorded in the local header must match the central directory",
+        "compressed size must match",
+        "uncompressed size must match",
+        "zeroed local-header CRC/sizes are NOT accepted as 'unknown' when the data-descriptor flag is absent; that ambiguous shape is rejected"
+      ],
+      "data_descriptor_handling": "Entries using the streaming data-descriptor form (general-purpose bit 3) are rejected explicitly as unsupported_format. Their local CRC/sizes are unauthoritative and locating the trailing descriptor requires scanning for a signature that can legitimately occur inside compressed data, so M-014 rejects rather than guessing.",
+      "rejection_classes": "Filename/method/flag/CRC disagreement rejects as malformed_archive; size disagreement rejects as content_size_mismatch; the data-descriptor form rejects as unsupported_format.",
+      "payload_crc_verification": "After the actual uncompressed bytes are obtained (stored or inflated), their CRC-32 is verified against the authoritative ZIP entry CRC; a mismatch rejects as content_checksum_mismatch. This SUPPLEMENTS and does not replace SHA-256 manifest hashing: the CRC proves the container's own integrity claim, the SHA-256 remains VibeFlow's server-derived content identity.",
+      "limits_preserved": "maxOutputLength remains enforced by the decompressor, and archive size, entry count, per-entry size, aggregate size, path depth, path length and compression-ratio limits are unchanged. Regression tests assert each still fires.",
+      "mutation_proof": "Three independent mutations were injected and reverted: (1) removing reconciliation entirely failed 11 tests; (2) disabling payload CRC verification failed 3 tests; (3) replacing the byte comparison with a normalized-string comparison failed the NFC/NFD test. The regression suite therefore detects the real defect rather than asserting a tautology."
+    }
   },
   "manifest_hash_rules": {
     "manifest_version_tag": "vibeflow.archive.manifest.v1",
@@ -353,8 +376,9 @@
       {
         "suite": "packages/project/src/archive/scanner.test.ts",
         "kind": "unit (hostile input)",
-        "tests": 50,
-        "result": "pass"
+        "tests": 70,
+        "result": "pass",
+        "note": "50 original + 20 added by the ZIP ambiguity remediation"
       },
       {
         "suite": "packages/project/src/exports.test.ts",
@@ -383,18 +407,19 @@
       {
         "suite": "packages/project (all)",
         "kind": "aggregate",
-        "tests": 142,
+        "tests": 162,
         "result": "pass"
       },
       {
         "suite": "tests/contract/test_m014_import_clone.py",
         "kind": "contract",
-        "tests": 43,
+        "tests": 47,
         "result": "pass"
       }
     ],
     "retained_regressions": "M-008 through M-013 contract suites and all M-009..M-013 live integration runners remain wired into the root check script and pass unchanged. No retained test was weakened.",
-    "skipped_live_policy": "scripts/run-m014-import-clone-integration.py hard-fails when DATABASE_URL is absent under CI=true, because a skipped live suite is not verification evidence. Outside CI it reports the skip loudly and returns 0, matching the established M-009..M-013 runner convention; this is required because the dev container's postCreateCommand runs `pnpm run check` with no PostgreSQL service, and the CI foundation job always supplies DATABASE_URL."
+    "skipped_live_policy": "scripts/run-m014-import-clone-integration.py hard-fails when DATABASE_URL is absent under CI=true, because a skipped live suite is not verification evidence. Outside CI it reports the skip loudly and returns 0, matching the established M-009..M-013 runner convention; this is required because the dev container's postCreateCommand runs `pnpm run check` with no PostgreSQL service, and the CI foundation job always supplies DATABASE_URL.",
+    "superseded_results_note": "Test counts and CI results recorded before the remediation commit describe superseded heads. Only the exact-head run set for the final candidate head is verification evidence."
   },
   "postgresql_results": {
     "engine": "PostgreSQL 18.4 (matches the CI foundation workflow)",
@@ -411,7 +436,8 @@
     "rule": "Only Actions runs whose head SHA equals the final candidate head count as verification. Any subsequent push to the branch obsoletes prior CI results and requires a fresh run set.",
     "status_at_authoring": "Pending: recorded in the final report and the pull request, not asserted here.",
     "first_run_note": "The first exact-head run set on this branch (head c910d9a) failed `foundation` only at the dev-container build step: the devcontainer postCreateCommand runs `pnpm run check` inside a container with no PostgreSQL service, and the newly added M-014 integration runner hard-failed on the absent DATABASE_URL. verify, sanitize and security-gate passed at that head. The runner was aligned with the retained convention and a fresh exact-head run set was required.",
-    "second_run_note": "The second exact-head run set (head dea5d91) passed verify, sanitize and security-gate; foundation failed in `pnpm run check` on an unhandled rejection raised by two opacity tests that constructed rejected promises before attaching handlers. This was a test-harness race, not a service defect: the asserted behaviour (an existing foreign id and a random id are indistinguishable) is unchanged and still enforced."
+    "second_run_note": "The second exact-head run set (head dea5d91) passed verify, sanitize and security-gate; foundation failed in `pnpm run check` on an unhandled rejection raised by two opacity tests that constructed rejected promises before attaching handlers. This was a test-harness race, not a service defect: the asserted behaviour (an existing foreign id and a random id are indistinguishable) is unchanged and still enforced.",
+    "third_run_note": "Head 21bb0ad had all four required workflows green (verify 32400903476/foundation, sanitize 32400903567, security-gate 32400903827, integrity 32400903695), and the independent review confirmed CI was not the blocker. Those runs are SUPERSEDED by the remediation commit; a fresh exact-head run set is required for the new head."
   },
   "deferred_provider_scope": [
     "VF-PRJ-008, VF-PRJ-009, VF-PRJ-010, VF-PRJ-011, VF-PRJ-012",
@@ -442,5 +468,19 @@
     "malware_scanning_claimed": false,
     "provider_integration_claimed": false,
     "handoff": "M-014 -> REVIEW. M-015 and later remain LOCKED. The pull request is not merged and not self-approved."
+  },
+  "review_remediation": {
+    "review_id": 4986985218,
+    "state": "CHANGES_REQUESTED",
+    "reviewed_head": "21bb0adb919738a652fa07f44044d4d3ceee709a",
+    "blocking_finding": "readZipEntryContent validated only the local-header signature and bounds, then derived dataStart from the local name/extra lengths. It never verified that the local header agreed with the central directory on filename bytes, flags, method, CRC or sizes, and the decompressed content CRC was never checked. A hostile ZIP could therefore present a safe central path and a traversal-shaped local path, be SHA-256 manifested and staged as validated, and then be read differently by a later ZIP consumer.",
+    "resolution": "Added reconcileLocalHeader() which rejects any local/central disagreement before an entry is accepted, rejected the streaming data-descriptor form explicitly, and added CRC-32 verification of the actual uncompressed bytes.",
+    "files_changed_by_remediation": [
+      "packages/project/src/archive/zip.ts",
+      "packages/project/src/archive/test-fixtures.ts",
+      "packages/project/src/archive/scanner.test.ts",
+      "tests/contract/test_m014_import_clone.py"
+    ],
+    "scope_discipline": "No authority-model change, no new canonical resource, no provider/Git/workspace scope, and no additional capability-ledger advancement. Archive scanning still runs before canonical Project creation, still never extracts to disk, and still never executes content."
   }
 }
