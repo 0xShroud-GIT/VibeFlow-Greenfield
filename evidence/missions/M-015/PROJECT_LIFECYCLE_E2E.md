@@ -1,8 +1,8 @@
 # M-015 — Project Lifecycle E2E (Profile, CapabilityProfile, Overview)
 
-**Status:** REVIEW  
-**Phase:** 3 — Project Authority  
-**Branch:** `arena/01a02144-vibeflow-greenfield`  
+**Status:** REVIEW
+**Phase:** 3 — Project Authority
+**Branch:** `arena/01a02144-vibeflow-greenfield`
 **Starting main:** `55cec7b93bd2f0f1cb41e7707a986eb9ff4792ef`
 
 ## Authority Model
@@ -196,6 +196,6 @@ Cross-tenant probes fail closed without revealing existence.
 
 ## Handoff
 
-M-015 status: **REVIEW** (not DONE).  
-M-016+ status: **LOCKED**.  
+M-015 status: **REVIEW** (not DONE).
+M-016+ status: **LOCKED**.
 Pull request is open, unmerged, not self-approved.

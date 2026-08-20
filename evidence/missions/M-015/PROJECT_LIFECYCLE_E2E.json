@@ -30,6 +30,14 @@
     {
       "sha": "5b5c02dda15f7bb3c445d98eb7ff390d31aa28a8",
       "summary": "Update evidence files"
+    },
+    {
+      "sha": "cda3a0b214f453aac6eb8021a8f258c1a715719b",
+      "summary": "Fix remaining review defects: ON CONFLICT, version decoupling, evidence"
+    },
+    {
+      "sha": "3363283d752049450426acaf4dc1ca308e27ae45",
+      "summary": "Fix ACTIVE_MISSION.md status and overview live test initialization"
     }
   ],
   "authority_model": "Account -> Organization membership -> Project -> Artifact/ArtifactRelation. ProjectProfile and ProjectCapabilityProfile are subordinate Project-domain state, not new canonical authority roots. ProjectOverview is a read model/projection, not a canonical resource.",
@@ -134,14 +142,14 @@
     "suites": [
       {
         "suite": "packages/project/src/exports.test.ts (M-015 sections)",
-        "kind": "unit (package-root surface)",
-        "tests": 10,
+        "kind": "unit",
+        "tests": 6,
         "result": "PASS"
       },
       {
         "suite": "packages/project/src/profile.live.test.ts",
         "kind": "live PostgreSQL 18.4",
-        "tests": 16,
+        "tests": 14,
         "result": "NOT RUN \u2014 local PostgreSQL unavailable"
       },
       {
@@ -189,7 +197,8 @@
   },
   "handoff": "M-015 -> REVIEW. M-016 and later remain LOCKED. The pull request is not merged and not self-approved.",
   "last_updated": "2026-08-20T22:59:55.429505",
-  "implementation_head": "1631fcdc6e73b7a244625cce39a993555af9e6db",
-  "evidence_parent_head": "5b5c02dda15f7bb3c445d98eb7ff390d31aa28a8",
-  "changed_files_vs_main": 32
+  "implementation_head": "3363283d752049450426acaf4dc1ca308e27ae45",
+  "evidence_parent_head": "3363283d752049450426acaf4dc1ca308e27ae45",
+  "changed_files_vs_main": 32,
+  "postgresql_version": "18.4"
 }
