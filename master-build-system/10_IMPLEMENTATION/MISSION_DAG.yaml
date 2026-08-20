@@ -336,7 +336,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: REVIEW
+  status: DONE
 - mission_id: M-015
   phase: 3
   phase_name: Project Authority
@@ -348,7 +348,7 @@ missions:
   agent_context_budget: 'small: target <= 12k tokens unless mission explicitly requires more'
   deliverables: code/tests/evidence + ledger update + ADR only if architecture decision changed
   exit_gate: all mission acceptance tests pass; no invariant violation; CI green
-  status: LOCKED
+  status: READY
 - mission_id: M-016
   phase: 4
   phase_name: Provider Bindings
