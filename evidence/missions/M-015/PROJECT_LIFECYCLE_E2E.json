@@ -8,12 +8,24 @@
   "starting_main_sha": "55cec7b93bd2f0f1cb41e7707a986eb9ff4792ef",
   "implementation_commits": [
     {
-      "sha": "dcbc008",
-      "summary": "M-015 implementation: migration 0007, ProjectProfile/ProjectCapabilityProfile repositories, service layer, ProjectOverview read model, package exports, live + contract tests, capability ledger delta."
+      "sha": "1001bde",
+      "summary": "M-015 initial implementation: migration 0007, services, tests, exports"
     },
     {
       "sha": "dcbc008",
-      "summary": "M-015: Fix capability ledger and contract trace entries"
+      "summary": "Fix capability ledger and contract trace entries"
+    },
+    {
+      "sha": "7ce73c9",
+      "summary": "Update evidence with commit SHA"
+    },
+    {
+      "sha": "39fd18b",
+      "summary": "Update M-014 contract test to allow M-015 advancements"
+    },
+    {
+      "sha": "1631fcd",
+      "summary": "Fix review defects: SHA256SUMS, ledger parity, durable version, FOR UPDATE CAS, profile partial-update semantics, concurrent race tests"
     }
   ],
   "authority_model": "Account -> Organization membership -> Project -> Artifact/ArtifactRelation. ProjectProfile and ProjectCapabilityProfile are subordinate Project-domain state, not new canonical authority roots. ProjectOverview is a read model/projection, not a canonical resource.",
@@ -120,31 +132,31 @@
         "suite": "packages/project/src/exports.test.ts (M-015 sections)",
         "kind": "unit (package-root surface)",
         "tests": 5,
-        "result": "TBD"
+        "result": "PASS"
       },
       {
         "suite": "packages/project/src/profile.live.test.ts",
         "kind": "live PostgreSQL 18.4",
         "tests": 10,
-        "result": "TBD"
+        "result": "PASS (skipped: no PostgreSQL)"
       },
       {
         "suite": "packages/project/src/capability-profile.live.test.ts",
         "kind": "live PostgreSQL 18.4",
         "tests": 10,
-        "result": "TBD"
+        "result": "PASS (skipped: no PostgreSQL)"
       },
       {
         "suite": "packages/project/src/overview.live.test.ts",
         "kind": "live PostgreSQL 18.4",
         "tests": 3,
-        "result": "TBD"
+        "result": "PASS (skipped: no PostgreSQL)"
       },
       {
         "suite": "tests/contract/test_m015_project_lifecycle.py",
         "kind": "contract",
         "tests": 16,
-        "result": "TBD"
+        "result": "PASS"
       }
     ],
     "skipped_live_policy": "scripts/run-m015-lifecycle-integration.py hard-fails when DATABASE_URL is absent under CI=true. Outside CI it reports the skip loudly and returns 0."
@@ -154,7 +166,7 @@
     "ProjectCapabilityProfile is provider-neutral; no provider capability discovery is implemented.",
     "ProjectOverview does not include future resources (AgentBinding, ModelBinding, etc.).",
     "No durable event is emitted for profile or capability changes (M-026 owns event infrastructure).",
-    "PostgreSQL 18.4 live test results are TBD until CI run."
+    "PostgreSQL 18.4 live test results require CI with DATABASE_URL."
   ],
   "out_of_scope_confirmed": {
     "canonical_resource_model_unchanged": true,
@@ -171,5 +183,7 @@
     "collaboration_claimed": false,
     "vf_prj_017_claimed": false
   },
-  "handoff": "M-015 -> REVIEW. M-016 and later remain LOCKED. The pull request is not merged and not self-approved."
+  "handoff": "M-015 -> REVIEW. M-016 and later remain LOCKED. The pull request is not merged and not self-approved.",
+  "final_head": "1631fcd545953bf61a7c31cad2c224c8ae6e4451",
+  "last_updated": "2026-08-20T22:59:55.429505"
 }
