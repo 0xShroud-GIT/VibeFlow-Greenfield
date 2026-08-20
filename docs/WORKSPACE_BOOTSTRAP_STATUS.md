@@ -1,10 +1,10 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: IN_PROGRESS (M-014 imports/templates lifecycle)
-- Active mission: M-014 — Implement imports/templates lifecycle (IN_PROGRESS, handed off at REVIEW)
-- Accepted missions: M-001..M-013 (DONE)
-- Locked missions: M-015..M-151 (deferred non-J1 missions remain required for V1)
+- Product implementation: READY (M-015 project lifecycle E2E)
+- Active mission: M-015 — Implement project lifecycle E2E (READY)
+- Accepted missions: M-001..M-014 (DONE)
+- Locked missions: M-016..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
 - Capability ledger: 405 VibeFlow capabilities
 - Mission register: 151 missions / 33 phases
@@ -32,14 +32,18 @@ product image exists. The active `VibeFlow main protection` repository ruleset
 protects `main` with pull-request, review-thread, update-branch, deletion,
 force-push, and established required-status-check enforcement.
 
-M-014 implements the project import/template lifecycle: `VF-PRJ-004 Project
+M-014 implemented the project import/template lifecycle: `VF-PRJ-004 Project
 Archive Import` (ZIP/tar intake behind a structural archive scanner, with a
 deterministic server-derived manifest) and `VF-PRJ-007 Project Clone Plan`
 (template instantiation as a new canonical Project cloned from an authorized
-source Project). Both advance to `IMPLEMENTED` only; neither is claimed
-VERIFIED or COMPLETE, and no other PRJ capability advances. M-014 adds no
+source Project). Both advanced to `IMPLEMENTED` only; neither was claimed
+VERIFIED or COMPLETE, and no other PRJ capability advanced. M-014 added no
 canonical `Import`/`Template`/`Clone` resource, no new authorization resource
 type, no new event family, and no new public state machine — the lifecycle
 lives in project-domain internal records and reuses canonical `project.created`
 semantics. Provider/Git/workspace scope (VF-PRJ-008..012, RepositoryBinding,
-WorkspaceBinding) remains deferred and unimplemented.
+WorkspaceBinding) remains deferred and unimplemented. M-014 was independently
+reviewed and accepted.
+
+M-015 (Implement project lifecycle E2E) is now READY and the sole active
+mission.
