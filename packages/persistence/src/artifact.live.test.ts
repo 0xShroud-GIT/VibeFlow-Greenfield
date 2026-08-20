@@ -66,10 +66,12 @@ describePostgres("M-013 Artifact/ArtifactRelation persistence authority", () => 
     expect(fromDb.type).toBe("website");
   });
 
-  it("Artifact type is a bounded syntax-validated token; empty type rejected", async () => {
-    await expect(
-      artifacts.createArtifact({ projectId: projectA.id, type: "   " }),
-    ).rejects.toThrow();
+  it("Artifact type is a syntax-validated opaque token; malformed values rejected", async () => {
+    for (const bad of ["", "   ", "two words", "a\nb", ".leading", "trailing.", "a+b"]) {
+      await expect(
+        artifacts.createArtifact({ projectId: projectA.id, type: bad }),
+      ).rejects.toThrow();
+    }
   });
 
   it("tenant-safe list returns only the canonical project's artifacts", async () => {

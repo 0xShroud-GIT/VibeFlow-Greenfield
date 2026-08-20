@@ -19,6 +19,7 @@ import { TenantAuthorizationService } from "@vibeflow/authorization";
 import { ArtifactService } from "./artifact-service.js";
 import {
   ArtifactAuthorizationError,
+  ArtifactInputError,
   ArtifactNotFoundError,
   ArtifactRelationError,
 } from "./errors.js";
@@ -90,6 +91,23 @@ describePostgres("M-013 Artifact/ArtifactRelation service authority", () => {
     expect(artifact.projectId).toBe(projectA.id);
     expect(artifact.type).toBe("website");
     expect(artifact.createdAt).toBeInstanceOf(Date);
+  });
+
+  it("Artifact type is a syntax-validated opaque token (positive and negative)", async () => {
+    // Namespaced/compound opaque token accepted and canonicalized.
+    const ok = await service.createArtifact({
+      accountId: alice.id,
+      projectId: projectA.id,
+      type: "  com.acme.website:v2  ",
+    });
+    expect(ok.type).toBe("com.acme.website:v2");
+
+    // Malformed tokens are rejected at the service boundary.
+    for (const bad of ["", "   ", "two words", "a\nb", ".leading", "trailing.", "a+b", "🙂"]) {
+      await expect(
+        service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: bad }),
+      ).rejects.toBeInstanceOf(ArtifactInputError);
+    }
   });
 
   it("same-tenant authorized read succeeds", async () => {
@@ -175,13 +193,25 @@ describePostgres("M-013 Artifact/ArtifactRelation service authority", () => {
     expect(relation.projectId).toBe(projectA.id);
   });
 
-  it("unknown relation endpoint fails closed", async () => {
+  it("unknown relation object endpoint fails closed", async () => {
     const subject = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "x" });
     await expect(
       service.createArtifactRelation({
         accountId: alice.id,
         subjectArtifactId: subject.id,
         objectArtifactId: randomUUID(),
+        relationKind: "contains",
+      }),
+    ).rejects.toBeInstanceOf(ArtifactNotFoundError);
+  });
+
+  it("unknown/forged relation subject endpoint fails closed", async () => {
+    const object = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "y" });
+    await expect(
+      service.createArtifactRelation({
+        accountId: alice.id,
+        subjectArtifactId: randomUUID(),
+        objectArtifactId: object.id,
         relationKind: "contains",
       }),
     ).rejects.toBeInstanceOf(ArtifactNotFoundError);
@@ -200,7 +230,11 @@ describePostgres("M-013 Artifact/ArtifactRelation service authority", () => {
     ).rejects.toBeInstanceOf(ArtifactRelationError);
   });
 
-  it("cross-tenant relation fails closed", async () => {
+  it("cross-tenant relation fails closed at the endpoint authorization boundary", async () => {
+    // alice (orgA) attempts a relation whose object belongs to bob's orgB
+    // project. Authorization of the foreign object endpoint must fail closed
+    // BEFORE any same-project/relationship logic runs, so no cross-project or
+    // endpoint relationship detail is disclosed.
     const subject = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "ct-s" });
     const projectB = await projects.createProject({ organizationId: orgB.id, name: "Artifact Svc Project B" });
     const object = await artifacts.createArtifact({ projectId: projectB.id, type: "ct-o" });
@@ -211,7 +245,44 @@ describePostgres("M-013 Artifact/ArtifactRelation service authority", () => {
         objectArtifactId: object.id,
         relationKind: "variant",
       }),
-    ).rejects.toBeInstanceOf(ArtifactRelationError);
+    ).rejects.toBeInstanceOf(ArtifactAuthorizationError);
+  });
+
+  it("a caller probing a foreign-tenant Artifact does not learn endpoint/project existence before authorization", async () => {
+    // alice owns two same-Project artifacts. bob (orgB) probes BOTH by their
+    // opaque ids. The subject endpoint authorization must fail closed with an
+    // authorization denial (no_membership), never a not-found and never a
+    // same-project/cross-project relationship error — so bob learns nothing
+    // about endpoint existence or their shared Project.
+    const subject = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "probe-s" });
+    const object = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "probe-o" });
+
+    await expect(
+      service.createArtifactRelation({
+        accountId: bob.id,
+        subjectArtifactId: subject.id,
+        objectArtifactId: object.id,
+        relationKind: "lineage",
+      }),
+    ).rejects.toBeInstanceOf(ArtifactAuthorizationError);
+  });
+
+  it("revoked membership fails closed for relation creation", async () => {
+    const subject = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "rev-s" });
+    const object = await service.createArtifact({ accountId: alice.id, projectId: projectA.id, type: "rev-o" });
+    await controlPlane.pool.query(
+      "DELETE FROM organization_memberships WHERE organization_id = $1 AND account_id = $2",
+      [orgA.id, alice.id],
+    );
+    await expect(
+      service.createArtifactRelation({
+        accountId: alice.id,
+        subjectArtifactId: subject.id,
+        objectArtifactId: object.id,
+        relationKind: "derived-from",
+      }),
+    ).rejects.toBeInstanceOf(ArtifactAuthorizationError);
+    await tenants.addMembership({ organizationId: orgA.id, accountId: alice.id });
   });
 
   it("forged relation ID fails closed", async () => {

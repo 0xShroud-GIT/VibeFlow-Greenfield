@@ -21,6 +21,7 @@
 import {
   ARTIFACT_RELATION_KINDS,
   CrossProjectArtifactRelationError,
+  isArtifactTypeToken,
   isUuid,
   type ArtifactRelationKind,
   type ArtifactRelationRow,
@@ -84,13 +85,24 @@ function requireUuid(name: string, value: string): string {
   return value;
 }
 
+/**
+ * Validate an Artifact `type` as an opaque typed-output token.
+ *
+ * Syntax-only validation: trims outer whitespace, rejects empty/over-length
+ * input, control characters, whitespace and malformed token syntax. This is
+ * NOT a closed taxonomy and NOT a normalized registry (VF-PRJ-017 deferred).
+ * The grammar is shared with the persistence boundary via
+ * `isArtifactTypeToken`, so the service and repository never disagree.
+ */
 function requireType(value: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new ArtifactInputError("type is required");
   }
   const trimmed = value.trim();
-  if (trimmed.length > 200) {
-    throw new ArtifactInputError("type must be 200 characters or fewer");
+  if (!isArtifactTypeToken(trimmed)) {
+    throw new ArtifactInputError(
+      "type must be a 1-200 character identifier of [A-Za-z0-9] plus the separators '.', '_', '-', '/', ':' with no whitespace or control characters",
+    );
   }
   return trimmed;
 }
@@ -191,13 +203,30 @@ export class ArtifactService {
 
   /**
    * Create a durable directed relation between two canonical Artifacts.
-   * The owning Project is derived from the canonical endpoint Artifacts and
-   * both endpoints must belong to the same Project; cross-Project (even
-   * same-Organization) and unknown-endpoint relations are rejected.
+   *
+   * Authority ordering is fail-closed and never reveals canonical resource
+   * existence, project ownership, or same-project relationships before the
+   * caller is authorized:
+   *
+   *   1. Validate request syntax only (UUIDs, relation kind, distinct ends).
+   *   2. Authorize read access to the subject Artifact by its opaque id.
+   *   3. Authorize read access to the object Artifact by its opaque id.
+   *   4. Only after both endpoint authorizations succeed, load the canonical
+   *      persisted Artifact rows.
+   *   5. Derive each endpoint's canonical `project_id` from persistence.
+   *   6. Require both endpoints to belong to the same canonical Project.
+   *   7. Derive the relation Project from those canonical endpoints — never
+   *      from a client/provider claim.
+   *   8. Authorize relation creation against the canonical Project scope.
+   *   9. Persist the relation (the repository re-derives the Project and the
+   *      composite FKs remain a database-level cross-Project backstop).
+   *
+   * Cross-tenant, forged, unknown, and revoked/stale access fails closed.
    */
   public async createArtifactRelation(
     input: CreateArtifactRelationInput,
   ): Promise<ArtifactRelationRow> {
+    // 1. Syntax only.
     const accountId = requireUuid("accountId", input.accountId);
     const subjectArtifactId = requireUuid("subjectArtifactId", input.subjectArtifactId);
     const objectArtifactId = requireUuid("objectArtifactId", input.objectArtifactId);
@@ -209,8 +238,14 @@ export class ArtifactService {
       );
     }
 
-    // Derive scope from canonical endpoint Artifacts; unknown endpoints fail
-    // closed as not found.
+    // 2 & 3. Authorize each endpoint by opaque id BEFORE any persistence load,
+    // so a caller cannot learn endpoint/project existence or relationship
+    // through a relation attempt.
+    await this.authorizeEndpointRead(accountId, subjectArtifactId);
+    await this.authorizeEndpointRead(accountId, objectArtifactId);
+
+    // 4. Only now load canonical rows (both already authorized to exist and be
+    // readable; a missing row here still fails closed).
     let subject: ArtifactRow;
     let object: ArtifactRow;
     try {
@@ -220,16 +255,21 @@ export class ArtifactService {
       throw new ArtifactNotFoundError("Artifact relation endpoint not found");
     }
 
+    // 5 & 6. Derive canonical project ids and require the same Project.
     if (subject.projectId !== object.projectId) {
       throw new ArtifactRelationError(
         "Artifact relation endpoints must belong to the same canonical Project",
       );
     }
 
+    // 7. The relation Project is the canonical endpoint Project.
+    const relationProjectId = subject.projectId;
+
+    // 8. Authorize relation creation against the canonical Project scope.
     const decision = await this.options.authz.authorize({
       accountId,
       action: "create",
-      resource: { type: "project", id: subject.projectId },
+      resource: { type: "project", id: relationProjectId },
     });
     if (!decision.allowed) {
       throw new ArtifactAuthorizationError(
@@ -238,6 +278,8 @@ export class ArtifactService {
       );
     }
 
+    // 9. Persist. The repository re-derives the Project from canonical
+    // endpoints and the composite FKs reject any cross-Project edge.
     try {
       return await this.options.artifacts.createArtifactRelation({
         subjectArtifactId,
@@ -251,6 +293,32 @@ export class ArtifactService {
         );
       }
       throw error;
+    }
+  }
+
+  /**
+   * Authorize read access to an Artifact endpoint by its opaque id, failing
+   * closed without disclosing whether the id exists or what it owns. Unknown
+   * ids surface as not-found (no existence to disclose); existing-but-foreign
+   * ids surface as an authorization denial (membership not proven).
+   */
+  private async authorizeEndpointRead(
+    accountId: string,
+    artifactId: string,
+  ): Promise<void> {
+    const decision = await this.options.authz.authorize({
+      accountId,
+      action: "read",
+      resource: { type: "artifact", id: artifactId },
+    });
+    if (!decision.allowed) {
+      if (decision.reason === "unknown_resource") {
+        throw new ArtifactNotFoundError(`Artifact not found: ${artifactId}`);
+      }
+      throw new ArtifactAuthorizationError(
+        `Artifact access denied: ${decision.reason}`,
+        decision.reason,
+      );
     }
   }
 

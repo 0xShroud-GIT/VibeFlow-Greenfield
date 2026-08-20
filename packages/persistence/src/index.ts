@@ -11,7 +11,16 @@ export {
   rejectProviderAuthority,
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
-export { isUuid, newId, requireBoundedToken, requireId, requireNonEmpty } from "./ids.js";
+export {
+  ARTIFACT_TYPE_TOKEN_MAX_LENGTH,
+  ARTIFACT_TYPE_TOKEN_RE,
+  isArtifactTypeToken,
+  isUuid,
+  newId,
+  requireArtifactTypeToken,
+  requireId,
+  requireNonEmpty,
+} from "./ids.js";
 export { ArtifactRepository, ProjectRepository, TenantRepository } from "./repositories.js";
 export {
   accounts,

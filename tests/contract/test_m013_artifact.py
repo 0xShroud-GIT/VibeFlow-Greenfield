@@ -11,11 +11,13 @@ ROOT = Path(__file__).resolve().parents[2]
 MIGRATION = ROOT / "migrations/0005_artifact_authority.sql"
 PERSISTENCE_SCHEMA = ROOT / "packages/persistence/src/schema.ts"
 PERSISTENCE_REPO = ROOT / "packages/persistence/src/repositories.ts"
+PERSISTENCE_IDS = ROOT / "packages/persistence/src/ids.ts"
 PERSISTENCE_LIVE = ROOT / "packages/persistence/src/artifact.live.test.ts"
 AUTHZ_TYPES = ROOT / "packages/authorization/src/types.ts"
 AUTHZ_SERVICE = ROOT / "packages/authorization/src/service.ts"
 AUTHZ_LIVE = ROOT / "packages/authorization/src/artifact.live.test.ts"
 PROJECT_SERVICE = ROOT / "packages/project/src/artifact-service.ts"
+PROJECT_INDEX = ROOT / "packages/project/src/index.ts"
 PROJECT_LIVE = ROOT / "packages/project/src/artifact.live.test.ts"
 AUDIT_SERVICE = ROOT / "packages/audit/src/service.ts"
 AUDIT_SCOPE_LIVE = ROOT / "packages/audit/src/artifact-scope.live.test.ts"
@@ -120,6 +122,64 @@ class M013ArtifactContractTests(unittest.TestCase):
         self.assertIn("subject.projectId !== object.projectId", source)
         self.assertNotIn("providerId", source)
 
+    def test_artifact_relation_authorizes_endpoints_before_loading_rows(self) -> None:
+        source = PROJECT_SERVICE.read_text(encoding="utf-8")
+        # Authority ordering: endpoint authorization (by opaque id) must appear
+        # before the canonical row load. The helper is invoked before
+        # getArtifactById, and the load is commented as step 4.
+        authz_endpoint_idx = source.find("authorizeEndpointRead(accountId, subjectArtifactId)")
+        load_idx = source.find("getArtifactById(subjectArtifactId)")
+        self.assertGreater(authz_endpoint_idx, 0, "subject endpoint authorization call missing")
+        self.assertGreater(load_idx, 0, "canonical subject row load missing")
+        self.assertLess(authz_endpoint_idx, load_idx, "endpoint authorization must precede row load")
+        self.assertIn("authorizeEndpointRead", source)
+        self.assertIn("action: \"read\"", source)
+        # relation creation is authorized against the canonical Project scope
+        self.assertIn('resource: { type: "project", id: relationProjectId }', source)
+        self.assertIn("relationProjectId", source)
+
+    def test_artifact_type_is_syntax_validated_opaque_token(self) -> None:
+        ids_src = PERSISTENCE_IDS.read_text(encoding="utf-8")
+        service_src = PROJECT_SERVICE.read_text(encoding="utf-8")
+        for required in (
+            "ARTIFACT_TYPE_TOKEN_RE",
+            "isArtifactTypeToken",
+            "requireArtifactTypeToken",
+            "ARTIFACT_TYPE_TOKEN_MAX_LENGTH",
+        ):
+            self.assertIn(required, ids_src)
+        # explicit grammar characters and bounds
+        self.assertIn("A-Za-z0-9", ids_src)
+        self.assertIn("200", ids_src)
+        # service reuses the shared grammar, never a private taxonomy
+        self.assertIn("isArtifactTypeToken", service_src)
+        # open-ended: no closed enum/taxonomy is introduced
+        self.assertNotIn("ARTIFACT_TYPE_ENUM", ids_src)
+
+    def test_project_package_exports_artifact_public_api(self) -> None:
+        source = PROJECT_INDEX.read_text(encoding="utf-8")
+        for required in (
+            "ArtifactService",
+            "ArtifactAuthorizationError",
+            "ArtifactError",
+            "ArtifactInputError",
+            "ArtifactNotFoundError",
+            "ArtifactRelationError",
+            "ArtifactServiceOptions",
+            "CreateArtifactInput",
+            "CreateArtifactRelationInput",
+            "GetArtifactInput",
+            "GetArtifactRelationInput",
+            "ListArtifactRelationsInput",
+            "ListArtifactsInput",
+            "ARTIFACT_RELATION_KINDS",
+            "ArtifactRelationKind",
+        ):
+            self.assertIn(required, source)
+        # persistence internals are not re-exported merely to satisfy the surface
+        self.assertNotIn("ArtifactRepository", source)
+        self.assertNotIn("ControlPlaneDatabase", source)
+
     def test_audit_service_scopes_artifact_and_relation_authorization(self) -> None:
         source = AUDIT_SERVICE.read_text(encoding="utf-8")
         self.assertIn('resource.type === "artifact"', source)
@@ -144,7 +204,16 @@ class M013ArtifactContractTests(unittest.TestCase):
                 for required in ("cross-tenant", "unknown_resource", "revoked", "no_membership"):
                     self.assertIn(required, lowered, f"{label} live must cover {required}")
             elif label == "service":
-                for required in ("cross-project", "cross-tenant", "same organization", "revoked", "forged"):
+                for required in (
+                    "cross-project",
+                    "cross-tenant",
+                    "same organization",
+                    "revoked",
+                    "forged",
+                    "before authorization",
+                    "probe",
+                    "opaque token",
+                ):
                     self.assertIn(required, lowered, f"{label} live must cover {required}")
             else:  # audit
                 for required in ("audit_unavailable", "outcome = 'allowed'"):

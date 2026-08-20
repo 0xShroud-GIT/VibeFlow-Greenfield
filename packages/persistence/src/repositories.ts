@@ -12,7 +12,7 @@ import {
   PersistenceError,
   rejectProviderAuthority,
 } from "./errors.js";
-import { newId, requireBoundedToken, requireId, requireNonEmpty } from "./ids.js";
+import { newId, requireArtifactTypeToken, requireId, requireNonEmpty } from "./ids.js";
 import {
   accounts,
   ARTIFACT_RELATION_KINDS,
@@ -388,7 +388,7 @@ export class ArtifactRepository {
   public async createArtifact(input: CreateArtifactInput): Promise<ArtifactRow> {
     rejectProviderAuthority(input as unknown as Record<string, unknown>);
     const projectId = requireId("projectId", input.projectId);
-    const type = requireBoundedToken("type", input.type, 200);
+    const type = requireArtifactTypeToken("type", input.type);
     const createdAt = now();
     const row = {
       id: newId(),
