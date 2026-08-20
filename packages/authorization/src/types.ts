@@ -17,10 +17,17 @@
 /** Canonical resource types registered in the authorization boundary.
  * M-010 registered `organization`; M-012 registers `project` as a first-class
  * protected resource with canonical Organization ownership resolved from
- * persistence. Future resources (Task, Connection, ...) register in their
- * owning mission; unknown types continue to fail closed.
+ * persistence. M-013 registers `artifact` and `artifact_relation`, whose
+ * tenant is resolved through canonical Project ownership. Future resources
+ * (Task, Connection, ...) register in their owning mission; unknown types
+ * continue to fail closed.
  */
-export const RESOURCE_TYPES = ["organization", "project"] as const;
+export const RESOURCE_TYPES = [
+  "organization",
+  "project",
+  "artifact",
+  "artifact_relation",
+] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 /** Canonical action tokens recognized by the boundary. */

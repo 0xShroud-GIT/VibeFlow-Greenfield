@@ -10,6 +10,7 @@
   ],
   "exclude": [
     "src/audit.live.test.ts",
-    "src/project-scope.live.test.ts"
+    "src/project-scope.live.test.ts",
+    "src/artifact-scope.live.test.ts"
   ]
 }

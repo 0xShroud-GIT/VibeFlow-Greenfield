@@ -2,22 +2,31 @@ import { and, eq } from "drizzle-orm";
 
 import type { ControlPlaneDatabase } from "./client.js";
 import {
+  CrossProjectArtifactRelationError,
+  DuplicateArtifactRelationError,
   DuplicateMembershipError,
   ForeignKeyViolationError,
   mapDatabaseError,
   NotFoundError,
   PersistenceInputError,
+  PersistenceError,
   rejectProviderAuthority,
 } from "./errors.js";
-import { newId, requireId, requireNonEmpty } from "./ids.js";
+import { newId, requireBoundedToken, requireId, requireNonEmpty } from "./ids.js";
 import {
   accounts,
+  ARTIFACT_RELATION_KINDS,
+  artifactRelations,
+  artifacts,
   identityUsers,
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
   projects,
   type AccountRow,
+  type ArtifactRelationKind,
+  type ArtifactRelationRow,
+  type ArtifactRow,
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,
@@ -48,12 +57,62 @@ export interface UpdateProjectInput {
   name: string;
 }
 
+export interface CreateArtifactInput {
+  projectId: string;
+  type: string;
+}
+
+export interface CreateArtifactRelationInput {
+  subjectArtifactId: string;
+  objectArtifactId: string;
+  relationKind: ArtifactRelationKind;
+}
+
 function now(): Date {
   return new Date();
 }
 
 function isOrganizationKind(value: string): value is OrganizationKind {
   return (ORGANIZATION_KINDS as readonly string[]).includes(value);
+}
+
+function isArtifactRelationKind(value: string): value is ArtifactRelationKind {
+  return (ARTIFACT_RELATION_KINDS as readonly string[]).includes(value);
+}
+
+interface PgLikeError {
+  code?: string;
+  constraint?: string;
+  cause?: unknown;
+}
+
+function postgresErrorCode(error: unknown): string | undefined {
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    const candidate = current as PgLikeError;
+    if (typeof candidate.code === "string" && /^\d{5}$/.test(candidate.code)) {
+      return candidate.code;
+    }
+    current = candidate.cause;
+  }
+  return undefined;
+}
+
+/** Maps ArtifactRelation-specific integrity violations to dedicated errors. */
+function mapArtifactRelationError(error: unknown): never {
+  const code = postgresErrorCode(error);
+  if (code === "23505") {
+    throw new DuplicateArtifactRelationError("artifact relation edge already exists");
+  }
+  if (code === "23503") {
+    throw new ForeignKeyViolationError("referenced artifact does not exist");
+  }
+  if (error instanceof PersistenceError) {
+    throw error;
+  }
+  throw new PersistenceError(error instanceof Error ? error.message : "persistence operation failed");
 }
 
 export class TenantRepository {
@@ -310,5 +369,142 @@ export class ProjectRepository {
       }
       mapDatabaseError(error);
     }
+  }
+}
+
+/**
+ * M-013 authoritative Artifact/ArtifactRelation persistence.
+ *
+ * Artifact authority is VibeFlow metadata only: server-generated id, canonical
+ * Project FK, bounded type token, server-controlled timestamps. Content bytes
+ * are never part of this boundary. ArtifactRelation Project ownership is
+ * derived from the canonical endpoint Artifacts, never a client claim, and the
+ * composite foreign keys make cross-Project edges impossible at the database
+ * level even if service checks are bypassed.
+ */
+export class ArtifactRepository {
+  public constructor(private readonly db: ControlPlaneDatabase) {}
+
+  public async createArtifact(input: CreateArtifactInput): Promise<ArtifactRow> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const projectId = requireId("projectId", input.projectId);
+    const type = requireBoundedToken("type", input.type, 200);
+    const createdAt = now();
+    const row = {
+      id: newId(),
+      projectId,
+      type,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    try {
+      const inserted = await this.db.insert(artifacts).values(row).returning();
+      const created = inserted[0];
+      if (!created) {
+        throw new PersistenceInputError("artifact insert returned no row");
+      }
+      return created;
+    } catch (error) {
+      mapDatabaseError(error);
+    }
+  }
+
+  public async getArtifactById(artifactId: string): Promise<ArtifactRow> {
+    const id = requireId("artifactId", artifactId);
+    const rows = await this.db.select().from(artifacts).where(eq(artifacts.id, id));
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundError(`artifact not found: ${id}`);
+    }
+    return row;
+  }
+
+  /** Tenant-safe list: artifacts are listed only for one canonical project id. */
+  public async listArtifactsForProject(projectId: string): Promise<ArtifactRow[]> {
+    const id = requireId("projectId", projectId);
+    return this.db.select().from(artifacts).where(eq(artifacts.projectId, id));
+  }
+
+  /**
+   * Create a durable directed relation between two canonical Artifacts.
+   *
+   * The owning Project is derived from the canonical endpoint Artifacts and
+   * must be identical for both; a cross-Project edge is rejected here (and, as
+   * a backstop, by the composite foreign keys). self-edges are rejected and
+   * relation_kind is restricted to the canonical kinds. No client-supplied
+   * project_id is accepted.
+   */
+  public async createArtifactRelation(
+    input: CreateArtifactRelationInput,
+  ): Promise<ArtifactRelationRow> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const subjectArtifactId = requireId("subjectArtifactId", input.subjectArtifactId);
+    const objectArtifactId = requireId("objectArtifactId", input.objectArtifactId);
+    if (subjectArtifactId === objectArtifactId) {
+      throw new PersistenceInputError(
+        "artifact relation must link two distinct artifacts",
+      );
+    }
+    if (!isArtifactRelationKind(input.relationKind)) {
+      throw new PersistenceInputError(
+        `relationKind must be one of: ${ARTIFACT_RELATION_KINDS.join(", ")}`,
+      );
+    }
+    const relationKind = input.relationKind;
+
+    // Resolve both endpoints from canonical persistence; unknown endpoints
+    // fail closed as NotFoundError. The owning Project is derived here, never
+    // from a client claim.
+    const subject = await this.getArtifactById(subjectArtifactId);
+    const object = await this.getArtifactById(objectArtifactId);
+    if (subject.projectId !== object.projectId) {
+      throw new CrossProjectArtifactRelationError(
+        "artifact relation endpoints must belong to the same canonical Project",
+      );
+    }
+
+    const createdAt = now();
+    const row = {
+      id: newId(),
+      projectId: subject.projectId,
+      subjectArtifactId,
+      objectArtifactId,
+      relationKind,
+      createdAt,
+    };
+    try {
+      const inserted = await this.db.insert(artifactRelations).values(row).returning();
+      const created = inserted[0];
+      if (!created) {
+        throw new PersistenceInputError("artifact relation insert returned no row");
+      }
+      return created;
+    } catch (error) {
+      mapArtifactRelationError(error);
+    }
+  }
+
+  public async getArtifactRelationById(relationId: string): Promise<ArtifactRelationRow> {
+    const id = requireId("relationId", relationId);
+    const rows = await this.db
+      .select()
+      .from(artifactRelations)
+      .where(eq(artifactRelations.id, id));
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundError(`artifact relation not found: ${id}`);
+    }
+    return row;
+  }
+
+  /** Tenant-safe list: relations are listed only for one canonical project id. */
+  public async listArtifactRelationsForProject(
+    projectId: string,
+  ): Promise<ArtifactRelationRow[]> {
+    const id = requireId("projectId", projectId);
+    return this.db
+      .select()
+      .from(artifactRelations)
+      .where(eq(artifactRelations.projectId, id));
   }
 }

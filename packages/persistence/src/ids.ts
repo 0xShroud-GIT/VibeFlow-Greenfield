@@ -26,6 +26,25 @@ export function requireId(name: string, value: string): string {
 }
 
 /**
+ * A bounded, syntax-validated free-form token (non-empty, trimmed, length
+ * bounded). Used for the Artifact `type` token: it establishes typed metadata
+ * without inventing a closed taxonomy or normalized registry.
+ */
+export function requireBoundedToken(
+  name: string,
+  value: string,
+  maxLength: number,
+): string {
+  const trimmed = requireNonEmpty(name, value);
+  if (trimmed.length > maxLength) {
+    throw new PersistenceInputError(
+      `${name} must be ${maxLength} characters or fewer`,
+    );
+  }
+  return trimmed;
+}
+
+/**
  * True when `value` is a canonical VibeFlow UUID shape. Used by the M-010
  * authorization boundary to reject client/provider/scoped identifiers that are
  * never authoritative for a tenant/resource decision.
