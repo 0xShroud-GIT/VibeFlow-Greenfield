@@ -327,6 +327,15 @@ the live suites are never silently skipped where they count.
 > step for exactly the reason above. The runner was aligned with the retained
 > convention and a fresh exact-head run set was required — any push obsoletes
 > prior CI.
+>
+> **Second exact-head run set (head `dea5d91`).** `verify`, `sanitize` and
+> `security-gate` passed; `foundation` failed inside `pnpm run check` on an
+> unhandled rejection raised by two opacity tests that built rejected promises
+> before attaching handlers. That was a **test-harness race, not a service
+> defect** — the asserted behaviour (an existing foreign id and a random id are
+> indistinguishable) is unchanged and still enforced. Each expected rejection is
+> now awaited and captured immediately; verified stable over five consecutive
+> live runs.
 
 ---
 

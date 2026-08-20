@@ -347,21 +347,25 @@ describePostgres("M-014 Project Clone Plan authority", () => {
   it("does not leak source details on a cross-tenant source probe", async () => {
     // Bob (orgB) probes a real orgA project and a random id. Both must fail
     // the same way, disclosing neither existence nor ownership.
-    const realProbe = service.cloneProject({
-      accountId: bob.id,
-      sourceProjectId: source.id,
-      targetProjectName: "Probe Clone",
-      idempotencyKey: `probe-${randomUUID()}`,
-    });
-    const fakeProbe = service.cloneProject({
-      accountId: bob.id,
-      sourceProjectId: randomUUID(),
-      targetProjectName: "Probe Clone",
-      idempotencyKey: `probe2-${randomUUID()}`,
-    });
+    // Each probe is awaited and captured immediately rather than being held as
+    // a pending rejected promise, so the assertions cannot race an unhandled
+    // rejection.
+    const probe = async (sourceProjectId: string, key: string): Promise<Error> => {
+      try {
+        await service.cloneProject({
+          accountId: bob.id,
+          sourceProjectId,
+          targetProjectName: "Probe Clone",
+          idempotencyKey: `${key}-${randomUUID()}`,
+        });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error("expected the cross-tenant clone probe to fail closed");
+    };
 
-    const realError = await realProbe.catch((e: Error) => e);
-    const fakeError = await fakeProbe.catch((e: Error) => e);
+    const realError = await probe(source.id, "probe");
+    const fakeError = await probe(randomUUID(), "probe2");
 
     // Neither response may contain the source name or its organization.
     for (const error of [realError, fakeError]) {
@@ -661,13 +665,21 @@ describePostgres("M-014 Project Clone Plan authority", () => {
       idempotencyKey: `cpriv-${randomUUID()}`,
     });
 
-    const foreign = service.getClonePlan({ accountId: bob.id, planId: result.plan.id });
-    const missing = service.getClonePlan({ accountId: bob.id, planId: randomUUID() });
+    const capture = async (planId: string): Promise<Error> => {
+      try {
+        await service.getClonePlan({ accountId: bob.id, planId });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error(`expected getClonePlan to reject for ${planId}`);
+    };
 
-    await expect(foreign).rejects.toBeInstanceOf(ProjectCloneError);
-    await expect(missing).rejects.toBeInstanceOf(ProjectCloneError);
-    expect(await foreign.catch((e: Error) => e.message)).toBe(
-      await missing.catch((e: Error) => e.message),
-    );
+    const foreign = await capture(result.plan.id);
+    const missing = await capture(randomUUID());
+
+    expect(foreign).toBeInstanceOf(ProjectCloneError);
+    expect(missing).toBeInstanceOf(ProjectCloneError);
+    // Identical message: an existing foreign plan leaks no existence signal.
+    expect(foreign.message).toBe(missing.message);
   });
 });

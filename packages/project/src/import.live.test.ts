@@ -628,20 +628,25 @@ describePostgres("M-014 Project Archive Import authority", () => {
 
     // Bob is a member of orgB only. An existing foreign import and a random
     // non-existent id must be indistinguishable.
-    const foreign = service.getImportManifest({
-      accountId: bob.id,
-      importId: result.import.id,
-    });
-    const missing = service.getImportManifest({
-      accountId: bob.id,
-      importId: randomUUID(),
-    });
+    //
+    // Each rejection is captured immediately (rather than held as a pending
+    // rejected promise) so the assertions cannot race an unhandled rejection.
+    const capture = async (importId: string): Promise<Error> => {
+      try {
+        await service.getImportManifest({ accountId: bob.id, importId });
+      } catch (error) {
+        return error as Error;
+      }
+      throw new Error(`expected getImportManifest to reject for ${importId}`);
+    };
 
-    await expect(foreign).rejects.toBeInstanceOf(ProjectImportError);
-    await expect(missing).rejects.toBeInstanceOf(ProjectImportError);
-    const foreignMessage = await foreign.catch((e: Error) => e.message);
-    const missingMessage = await missing.catch((e: Error) => e.message);
-    expect(foreignMessage).toBe(missingMessage);
+    const foreign = await capture(result.import.id);
+    const missing = await capture(randomUUID());
+
+    expect(foreign).toBeInstanceOf(ProjectImportError);
+    expect(missing).toBeInstanceOf(ProjectImportError);
+    // Identical message: an existing foreign import leaks no existence signal.
+    expect(foreign.message).toBe(missing.message);
   });
 
   // -------------------------------------------------------------------------

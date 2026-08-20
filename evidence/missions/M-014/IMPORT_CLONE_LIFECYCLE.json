@@ -20,6 +20,10 @@
     {
       "sha": "pending",
       "summary": "CI fix: align the M-014 integration runner's no-database behaviour with the retained M-009..M-013 convention so the dev-container postCreateCommand (`pnpm run check` without PostgreSQL) succeeds. CI enforcement under CI=true is unchanged."
+    },
+    {
+      "sha": "pending",
+      "summary": "CI fix: remove an unhandled-rejection race in two opacity tests (import manifest read and clone plan read / cross-tenant probe). Each expected rejection is now awaited and captured immediately instead of being held as a pending rejected promise. The assertions themselves are unchanged and were verified stable over five consecutive live runs."
     }
   ],
   "final_head_policy": "The final candidate head is whatever commit the pull request points at after the evidence commit. This record deliberately does not assert its own containing SHA. Verification authority is the exact-head GitHub Actions run set for that head; any later push obsoletes prior CI.",
@@ -406,7 +410,8 @@
     ],
     "rule": "Only Actions runs whose head SHA equals the final candidate head count as verification. Any subsequent push to the branch obsoletes prior CI results and requires a fresh run set.",
     "status_at_authoring": "Pending: recorded in the final report and the pull request, not asserted here.",
-    "first_run_note": "The first exact-head run set on this branch (head c910d9a) failed `foundation` only at the dev-container build step: the devcontainer postCreateCommand runs `pnpm run check` inside a container with no PostgreSQL service, and the newly added M-014 integration runner hard-failed on the absent DATABASE_URL. verify, sanitize and security-gate passed at that head. The runner was aligned with the retained convention and a fresh exact-head run set was required."
+    "first_run_note": "The first exact-head run set on this branch (head c910d9a) failed `foundation` only at the dev-container build step: the devcontainer postCreateCommand runs `pnpm run check` inside a container with no PostgreSQL service, and the newly added M-014 integration runner hard-failed on the absent DATABASE_URL. verify, sanitize and security-gate passed at that head. The runner was aligned with the retained convention and a fresh exact-head run set was required.",
+    "second_run_note": "The second exact-head run set (head dea5d91) passed verify, sanitize and security-gate; foundation failed in `pnpm run check` on an unhandled rejection raised by two opacity tests that constructed rejected promises before attaching handlers. This was a test-harness race, not a service defect: the asserted behaviour (an existing foreign id and a random id are indistinguishable) is unchanged and still enforced."
   },
   "deferred_provider_scope": [
     "VF-PRJ-008, VF-PRJ-009, VF-PRJ-010, VF-PRJ-011, VF-PRJ-012",
