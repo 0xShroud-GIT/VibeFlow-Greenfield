@@ -378,6 +378,15 @@ export class ProjectLifecycleRepository {
     return { project, import: importRow, entries };
   }
 
+  public async getArchiveImportByProjectId(projectId: string): Promise<ProjectArchiveImportRow | undefined> {
+    const id = requireId("projectId", projectId);
+    const rows = await this.db
+      .select()
+      .from(projectArchiveImports)
+      .where(eq(projectArchiveImports.projectId, id));
+    return rows[0];
+  }
+
   public async getArchiveImportById(importId: string): Promise<ProjectArchiveImportRow> {
     const id = requireId("importId", importId);
     const rows = await this.db
@@ -648,6 +657,15 @@ export class ProjectLifecycleRepository {
       relations: clonedRelations,
       artifactIdMap,
     };
+  }
+
+  public async getClonePlanByTargetProjectId(targetProjectId: string): Promise<ProjectClonePlanRow | undefined> {
+    const id = requireId("targetProjectId", targetProjectId);
+    const rows = await this.db
+      .select()
+      .from(projectClonePlans)
+      .where(eq(projectClonePlans.targetProjectId, id));
+    return rows[0];
   }
 
   public async getClonePlanById(planId: string): Promise<ProjectClonePlanRow> {

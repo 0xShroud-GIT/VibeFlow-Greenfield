@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { ControlPlaneDatabase } from "./client.js";
 import {
@@ -11,8 +11,9 @@ import {
   PersistenceInputError,
   PersistenceError,
   rejectProviderAuthority,
+  StaleVersionError,
 } from "./errors.js";
-import { newId, requireArtifactTypeToken, requireId, requireNonEmpty } from "./ids.js";
+import { newId, requireArtifactTypeToken, requireCapabilityKey, requireId, requireNonEmpty } from "./ids.js";
 import {
   accounts,
   ARTIFACT_RELATION_KINDS,
@@ -22,6 +23,8 @@ import {
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
+  projectCapabilities,
+  projectProfiles,
   projects,
   type AccountRow,
   type ArtifactRelationKind,
@@ -30,6 +33,8 @@ import {
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,
+  type ProjectCapabilityRow,
+  type ProjectProfileRow,
   type ProjectRow,
 } from "./schema.js";
 
@@ -506,5 +511,197 @@ export class ArtifactRepository {
       .select()
       .from(artifactRelations)
       .where(eq(artifactRelations.projectId, id));
+  }
+}
+/**
+ * M-015 ProjectProfile repository.
+ */
+export class ProjectProfileRepository {
+  public constructor(private readonly db: ControlPlaneDatabase) {}
+
+  public async getProfileByProjectId(projectId: string): Promise<ProjectProfileRow | undefined> {
+    const id = requireId("projectId", projectId);
+    const rows = await this.db
+      .select()
+      .from(projectProfiles)
+      .where(eq(projectProfiles.projectId, id));
+    return rows[0];
+  }
+
+  public async upsertProfile(input: {
+    projectId: string;
+    expectedVersion: number;
+    description: string | null;
+    coverArtifactId: string | null;
+  }): Promise<ProjectProfileRow> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const projId = requireId("projectId", input.projectId);
+    const updatedAt = now();
+
+    const existing = await this.getProfileByProjectId(projId);
+
+    if (existing) {
+      if (existing.version !== input.expectedVersion) {
+        throw new StaleVersionError(
+          "profile version conflict: expected " + input.expectedVersion + ", current " + existing.version,
+        );
+      }
+
+      const rows = await this.db
+        .update(projectProfiles)
+        .set({
+          description: input.description ?? null,
+          coverArtifactId: input.coverArtifactId ?? null,
+          version: existing.version + 1,
+          updatedAt,
+        })
+        .where(and(eq(projectProfiles.projectId, projId), eq(projectProfiles.version, input.expectedVersion)))
+        .returning();
+
+      const row = rows[0];
+      if (!row) {
+        throw new StaleVersionError("profile version conflict: concurrent update");
+      }
+      return row;
+    }
+
+    if (input.expectedVersion !== 0) {
+      throw new StaleVersionError(
+        "profile version conflict: expected " + input.expectedVersion + ", no profile exists (version 0)",
+      );
+    }
+
+    const createdAt = now();
+    const row = {
+      projectId: projId,
+      description: input.description ?? null,
+      coverArtifactId: input.coverArtifactId ?? null,
+      version: 1,
+      capabilityProfileVersion: 0,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    try {
+      const inserted = await this.db.insert(projectProfiles).values(row).returning();
+      const created = inserted[0];
+      if (!created) {
+        throw new PersistenceInputError("profile insert returned no row");
+      }
+      return created;
+    } catch (error) {
+      mapDatabaseError(error);
+    }
+  }
+}
+
+/**
+ * M-015 ProjectCapabilityProfile repository.
+ *
+ * The version is stored durably in project_profiles.capability_profile_version.
+ * Uses SELECT FOR UPDATE for genuine concurrent CAS semantics.
+ */
+export class ProjectCapabilityRepository {
+  public constructor(private readonly db: ControlPlaneDatabase) {}
+
+  public async getCapabilitiesByProjectId(projectId: string): Promise<ProjectCapabilityRow[]> {
+    const id = requireId("projectId", projectId);
+    return this.db
+      .select()
+      .from(projectCapabilities)
+      .where(eq(projectCapabilities.projectId, id))
+      .orderBy(projectCapabilities.capabilityKey);
+  }
+
+  public async getVersionByProjectId(projectId: string): Promise<number> {
+    const id = requireId("projectId", projectId);
+    const rows = await this.db
+      .select({ version: projectProfiles.capabilityProfileVersion })
+      .from(projectProfiles)
+      .where(eq(projectProfiles.projectId, id));
+    const row = rows[0];
+    return row?.version ?? 0;
+  }
+
+  public async replaceCapabilities(input: {
+    projectId: string;
+    expectedVersion: number;
+    capabilities: readonly string[];
+  }): Promise<ProjectCapabilityRow[]> {
+    rejectProviderAuthority(input as unknown as Record<string, unknown>);
+    const projId = requireId("projectId", input.projectId);
+
+    for (const key of input.capabilities) {
+      requireCapabilityKey(key);
+    }
+
+    return this.db.transaction(async (tx) => {
+      // Transaction-safe creation/locking pattern:
+      // 1. INSERT ON CONFLICT DO NOTHING — never aborts the transaction
+      // 2. SELECT ... FOR UPDATE — acquires row lock, returns profile
+      // 3. Validate capability_profile_version against expectedVersion
+
+      const n2 = now();
+      await tx.execute(
+        sql`INSERT INTO project_profiles (project_id, version, capability_profile_version, created_at, updated_at)
+            VALUES (${projId}, 0, 0, ${n2}, ${n2})
+            ON CONFLICT (project_id) DO NOTHING`
+      );
+
+      const lockResult = await tx.execute(
+        sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
+            FROM project_profiles
+            WHERE project_id = ${projId}
+            FOR UPDATE`
+      );
+
+      type LockRow = {
+        project_id: string;
+        description: string | null;
+        cover_artifact_id: string | null;
+        version: number;
+        capability_profile_version: number;
+      };
+      const rows = (lockResult.rows as LockRow[] | undefined) ?? [];
+      const profile = rows[0];
+      if (!profile) {
+        throw new PersistenceError("project_profiles row not found after insert/update");
+      }
+
+      if (profile.capability_profile_version !== input.expectedVersion) {
+        throw new StaleVersionError(
+          "capability version conflict: expected " + input.expectedVersion + ", current " + profile.capability_profile_version,
+        );
+      }
+
+      const newVersion = profile.capability_profile_version + 1;
+
+      await tx.delete(projectCapabilities).where(eq(projectCapabilities.projectId, projId));
+
+      // Update ONLY capabilityProfileVersion — NOT profile.version or updatedAt
+      // (those belong to the independent ProjectProfile optimistic-concurrency domain)
+      await tx.update(projectProfiles)
+        .set({ capabilityProfileVersion: newVersion })
+        .where(eq(projectProfiles.projectId, projId));
+
+      if (input.capabilities.length === 0) {
+        return [];
+      }
+
+      const uniqueSorted = [...new Set(input.capabilities)].sort();
+      const resultRows = await tx.insert(projectCapabilities)
+        .values(
+          uniqueSorted.map((key) => ({
+            id: newId(),
+            projectId: projId,
+            capabilityKey: key,
+            version: newVersion,
+            createdAt: n2,
+          })),
+        )
+        .returning();
+
+      return resultRows.sort((a, b) => a.capabilityKey.localeCompare(b.capabilityKey));
+    });
   }
 }

@@ -63,3 +63,24 @@ export class ProjectImportError extends ProjectError {
 export class ProjectCloneError extends ProjectError {
   override readonly name = "ProjectCloneError";
 }
+
+/**
+ * M-015 Project Profile error.
+ */
+export class ProjectProfileError extends ProjectError {
+  override readonly name = "ProjectProfileError";
+}
+
+/**
+ * M-015 Project Capability Profile error.
+ */
+export class ProjectCapabilityProfileError extends ProjectError {
+  override readonly name = "ProjectCapabilityProfileError";
+}
+
+/**
+ * M-015 Project Overview error.
+ */
+export class ProjectOverviewError extends ProjectError {
+  override readonly name = "ProjectOverviewError";
+}

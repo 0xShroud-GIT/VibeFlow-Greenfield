@@ -612,13 +612,15 @@ class M014CapabilityLedgerTests(unittest.TestCase):
             "VF-PRJ-010",
             "VF-PRJ-011",
             "VF-PRJ-012",
-            "VF-PRJ-014",
-            "VF-PRJ-016",
             "VF-PRJ-017",
         ):
             self.assertEqual(
                 rows[vf_id], "NOT_STARTED", f"{vf_id} must not advance in M-014"
             )
+        # VF-PRJ-014 and VF-PRJ-016 may now be advanced by M-015; verify they
+        # are not NOT_STARTED (i.e., no longer M-014's restriction).
+        self.assertIn(rows.get("VF-PRJ-014"), ("IMPLEMENTED",), "VF-PRJ-014 should be IMPLEMENTED by M-015")
+        self.assertIn(rows.get("VF-PRJ-016"), ("IN_PROGRESS",), "VF-PRJ-016 should be IN_PROGRESS by M-015")
 
     def test_ledger_csv_and_yaml_agree(self) -> None:
         yaml_text = CAPABILITY_YAML.read_text(encoding="utf-8")

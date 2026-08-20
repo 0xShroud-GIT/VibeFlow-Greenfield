@@ -5,6 +5,45 @@ import { PersistenceInputError } from "./errors.js";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * M-015 capability key grammar.
+ *
+ * Open, provider-neutral, namespaced token grammar suitable for future
+ * extension. Two or more lower-case segments separated by '/', each segment
+ * starts with a letter and may contain letters and digits.
+ *
+ * Grammar: ^[a-z][a-z0-9]*(/[a-z][a-z0-9]*)+$
+ *
+ * Examples: runtime/node, artifact/web, tooling/typescript
+ * Rejected: control characters, whitespace, URLs, provider credentials,
+ * provider resource IDs, raw JSON blobs, single-segment tokens.
+ */
+export const CAPABILITY_KEY_MAX_LENGTH = 200;
+export const CAPABILITY_KEY_RE =
+  /^[a-z][a-z0-9]*(?:\/[a-z][a-z0-9]*)+$/;
+
+export function isCapabilityKeyToken(value: string): boolean {
+  return CAPABILITY_KEY_RE.test(value);
+}
+
+export function requireCapabilityKey(value: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new PersistenceInputError("capability key is required");
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > CAPABILITY_KEY_MAX_LENGTH) {
+    throw new PersistenceInputError(
+      `capability key must be ${CAPABILITY_KEY_MAX_LENGTH} characters or fewer`,
+    );
+  }
+  if (!isCapabilityKeyToken(trimmed)) {
+    throw new PersistenceInputError(
+      "capability key must be two or more lower-case '/' separated segments (e.g. 'runtime/node')",
+    );
+  }
+  return trimmed;
+}
+
 export function newId(): string {
   return randomUUID();
 }

@@ -31,3 +31,29 @@ describe("M-008 committed SQL migrations", () => {
     expect(sql).not.toMatch(/session/i);
   });
 });
+
+describe("M-015 committed SQL migrations", () => {
+  it("includes the Project lifecycle migration", async () => {
+    const files = await listCommittedSqlMigrations(defaultMigrationsDirectory());
+    expect(files).toContain("0007_project_lifecycle.sql");
+  });
+
+  it("creates project_profiles and project_capabilities with proper constraints", async () => {
+    const sql = await readFile(
+      path.join(defaultMigrationsDirectory(), "0007_project_lifecycle.sql"),
+      "utf8",
+    );
+    expect(sql).toContain("CREATE TABLE project_profiles");
+    expect(sql).toContain("CREATE TABLE project_capabilities");
+    expect(sql).toContain("project_profiles_cover_fk");
+    expect(sql).toContain("project_capabilities_project_key_uidx");
+    expect(sql).toContain("UNIQUE (project_id, capability_key)");
+    expect(sql).not.toMatch(/provider_id/i);
+    expect(sql).not.toMatch(/external_id/i);
+    // The migration comment documents the absence of sharing columns; check
+// that no actual column definition includes these terms.
+expect(sql).not.toMatch(/\\bshared\\b/i);
+    expect(sql).not.toMatch(/\\bpublic\\s+boolean\\b/i);
+    expect(sql).not.toMatch(/\\binvitation\\b/i);
+  });
+});
