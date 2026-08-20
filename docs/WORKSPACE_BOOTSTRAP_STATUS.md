@@ -1,8 +1,8 @@
 # Workspace Bootstrap Status
 
 - Repository seed: READY
-- Product implementation: READY (M-014 imports/templates lifecycle)
-- Active mission: M-014 — Implement imports/templates lifecycle (READY)
+- Product implementation: IN_PROGRESS (M-014 imports/templates lifecycle)
+- Active mission: M-014 — Implement imports/templates lifecycle (IN_PROGRESS, handed off at REVIEW)
 - Accepted missions: M-001..M-013 (DONE)
 - Locked missions: M-015..M-151 (deferred non-J1 missions remain required for V1)
 - Master Build System: `master-build-system/`
@@ -31,3 +31,15 @@ IMPLEMENTED/VERIFIED/COMPLETE. A product-container scan remains N/A because no
 product image exists. The active `VibeFlow main protection` repository ruleset
 protects `main` with pull-request, review-thread, update-branch, deletion,
 force-push, and established required-status-check enforcement.
+
+M-014 implements the project import/template lifecycle: `VF-PRJ-004 Project
+Archive Import` (ZIP/tar intake behind a structural archive scanner, with a
+deterministic server-derived manifest) and `VF-PRJ-007 Project Clone Plan`
+(template instantiation as a new canonical Project cloned from an authorized
+source Project). Both advance to `IMPLEMENTED` only; neither is claimed
+VERIFIED or COMPLETE, and no other PRJ capability advances. M-014 adds no
+canonical `Import`/`Template`/`Clone` resource, no new authorization resource
+type, no new event family, and no new public state machine — the lifecycle
+lives in project-domain internal records and reuses canonical `project.created`
+semantics. Provider/Git/workspace scope (VF-PRJ-008..012, RepositoryBinding,
+WorkspaceBinding) remains deferred and unimplemented.

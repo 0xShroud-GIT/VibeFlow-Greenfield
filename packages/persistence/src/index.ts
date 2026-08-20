@@ -2,6 +2,7 @@ export { createControlPlanePool, type ControlPlaneDatabase, type ControlPlanePoo
 export {
   CrossProjectArtifactRelationError,
   DuplicateArtifactRelationError,
+  DuplicateIdempotentCommandError,
   DuplicateMembershipError,
   ForeignKeyViolationError,
   NotFoundError,
@@ -23,7 +24,19 @@ export {
 } from "./ids.js";
 export { ArtifactRepository, ProjectRepository, TenantRepository } from "./repositories.js";
 export {
+  ProjectLifecycleRepository,
+  type ApplyArchiveImportInput,
+  type ApplyArchiveImportResult,
+  type ApplyClonePlanResult,
+  type ApplyCloneplanInput,
+  type ArchiveManifestEntryInput,
+  type CloneSourceGraph,
+} from "./lifecycle-repository.js";
+export {
   accounts,
+  ARCHIVE_ENTRY_KINDS,
+  ARCHIVE_FORMATS,
+  ARCHIVE_IMPORT_SOURCE_KINDS,
   ARTIFACT_RELATION_KINDS,
   artifactRelations,
   artifacts,
@@ -33,9 +46,17 @@ export {
   ORGANIZATION_KINDS,
   organizationMemberships,
   organizations,
+  PROJECT_CLONE_PLAN_KINDS,
+  projectArchiveImportEntries,
+  projectArchiveImports,
+  projectCloneArtifactMap,
+  projectClonePlans,
   projects,
   TENANT_TABLES,
   type AccountRow,
+  type ArchiveEntryKind,
+  type ArchiveFormat,
+  type ArchiveImportSourceKind,
   type ArtifactRelationKind,
   type ArtifactRelationRow,
   type ArtifactRow,
@@ -44,5 +65,10 @@ export {
   type OrganizationKind,
   type OrganizationMembershipRow,
   type OrganizationRow,
+  type ProjectArchiveImportEntryRow,
+  type ProjectArchiveImportRow,
+  type ProjectCloneArtifactMapRow,
+  type ProjectClonePlanKind,
+  type ProjectClonePlanRow,
   type ProjectRow,
 } from "./schema.js";

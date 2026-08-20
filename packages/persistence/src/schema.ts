@@ -1,6 +1,8 @@
 import {
+  bigint,
   boolean,
   foreignKey,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -109,6 +111,33 @@ export const projects = pgTable("projects", {
 });
 
 /**
+ * M-014 archive intake vocabulary.
+ *
+ * Exactly the formats the capability ledger / evidence map prove for
+ * VF-PRJ-004 (R2V-083): "ZIP/tar upload + scanner". The set is deliberately
+ * not broadened for completeness.
+ */
+export const ARCHIVE_FORMATS = ["zip", "tar"] as const;
+export type ArchiveFormat = (typeof ARCHIVE_FORMATS)[number];
+
+/**
+ * M-014 owns exactly one import source kind. Provider-specific adapters
+ * (VF-PRJ-008 Bitbucket, VF-PRJ-009 builder migration, VF-PRJ-010 Figma,
+ * VF-PRJ-011 Vercel, VF-PRJ-012 GitHub) are deferred and must not widen this
+ * without their own mission.
+ */
+export const ARCHIVE_IMPORT_SOURCE_KINDS = ["archive"] as const;
+export type ArchiveImportSourceKind = (typeof ARCHIVE_IMPORT_SOURCE_KINDS)[number];
+
+/** Accepted manifest entry kinds. Every other entry type is rejected outright. */
+export const ARCHIVE_ENTRY_KINDS = ["file", "directory"] as const;
+export type ArchiveEntryKind = (typeof ARCHIVE_ENTRY_KINDS)[number];
+
+/** M-014 defines exactly one internal plan kind; no public state machine. */
+export const PROJECT_CLONE_PLAN_KINDS = ["project_clone"] as const;
+export type ProjectClonePlanKind = (typeof PROJECT_CLONE_PLAN_KINDS)[number];
+
+/**
  * Canonical relation kinds between Artifacts. These are the exact semantics
  * named by the canonical resource model: lineage, variant, derived-from,
  * contains. M-013 does not invent additional kinds.
@@ -187,6 +216,172 @@ export const artifactRelations = pgTable(
   }),
 );
 
+/**
+ * M-014 PROJECT-DOMAIN INTERNAL archive-import record.
+ *
+ * This is NOT a canonical resource. `CANONICAL_RESOURCE_MODEL.yaml` defines no
+ * top-level Import/Template/ProjectImport resource and M-014 does not add one.
+ * The row exists only to make archive-import provenance and command
+ * idempotency durable. Canonical authority remains
+ * Account -> Organization membership -> Project -> Artifact/ArtifactRelation.
+ *
+ * Archive bytes are never stored here. Only server-derived normalized metadata
+ * and cryptographic fingerprints are. `stagedBlobRef` is an opaque reference
+ * into a private content-addressed staging namespace; it is explicitly NOT a
+ * canonical ObjectStorageBinding and advances no storage/provider capability.
+ */
+export const projectArchiveImports = pgTable(
+  "project_archive_imports",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    projectId: uuid("project_id").notNull(),
+    actorAccountId: uuid("actor_account_id")
+      .notNull()
+      .references(() => accounts.id),
+    sourceKind: text("source_kind").$type<ArchiveImportSourceKind>().notNull(),
+    archiveFormat: text("archive_format").$type<ArchiveFormat>().notNull(),
+    archiveSha256: text("archive_sha256").notNull(),
+    archiveByteSize: bigint("archive_byte_size", { mode: "number" }).notNull(),
+    manifestSha256: text("manifest_sha256").notNull(),
+    manifestEntryCount: integer("manifest_entry_count").notNull(),
+    manifestTotalDeclaredSize: bigint("manifest_total_declared_size", {
+      mode: "number",
+    }).notNull(),
+    stagedBlobRef: text("staged_blob_ref"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    orgProjectFk: foreignKey({
+      name: "project_archive_imports_org_project_fk",
+      columns: [table.organizationId, table.projectId],
+      foreignColumns: [projects.organizationId, projects.id],
+    }),
+    idempotencyUnique: unique("project_archive_imports_idempotency_uidx").on(
+      table.organizationId,
+      table.actorAccountId,
+      table.idempotencyKey,
+    ),
+    projectUnique: unique("project_archive_imports_project_uidx").on(table.projectId),
+  }),
+);
+
+/**
+ * One normalized, already-accepted manifest entry. The structural scanner
+ * rejects the whole archive before anything reaches this table, so every row
+ * here has a normalized relative traversal-free path.
+ */
+export const projectArchiveImportEntries = pgTable(
+  "project_archive_import_entries",
+  {
+    id: uuid("id").primaryKey(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => projectArchiveImports.id, { onDelete: "cascade" }),
+    entryIndex: integer("entry_index").notNull(),
+    normalizedPath: text("normalized_path").notNull(),
+    entryKind: text("entry_kind").$type<ArchiveEntryKind>().notNull(),
+    declaredSize: bigint("declared_size", { mode: "number" }).notNull(),
+    compressedSize: bigint("compressed_size", { mode: "number" }).notNull(),
+    contentSha256: text("content_sha256"),
+    crc32: text("crc32"),
+  },
+  (table) => ({
+    indexUnique: unique("project_archive_import_entries_index_uidx").on(
+      table.importId,
+      table.entryIndex,
+    ),
+    pathUnique: unique("project_archive_import_entries_path_uidx").on(
+      table.importId,
+      table.normalizedPath,
+    ),
+  }),
+);
+
+/**
+ * M-014 PROJECT-DOMAIN INTERNAL Project Clone Plan record (VF-PRJ-007 /
+ * R2V-086 fork/remix/template). Not a canonical `Template` resource, catalog,
+ * or marketplace: a template operation in M-014 is exactly "create a new
+ * canonical Project from an authorized source Project".
+ *
+ * Both endpoints are pinned to the plan's single canonical Organization by
+ * composite foreign keys, so the M-014 same-tenant template policy holds at
+ * the database level even if service checks are bypassed. Cross-Organization
+ * / public template semantics remain deferred.
+ */
+export const projectClonePlans = pgTable(
+  "project_clone_plans",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    sourceProjectId: uuid("source_project_id").notNull(),
+    targetProjectId: uuid("target_project_id").notNull(),
+    actorAccountId: uuid("actor_account_id")
+      .notNull()
+      .references(() => accounts.id),
+    planKind: text("plan_kind").$type<ProjectClonePlanKind>().notNull(),
+    artifactCount: integer("artifact_count").notNull(),
+    relationCount: integer("relation_count").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    orgSourceFk: foreignKey({
+      name: "project_clone_plans_org_source_fk",
+      columns: [table.organizationId, table.sourceProjectId],
+      foreignColumns: [projects.organizationId, projects.id],
+    }),
+    orgTargetFk: foreignKey({
+      name: "project_clone_plans_org_target_fk",
+      columns: [table.organizationId, table.targetProjectId],
+      foreignColumns: [projects.organizationId, projects.id],
+    }),
+    idempotencyUnique: unique("project_clone_plans_idempotency_uidx").on(
+      table.organizationId,
+      table.actorAccountId,
+      table.idempotencyKey,
+    ),
+    targetUnique: unique("project_clone_plans_target_uidx").on(table.targetProjectId),
+  }),
+);
+
+/**
+ * Clone provenance: the source -> target Artifact id remapping.
+ *
+ * Deliberately NOT an ArtifactRelation. ArtifactRelation is M-013 same-Project
+ * canonical graph state and is never cross-Project clone provenance.
+ */
+export const projectCloneArtifactMap = pgTable(
+  "project_clone_artifact_map",
+  {
+    id: uuid("id").primaryKey(),
+    clonePlanId: uuid("clone_plan_id")
+      .notNull()
+      .references(() => projectClonePlans.id, { onDelete: "cascade" }),
+    sourceArtifactId: uuid("source_artifact_id")
+      .notNull()
+      .references(() => artifacts.id),
+    targetArtifactId: uuid("target_artifact_id")
+      .notNull()
+      .references(() => artifacts.id),
+  },
+  (table) => ({
+    sourceUnique: unique("project_clone_artifact_map_source_uidx").on(
+      table.clonePlanId,
+      table.sourceArtifactId,
+    ),
+    targetUnique: unique("project_clone_artifact_map_target_uidx").on(
+      table.clonePlanId,
+      table.targetArtifactId,
+    ),
+  }),
+);
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationMembershipRow = typeof organizationMemberships.$inferSelect;
@@ -195,6 +390,10 @@ export type AuditEventRow = typeof auditEvents.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
 export type ArtifactRow = typeof artifacts.$inferSelect;
 export type ArtifactRelationRow = typeof artifactRelations.$inferSelect;
+export type ProjectArchiveImportRow = typeof projectArchiveImports.$inferSelect;
+export type ProjectArchiveImportEntryRow = typeof projectArchiveImportEntries.$inferSelect;
+export type ProjectClonePlanRow = typeof projectClonePlans.$inferSelect;
+export type ProjectCloneArtifactMapRow = typeof projectCloneArtifactMap.$inferSelect;
 
 /** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
@@ -203,7 +402,7 @@ export const TENANT_TABLES = {
   organizationMemberships,
 } as const;
 
-/** All Drizzle tables queried by VibeFlow control-plane modules through M-013. */
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-014. */
 export const CONTROL_PLANE_TABLES = {
   ...TENANT_TABLES,
   identityUsers,
@@ -211,4 +410,8 @@ export const CONTROL_PLANE_TABLES = {
   projects,
   artifacts,
   artifactRelations,
+  projectArchiveImports,
+  projectArchiveImportEntries,
+  projectClonePlans,
+  projectCloneArtifactMap,
 } as const;

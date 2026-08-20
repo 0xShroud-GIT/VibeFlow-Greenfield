@@ -45,3 +45,21 @@ export class ArtifactAuthorizationError extends ArtifactError {
 export class ArtifactRelationError extends ArtifactError {
   override readonly name = "ArtifactRelationError";
 }
+
+/**
+ * M-014 archive-import lifecycle failure that is not an input, authorization,
+ * or archive-structure rejection (e.g. an idempotent-command conflict or an
+ * opaque not-found/denied outcome that must not disclose existence).
+ */
+export class ProjectImportError extends ProjectError {
+  override readonly name = "ProjectImportError";
+}
+
+/**
+ * M-014 Project Clone Plan lifecycle failure, including the same-Organization
+ * template policy denial. Cross-Organization/public template semantics remain
+ * deferred; attempting them is an error, not a silent redirect.
+ */
+export class ProjectCloneError extends ProjectError {
+  override readonly name = "ProjectCloneError";
+}
