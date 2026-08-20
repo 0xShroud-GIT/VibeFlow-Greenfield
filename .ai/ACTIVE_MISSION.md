@@ -1,28 +1,33 @@
 # Active Mission
 
-**Mission:** M-013 — Implement Artifact/ArtifactRelation
+**Mission:** M-014 — Implement imports/templates lifecycle
 
-**Status:** REVIEW
+**Status:** READY
 
 **Phase:** 3 — Project Authority
 
 Authoritative mission row:
-`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-013)
+`master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml` (M-014)
 
-M-001 through M-012 are accepted and `DONE`. M-013 is the sole active mission
-in `REVIEW`. M-014 and all later missions remain `LOCKED` and remain
-required for V1.
+M-001 through M-013 are accepted and `DONE`. M-014 is the sole active mission,
+in `READY` and next to be picked up. M-015 and all later missions remain
+`LOCKED` and remain required for V1.
 
-## M-013 scope
+## M-014 scope
 
-Implement the authoritative Artifact and ArtifactRelation resource layer within
-Project Authority. Artifact authority must remain rooted in canonical Project
-ownership and trusted server-side VibeFlow state, with tenant/resource
-authorization and durable audit preserving the accepted M-010 through M-012
-fail-closed boundaries. Relationships must be established from canonical
-server-side resources rather than client/provider ownership claims.
+Establish the authoritative Project import/template lifecycle on top of accepted
+Project and Artifact authority. Preserve canonical Organization/Project
+ownership, tenant authorization, durable audit and provider-neutral trust
+boundaries. Provider-specific repository/design/deployment import adapters remain
+later capabilities and must not become Project authority.
 
-Do not implement imports/templates lifecycle (M-014), full Project lifecycle E2E
-(M-015), provider bindings (M-016+), workspace/repository provisioning, agent or
-model integrations, deployment, task/execution, mobile/UI, or other later
-mission scope.
+Explicitly out of scope:
+
+- M-015 full Project lifecycle E2E
+- M-016+ provider bindings
+- GitHub/Bitbucket/Vercel/Figma provider implementations
+- workspace provisioning
+- agent/model integrations
+- execution/task/deployment
+- UI/mobile/Canvas
+- later mission scope
