@@ -41,6 +41,18 @@ export class AuditService {
         [resourceId],
       );
       organizationId = projects[0]?.organization_id ?? null;
+    } else if (input.resource.type === "artifact") {
+      const artifacts = await this.query<{ organization_id: string }>(
+        "SELECT p.organization_id FROM artifacts a JOIN projects p ON p.id = a.project_id WHERE a.id = $1",
+        [resourceId],
+      );
+      organizationId = artifacts[0]?.organization_id ?? null;
+    } else if (input.resource.type === "artifact_relation") {
+      const relations = await this.query<{ organization_id: string }>(
+        "SELECT p.organization_id FROM artifact_relations r JOIN projects p ON p.id = r.project_id WHERE r.id = $1",
+        [resourceId],
+      );
+      organizationId = relations[0]?.organization_id ?? null;
     }
     await this.insert({
       actorAccountId: actor.id,

@@ -14,6 +14,8 @@
  */
 
 import type {
+  ArtifactRelationRow,
+  ArtifactRow,
   OrganizationMembershipRow,
   OrganizationRow,
   ProjectRow,
@@ -28,8 +30,8 @@ import type {
 
 /**
  * Narrow canonical-persistence authority the boundary depends on.
- * `TenantRepository` + `ProjectRepository` satisfy it structurally, and tests
- * may provide a fake.
+ * `TenantRepository` + `ProjectRepository` + `ArtifactRepository` satisfy it
+ * structurally, and tests may provide a fake.
  */
 export interface MembershipAuthority {
   getOrganizationById(organizationId: string): Promise<OrganizationRow>;
@@ -38,6 +40,8 @@ export interface MembershipAuthority {
     accountId: string;
   }): Promise<OrganizationMembershipRow>;
   getProjectById(projectId: string): Promise<ProjectRow>;
+  getArtifactById(artifactId: string): Promise<ArtifactRow>;
+  getArtifactRelationById(relationId: string): Promise<ArtifactRelationRow>;
 }
 
 /** Narrow trusted integration implemented by @vibeflow/audit AuditService. */
@@ -76,6 +80,12 @@ export class TenantAuthorizationService {
         break;
       case "project":
         decision = await this.authorizeProjectResource(request);
+        break;
+      case "artifact":
+        decision = await this.authorizeArtifactResource(request);
+        break;
+      case "artifact_relation":
+        decision = await this.authorizeArtifactRelationResource(request);
         break;
       default:
         // Defensive: validateRequest already rejects unknown types.
@@ -168,6 +178,93 @@ export class TenantAuthorizationService {
 
     // Membership is resolved from canonical persistence on every decision.
     // Revoked/stale membership fails closed.
+    try {
+      await this.tenants.getMembership({
+        organizationId: organization.id,
+        accountId: request.accountId,
+      });
+    } catch {
+      return deny("no_membership");
+    }
+
+    return ALLOW;
+  }
+
+  /**
+   * Artifact authority: canonical Artifact ownership is resolved from
+   * persistence through Artifact -> Project -> Organization. Membership is
+   * proven against that canonical Organization. A forged, swapped, or random
+   * UUID that is not a real Artifact fails closed as unknown.
+   */
+  private async authorizeArtifactResource(
+    request: AuthorizationRequest,
+  ): Promise<AuthorizationDecision> {
+    const artifactId = request.resource.id;
+
+    let artifact: ArtifactRow;
+    try {
+      artifact = await this.tenants.getArtifactById(artifactId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    let project: ProjectRow;
+    try {
+      project = await this.tenants.getProjectById(artifact.projectId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    let organization: OrganizationRow;
+    try {
+      organization = await this.tenants.getOrganizationById(project.organizationId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    try {
+      await this.tenants.getMembership({
+        organizationId: organization.id,
+        accountId: request.accountId,
+      });
+    } catch {
+      return deny("no_membership");
+    }
+
+    return ALLOW;
+  }
+
+  /**
+   * ArtifactRelation authority: the relation's canonical Project is resolved
+   * from persistence, then Project -> Organization -> membership. A forged,
+   * swapped, or random UUID fails closed as unknown.
+   */
+  private async authorizeArtifactRelationResource(
+    request: AuthorizationRequest,
+  ): Promise<AuthorizationDecision> {
+    const relationId = request.resource.id;
+
+    let relation: ArtifactRelationRow;
+    try {
+      relation = await this.tenants.getArtifactRelationById(relationId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    let project: ProjectRow;
+    try {
+      project = await this.tenants.getProjectById(relation.projectId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
+    let organization: OrganizationRow;
+    try {
+      organization = await this.tenants.getOrganizationById(project.organizationId);
+    } catch {
+      return deny("unknown_resource");
+    }
+
     try {
       await this.tenants.getMembership({
         organizationId: organization.id,

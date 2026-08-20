@@ -1,0 +1,220 @@
+{
+  "schema_version": "1.0",
+  "mission": "M-013",
+  "title": "Implement authoritative Artifact / ArtifactRelation resource layer",
+  "mission_status": "REVIEW",
+  "phase": "3 - Project Authority",
+  "branch": "arena/01a01c7d-vibeflow-greenfield",
+  "starting_main_sha": "6b54232ce6d105693fde9c72cd34fdde96f0f88f",
+  "m013_start_commit": "0328541",
+  "implementation_commits": [
+    "585f52f19ede1bc2ca55d093db99d9ac3e0334f2"
+  ],
+  "review_fixes": {
+    "previous_reviewed_sha": "10cf7327ec3e11331078ad554a2fc3ee2c20774d",
+    "fix_commits": [
+      "f1aa60ca2efd9f600eb013536896a07524c473bb"
+    ],
+    "changed_file_scope": [
+      "packages/persistence/src/ids.ts",
+      "packages/persistence/src/index.ts",
+      "packages/persistence/src/repositories.ts",
+      "packages/persistence/src/artifact.live.test.ts",
+      "packages/persistence/src/artifact-type.test.ts",
+      "packages/project/src/artifact-service.ts",
+      "packages/project/src/artifact.live.test.ts",
+      "packages/project/src/index.ts",
+      "packages/project/src/exports.test.ts",
+      "tests/contract/test_m013_artifact.py"
+    ],
+    "authority_ordering_fix": "ArtifactService.createArtifactRelation now authorizes read access to each endpoint by its opaque id BEFORE loading any canonical row, so a caller cannot learn endpoint/project existence or a same-project relationship through a relation attempt. The canonical rows are loaded only after both endpoint authorizations succeed; project ids are then derived from persistence, same-Project is required, the relation Project is derived from the canonical endpoints (never a client/provider claim), relation creation is authorized against that canonical Project scope, and only then is the relation persisted (with the composite-FK database backstop intact).",
+    "artifact_type_grammar": "Opaque typed-output token, syntax-validated only (open-ended; no closed taxonomy; VF-PRJ-017 deferred). Grammar after trimming outer whitespace: 1..200 chars; first and last chars ASCII [A-Za-z0-9]; interior chars [A-Za-z0-9] plus separators '.', '_', '-', '/', ':'; whitespace, control characters, leading/trailing separators and other punctuation rejected.",
+    "package_root_exports": "packages/project/src/index.ts exports ArtifactService, the Artifact error hierarchy (ArtifactError, ArtifactInputError, ArtifactNotFoundError, ArtifactAuthorizationError, ArtifactRelationError), the Artifact request/result input types, and the canonical relation vocabulary (ARTIFACT_RELATION_KINDS, ArtifactRelationKind). Persistence internals (ArtifactRepository, ControlPlaneDatabase) are not re-exported.",
+    "regression_coverage": [
+      "packages/project/src/artifact.live.test.ts: foreign-tenant probe does not disclose endpoint/project existence (authorization denial, not not-found or relation error); unknown subject/object endpoints; revoked membership on relation creation; cross-tenant relation denied at endpoint authorization; cross-project (same-org) relation denied",
+      "packages/persistence/src/artifact.live.test.ts: composite-FK cross-Project backstop retained; malformed type tokens rejected",
+      "packages/persistence/src/artifact-type.test.ts: positive/negative opaque-token grammar unit tests",
+      "packages/project/src/exports.test.ts: package-root export surface regression test"
+    ]
+  },
+  "final_head_policy": "The exact final pushed PR head and exact-head GitHub Actions runs are recorded in the PR/final handoff; later pushes invalidate earlier CI evidence. This file does not contain its own SHA to avoid self-referential evidence.",
+  "authority_chain": "Account -> Organization membership -> Project -> Artifact -> ArtifactRelation",
+  "changed_file_scope": [
+    ".ai/ACTIVE_MISSION.md",
+    ".gitignore",
+    "README.md",
+    "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+    "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv",
+    "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml",
+    "master-build-system/09_CONTRACTS/CAPABILITY_CONTRACT_TRACE.csv",
+    "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml",
+    "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv",
+    "master-build-system/SHA256SUMS.txt",
+    "migrations/0005_artifact_authority.sql",
+    "migrations/README.md",
+    "package.json",
+    "packages/audit/src/artifact-scope.live.test.ts",
+    "packages/audit/src/service.ts",
+    "packages/audit/tsconfig.json",
+    "packages/authorization/src/artifact.live.test.ts",
+    "packages/authorization/src/decision.test.ts",
+    "packages/authorization/src/service.ts",
+    "packages/authorization/src/types.ts",
+    "packages/persistence/src/artifact.live.test.ts",
+    "packages/persistence/src/artifact-type.test.ts",
+    "packages/persistence/src/errors.ts",
+    "packages/persistence/src/ids.ts",
+    "packages/persistence/src/index.ts",
+    "packages/persistence/src/repositories.ts",
+    "packages/persistence/src/schema.ts",
+    "packages/project/src/artifact-service.ts",
+    "packages/project/src/artifact.live.test.ts",
+    "packages/project/src/errors.ts",
+    "packages/project/src/exports.test.ts",
+    "packages/project/src/index.ts",
+    "scripts/run-m013-artifact-integration.py",
+    "tests/contract/test_m013_artifact.py"
+  ],
+  "artifact_authority_model": {
+    "identity": "Server-generated UUID via newId() / randomUUID, never client/provider supplied",
+    "ownership": "Canonical projects.id FK; tenant resolved Artifact -> Project -> Organization -> membership on every decision",
+    "type_rule": "Opaque syntax-validated typed-output token: 1..200 chars after trimming, first/last chars ASCII [A-Za-z0-9], interior chars [A-Za-z0-9] plus '.', '_', '-', '/', ':'; whitespace, control chars, leading/trailing separators and other punctuation rejected. NOT a closed canonical enum and NOT a normalized registry (VF-PRJ-017 remains deferred).",
+    "timestamps": "Server-controlled created_at/updated_at",
+    "integrity": "FK to projects, CHECK non-empty type, provider authority keys rejected",
+    "indexes": ["artifacts_project_id_idx", "artifacts_project_id_created_at_idx"]
+  },
+  "artifact_relation_authority_model": {
+    "shape": "directed subject_artifact <relation_kind> object_artifact",
+    "relation_kinds": ["lineage", "variant", "derived-from", "contains"],
+    "project_ownership": "Derived from canonical endpoint Artifacts; endpoints must resolve to the same Project (cross-Project rejected even within one Organization)",
+    "identity": "Server-generated UUID; server-controlled created_at",
+    "integrity": [
+      "artifacts exposes unique (project_id, id)",
+      "artifact_relations(project_id, subject_artifact_id) references artifacts(project_id, id)",
+      "artifact_relations(project_id, object_artifact_id) references artifacts(project_id, id)",
+      "subject != object self-edge CHECK",
+      "unique (project_id, subject, relation_kind, object) duplicate-edge rejection",
+      "relation_kind CHECK restricted to the four canonical kinds",
+      "indexes for project/subject/object graph lookup"
+    ],
+    "db_backstop": "Composite foreign keys make a cross-Project edge impossible at the database level even if service checks are bypassed"
+  },
+  "persistence": {
+    "migration": "migrations/0005_artifact_authority.sql",
+    "tables": {
+      "artifacts": ["id", "project_id", "type", "created_at", "updated_at"],
+      "artifact_relations": ["id", "project_id", "subject_artifact_id", "object_artifact_id", "relation_kind", "created_at"]
+    },
+    "repository": "packages/persistence/src/repositories.ts ArtifactRepository",
+    "methods": ["createArtifact", "getArtifactById", "listArtifactsForProject", "createArtifactRelation", "getArtifactRelationById", "listArtifactRelationsForProject"],
+    "server_authority": "id via newId(), timestamps via now(), projectId via requireId, type via requireArtifactTypeToken (explicit opaque-token grammar shared with the service via isArtifactTypeToken), relationKind via canonical-kind guard, rejectProviderAuthority"
+  },
+  "authorization_integration": {
+    "resource_types": ["organization", "project", "artifact", "artifact_relation"],
+    "artifact_tenant_resolution": "ArtifactRow -> ProjectRow -> OrganizationRow -> membership required",
+    "relation_tenant_resolution": "ArtifactRelationRow.projectId -> ProjectRow -> OrganizationRow -> membership required",
+    "decision_boundary": "TenantAuthorizationService.authorize returns explicit allow/deny, never throws for outcome",
+    "negative_paths": {
+      "unauthenticated": "malformed_request / invalid_identifier",
+      "authenticated_non_member": "no_membership",
+      "cross_tenant_artifact_read": "no_membership",
+      "cross_tenant_artifact_create": "no_membership",
+      "forged_project_id": "unknown_resource or no_membership via FK and authz",
+      "forged_actor": "no_membership",
+      "random_unknown_artifact": "unknown_resource",
+      "random_unknown_relation": "unknown_resource",
+      "revoked_membership": "no_membership after DELETE",
+      "stale_tenant_info": "client org/project claim ignored, canonical persistence used",
+      "audit_scope_resolution_failure": "otherwise-allowed decision becomes audit_unavailable"
+    },
+    "service_layer": "@vibeflow/project ArtifactService uses authz for create (project check) and read (artifact/artifact_relation check); relation creation authorizes both endpoints by opaque id (read) before any persistence load, then authorizes create against the canonical Project scope"
+  },
+  "audit_integration": {
+    "authorization_audit": "AuthorizationAuditRecorder records artifact and artifact_relation decisions; organization_id resolved by joining through canonical Project ownership",
+    "artifact_scope_sql": "SELECT p.organization_id FROM artifacts a JOIN projects p ON p.id = a.project_id WHERE a.id = $1",
+    "relation_scope_sql": "SELECT p.organization_id FROM artifact_relations r JOIN projects p ON p.id = r.project_id WHERE r.id = $1",
+    "scope_resolution_failure": "Database errors while resolving canonical Organization scope propagate to TenantAuthorizationService; an otherwise-allowed decision is converted to DENY audit_unavailable instead of writing an unscoped allowed event. Missing resources still resolve to zero rows and may remain account-scoped denial evidence.",
+    "metadata_safety": "sanitizeAuditMetadata omits secret keys and redacts secret values, rejects authority-shaped keys"
+  },
+  "api_service_boundary": {
+    "package": "@vibeflow/project",
+    "class": "ArtifactService",
+    "methods": ["createArtifact", "getArtifact", "listArtifacts", "createArtifactRelation", "getArtifactRelation", "listArtifactRelations"],
+    "package_root_exports": ["ArtifactService", "ArtifactError", "ArtifactInputError", "ArtifactNotFoundError", "ArtifactAuthorizationError", "ArtifactRelationError", "ArtifactServiceOptions", "CreateArtifactInput", "CreateArtifactRelationInput", "GetArtifactInput", "GetArtifactRelationInput", "ListArtifactRelationsInput", "ListArtifactsInput", "ARTIFACT_RELATION_KINDS", "ArtifactRelationKind"],
+    "exposed": "Minimal create/read/list surface to prove resource authority; no transform/publish/export/import/version/archive/delete/lifecycle",
+    "server_owned": ["id", "project_id (artifact) / derived (relation)", "created_at", "updated_at (artifact)"],
+    "client_supplied": ["projectId (checked via membership, not trusted as authority, for artifact create)", "type (bounded token)", "relationKind (canonical kind only)"]
+  },
+  "testing": {
+    "unit": {
+      "decision": "updated to assert inclusion of canonical resource types (organization, project, artifact, artifact_relation) rather than an exact list",
+      "metadata": "retained PASS",
+      "authority": "retained PASS",
+      "artifact_type": "packages/persistence/src/artifact-type.test.ts 7 tests PASS (positive/negative opaque-token grammar)",
+      "exports": "packages/project/src/exports.test.ts 3 tests PASS (package-root export surface)"
+    },
+    "contract": {
+      "m008": "7 tests PASS",
+      "m009": "6 tests PASS",
+      "m010": "8 tests PASS",
+      "m011": "8 tests PASS",
+      "m012": "9 tests PASS",
+      "m013": "11 tests PASS (authority ordering, type grammar, package-root exports added)"
+    },
+    "live_postgres": {
+      "required_version": "18.4",
+      "workflow_service": "postgres:18.4 in Repository Foundation",
+      "runners": [
+        "pnpm run check executes package Vitest suites, including packages/audit/src/artifact-scope.live.test.ts",
+        "scripts/run-m013-artifact-integration.py runs persistence, authorization, project live suites"
+      ],
+      "suites": {
+        "persistence": "packages/persistence/src/artifact.live.test.ts: canonical creation, type token, tenant-safe list, unknown UUID, provider authority rejection, forged FK, same-project relation, unknown endpoint, cross-project relation, self-edge, duplicate edge, invalid kind, DB composite-FK backstop, indexes",
+        "authorization": "packages/authorization/src/artifact.live.test.ts: same-tenant read, cross-tenant read, forged actor, unknown UUID, revoked membership, canonical persistence, relation read success/cross-tenant/unknown",
+        "project_service": "packages/project/src/artifact.live.test.ts: creation, type-token positive/negative, same-tenant read, cross-tenant read/create, forged project/actor, unknown UUID, revoked membership, canonical persistence + audit scoping, same-project relation, unknown subject/object endpoints, cross-project same-org relation, cross-tenant relation denied at endpoint authorization, foreign-tenant probe does not disclose existence, revoked membership on relation creation, forged relation id, tenant-safe list",
+        "audit_scope_failure": "packages/audit/src/artifact-scope.live.test.ts proves a forced canonical Artifact and ArtifactRelation audit-scope query failure converts an otherwise-valid ALLOW to audit_unavailable and persists no false allowed audit row"
+      },
+      "build_isolation": "packages/audit/tsconfig.json excludes src/artifact-scope.live.test.ts from production tsc build while Vitest still executes it",
+      "status_at_evidence_creation": "NOT EXECUTED locally (no DATABASE_URL); must be executed in CI exact-head; not represented as PASS"
+    },
+    "local_checks": {
+      "pnpm_install": "PASS (--frozen-lockfile, no new dependencies introduced)",
+      "typecheck": "16/16 packages PASS",
+      "test": "16/16 packages PASS (live skipped without DB, expected)",
+      "contract_m013": "11 tests PASS",
+      "contracts_check": "PASS",
+      "foundation_validate": "PASS",
+      "master_contracts_validate": "PASS",
+      "reference_validate": "PASS",
+      "security_validate": "PASS",
+      "dev_validate": "PASS",
+      "git_diff_check": "PASS"
+    }
+  },
+  "capability_status": {
+    "VF-PRJ-013": "IMPLEMENTED (Artifact: authoritative typed-output metadata rooted in canonical Project ownership)",
+    "VF-PRJ-001": "NOT_STARTED (Artifact Registry includes Library/sidebar product behavior beyond a bare authority table)",
+    "VF-PRJ-002": "NOT_STARTED (ArtifactVersion content-addressed lifecycle out of scope)",
+    "VF-PRJ-003": "NOT_STARTED (ArtifactGraph explicitly DEFER)",
+    "VF-PRJ-017": "NOT_STARTED (Typed Artifact Graph requires normalized type-registry semantics not defined by M-013)",
+    "rationale": "M-013 implements durable Artifact metadata and durable ArtifactRelation edges rooted in canonical Project ownership, tenant/resource authorization, durable audit, and PostgreSQL composite-FK integrity. No closed type taxonomy or normalized registry was invented.",
+    "unrelated_capabilities_changed": []
+  },
+  "known_limitations": [
+    "Artifact `type` is a bounded syntax-validated token, not a normalized registry; VF-PRJ-017 remains deferred.",
+    "No ArtifactVersion / content-addressed version lifecycle (VF-PRJ-002).",
+    "No ArtifactGraph / Canvas product capability (VF-PRJ-003, DEFER).",
+    "No imports/templates (M-014), full Project lifecycle E2E (M-015), provider bindings (M-016+).",
+    "No durable artifact.* event names invented: EVENT_CATALOG.yaml defines no Artifact event, so none was added.",
+    "PostgreSQL live suites require DATABASE_URL and are not executed locally; CI must run them exact-head.",
+    "M-013 remains REVIEW, not DONE, until independent review and merge."
+  ],
+  "out_of_scope_confirmed": [
+    "M-013 does not add provider/repository/workspace/blob/object-storage ids or byte ownership to Artifact.",
+    "M-013 does not add lifecycle status, version fields, blob URLs, or external ownership to Artifact.",
+    "M-013 does not implement transform/publish/export/import/version/archive/delete behavior.",
+    "M-013 does not introduce new durable artifact.* event names.",
+    "M-014 imports/templates, M-015 project lifecycle E2E, M-016+ provider bindings not implemented."
+  ],
+  "overclaim_check": "M-013 is REVIEW, not DONE. VF-PRJ-013 is IMPLEMENTED, not VERIFIED/COMPLETE. PostgreSQL live is not claimed locally. M-014+ remain LOCKED. No Artifact event contract was invented."
+}

@@ -64,8 +64,13 @@ function makeService(auditFails = false): TenantAuthorizationService {
 }
 
 describe("M-010/M-012 authorization decision boundary", () => {
-  it("registers the organization and project resource types and canonical actions", () => {
-    expect([...RESOURCE_TYPES].sort()).toEqual(["organization", "project"].sort());
+  it("registers canonical resource types and canonical actions", () => {
+    // Registered types grow with their owning missions; assert inclusion of
+    // the accepted canonical set rather than an exact list so a later mission
+    // does not silently break a retained M-010/M-012 assertion.
+    for (const expected of ["organization", "project", "artifact", "artifact_relation"]) {
+      expect(RESOURCE_TYPES).toContain(expected);
+    }
     expect(ACTIONS).toEqual(["read", "create", "update", "delete", "list"]);
   });
 

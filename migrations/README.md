@@ -19,6 +19,13 @@ same recorded result rather than racing migration application.
   canonical Organization ownership, server-controlled timestamps, FK
   integrity, and tenant indexes. No provider/external identifier ever
   establishes Project authority.
+- `0005_artifact_authority.sql` is M-013's authoritative Artifact and
+  ArtifactRelation resources, both rooted in canonical Project ownership.
+  Artifact metadata is server-owned (id, project FK, bounded type token,
+  timestamps); ArtifactRelation is a directed subject/object edge restricted
+  to the canonical kinds (lineage, variant, derived-from, contains). Composite
+  `(project_id, id)` uniqueness on artifacts plus composite foreign keys make
+  cross-Project edges impossible at the database level.
 
 The M-009 tables support authentication mechanics only. They do not define
 Organization authorization beyond membership, roles, OpenFGA tuples, or later

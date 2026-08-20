@@ -22,6 +22,16 @@ export class ProviderAuthorityRejectedError extends PersistenceError {
   override readonly name = "ProviderAuthorityRejectedError";
 }
 
+/** A relation whose endpoints resolve to different canonical Projects. */
+export class CrossProjectArtifactRelationError extends PersistenceError {
+  override readonly name = "CrossProjectArtifactRelationError";
+}
+
+/** A duplicate (project, subject, kind, object) relation edge. */
+export class DuplicateArtifactRelationError extends PersistenceError {
+  override readonly name = "DuplicateArtifactRelationError";
+}
+
 const PROVIDER_AUTHORITY_KEYS = [
   "providerId",
   "provider_id",

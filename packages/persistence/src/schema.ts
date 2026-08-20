@@ -1,4 +1,13 @@
-import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  foreignKey,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * Minimal durable Account / Organization / membership schema.
@@ -99,12 +108,93 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 
+/**
+ * Canonical relation kinds between Artifacts. These are the exact semantics
+ * named by the canonical resource model: lineage, variant, derived-from,
+ * contains. M-013 does not invent additional kinds.
+ */
+export const ARTIFACT_RELATION_KINDS = [
+  "lineage",
+  "variant",
+  "derived-from",
+  "contains",
+] as const;
+export type ArtifactRelationKind = (typeof ARTIFACT_RELATION_KINDS)[number];
+
+/**
+ * M-013 authoritative Artifact: VibeFlow-owned durable typed-output metadata
+ * rooted in canonical Project ownership. Server-generated id, canonical
+ * Project FK, bounded type token, server-controlled timestamps. Content bytes
+ * remain owned by blob/provider and are never part of this metadata row.
+ *
+ * The composite unique (project_id, id) key is the authoritative target of the
+ * ArtifactRelation composite foreign keys; it makes a cross-Project edge
+ * impossible at the database level.
+ */
+export const artifacts = pgTable(
+  "artifacts",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id),
+    type: text("type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    projectIdIdUnique: unique("artifacts_project_id_id_uidx").on(
+      table.projectId,
+      table.id,
+    ),
+  }),
+);
+
+/**
+ * M-013 authoritative ArtifactRelation: a durable directed subject/object edge
+ * owned by a canonical Project. The Project is derived from the canonical
+ * endpoint Artifacts (never a client claim), and the composite foreign keys
+ * pin both endpoints to that same Project so a cross-Project edge is rejected
+ * by the database even if service checks are bypassed.
+ */
+export const artifactRelations = pgTable(
+  "artifact_relations",
+  {
+    id: uuid("id").primaryKey(),
+    projectId: uuid("project_id").notNull(),
+    subjectArtifactId: uuid("subject_artifact_id").notNull(),
+    objectArtifactId: uuid("object_artifact_id").notNull(),
+    relationKind: text("relation_kind").$type<ArtifactRelationKind>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
+  },
+  (table) => ({
+    projectSubjectFk: foreignKey({
+      name: "artifact_relations_project_subject_fk",
+      columns: [table.projectId, table.subjectArtifactId],
+      foreignColumns: [artifacts.projectId, artifacts.id],
+    }),
+    projectObjectFk: foreignKey({
+      name: "artifact_relations_project_object_fk",
+      columns: [table.projectId, table.objectArtifactId],
+      foreignColumns: [artifacts.projectId, artifacts.id],
+    }),
+    uniqueEdge: unique("artifact_relations_unique_edge").on(
+      table.projectId,
+      table.subjectArtifactId,
+      table.relationKind,
+      table.objectArtifactId,
+    ),
+  }),
+);
+
 export type AccountRow = typeof accounts.$inferSelect;
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationMembershipRow = typeof organizationMemberships.$inferSelect;
 export type IdentityUserRow = typeof identityUsers.$inferSelect;
 export type AuditEventRow = typeof auditEvents.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
+export type ArtifactRow = typeof artifacts.$inferSelect;
+export type ArtifactRelationRow = typeof artifactRelations.$inferSelect;
 
 /** M-008 tenant authority only; keep library session/auth tables out of it. */
 export const TENANT_TABLES = {
@@ -113,10 +203,12 @@ export const TENANT_TABLES = {
   organizationMemberships,
 } as const;
 
-/** All Drizzle tables queried by VibeFlow control-plane modules through M-012. */
+/** All Drizzle tables queried by VibeFlow control-plane modules through M-013. */
 export const CONTROL_PLANE_TABLES = {
   ...TENANT_TABLES,
   identityUsers,
   auditEvents,
   projects,
+  artifacts,
+  artifactRelations,
 } as const;
