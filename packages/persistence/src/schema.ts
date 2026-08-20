@@ -409,6 +409,7 @@ export const projectProfiles = pgTable(
     description: text("description"),
     coverArtifactId: uuid("cover_artifact_id"),
     version: integer("version").notNull().default(1),
+    capabilityProfileVersion: integer("capability_profile_version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).notNull(),
   },

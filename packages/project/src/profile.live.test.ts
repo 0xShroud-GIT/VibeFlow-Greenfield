@@ -21,7 +21,7 @@ import { TenantAuthorizationService } from "@vibeflow/authorization";
 import { ProjectService } from "./service.js";
 import { ArtifactService } from "./artifact-service.js";
 import { ProjectProfileService, type ProjectProfileResult } from "./profile-service.js";
-import { ProjectError, ProjectNotFoundError } from "./errors.js";
+import { ProjectError, ProjectNotFoundError, ProjectProfileError } from "./errors.js";
 
 const connectionString = process.env["VIBEFLOW_DATABASE_URL"] ?? process.env["DATABASE_URL"];
 
@@ -114,25 +114,67 @@ describePostgres("M-015 Project Profile service", () => {
     expect(profile.description).toBe("My project description");
   });
 
-  it("set same-Project cover Artifact", async () => {
-    const profile = await profileService.updateProjectProfile({
+  it("update description only preserves cover", async () => {
+    // First set both description and cover
+    await profileService.updateProjectProfile({
       accountId: alice.id,
       projectId: project.id,
       expectedVersion: 1,
+      description: "With cover",
       coverArtifactId: artifact.id,
     });
-    expect(profile.version).toBe(2);
-    expect(profile.coverArtifactId).toBe(artifact.id);
-  });
 
-  it("remove cover", async () => {
+    // Now update only description (coverArtifactId undefined)
     const profile = await profileService.updateProjectProfile({
       accountId: alice.id,
       projectId: project.id,
       expectedVersion: 2,
+      description: "Updated description only",
+    });
+    expect(profile.description).toBe("Updated description only");
+    expect(profile.coverArtifactId).toBe(artifact.id);
+  });
+
+  it("update cover only preserves description", async () => {
+    const profile = await profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 3,
+      coverArtifactId: null,  // clear cover
+    });
+    expect(profile.description).toBe("Updated description only");
+    expect(profile.coverArtifactId).toBeNull();
+  });
+
+  it("explicit null clears description", async () => {
+    const profile = await profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 4,
+      description: null,
+    });
+    expect(profile.description).toBeNull();
+  });
+
+  it("set same-Project cover Artifact", async () => {
+    const profile = await profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 5,
+      coverArtifactId: artifact.id,
+    });
+    expect(profile.version).toBe(6);
+    expect(profile.coverArtifactId).toBe(artifact.id);
+  });
+
+  it("explicit null clears cover", async () => {
+    const profile = await profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 6,
       coverArtifactId: null,
     });
-    expect(profile.version).toBe(3);
+    expect(profile.version).toBe(7);
     expect(profile.coverArtifactId).toBeNull();
   });
 
@@ -144,7 +186,7 @@ describePostgres("M-015 Project Profile service", () => {
 
   it("cross-tenant Project profile update denied", async () => {
     await expect(
-      profileService.updateProjectProfile({ accountId: bob.id, projectId: project.id, expectedVersion: 3, description: "hacked" }),
+      profileService.updateProjectProfile({ accountId: bob.id, projectId: project.id, expectedVersion: 7, description: "hacked" }),
     ).rejects.toThrow();
   });
 
@@ -171,9 +213,67 @@ describePostgres("M-015 Project Profile service", () => {
       profileService.updateProjectProfile({
         accountId: alice.id,
         projectId: project.id,
-        expectedVersion: 3,
+        expectedVersion: 7,
         description: "x".repeat(5001),
       }),
     ).rejects.toThrow(ProjectError);
+  });
+
+  it("concurrent initial expectedVersion=0 has exactly one winner", async () => {
+    const raceProject = await projectService.createProject({
+      accountId: alice.id,
+      organizationId: orgA.id,
+      name: "Profile Race Test",
+    });
+
+    // Two concurrent upserts with expectedVersion=0
+    const p1 = profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: raceProject.id,
+      expectedVersion: 0,
+      description: "Winner 1",
+    });
+
+    const p2 = profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: raceProject.id,
+      expectedVersion: 0,
+      description: "Winner 2",
+    });
+
+    const results = await Promise.allSettled([p1, p2]);
+    const fulfilled = results.filter(r => r.status === "fulfilled");
+    const rejected = results.filter(r => r.status === "rejected");
+
+    expect(fulfilled.length).toBe(1);
+    expect(rejected.length).toBe(1);
+
+    const after = await profileService.getProjectProfile({ accountId: alice.id, projectId: raceProject.id });
+    expect(after.version).toBe(1);
+  });
+
+  it("empty historical profile rejects stale version 0", async () => {
+    // After the race test, the profile has version 1. Using 0 should fail.
+    const raceProject = await projectService.createProject({
+      accountId: alice.id,
+      organizationId: orgA.id,
+      name: "Stale Reject Test",
+    });
+    // Create it first with version 0
+    await profileService.updateProjectProfile({
+      accountId: alice.id,
+      projectId: raceProject.id,
+      expectedVersion: 0,
+      description: "Initial",
+    });
+    // Now try with version 0 again - should fail
+    await expect(
+      profileService.updateProjectProfile({
+        accountId: alice.id,
+        projectId: raceProject.id,
+        expectedVersion: 0,
+        description: "Stale attempt",
+      }),
+    ).rejects.toThrow(ProjectProfileError);
   });
 });

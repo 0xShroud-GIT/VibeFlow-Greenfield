@@ -123,12 +123,6 @@ export class ProjectProfileService {
     const accountId = requireUuid("accountId", input.accountId);
     const projectId = requireUuid("projectId", input.projectId);
     const expectedVersion = requireVersion("expectedVersion", input.expectedVersion);
-    const description = requireDescription(input.description ?? null);
-
-    let coverArtifactId: string | null = null;
-    if (input.coverArtifactId !== undefined && input.coverArtifactId !== null) {
-      coverArtifactId = requireUuid("coverArtifactId", input.coverArtifactId);
-    }
 
     const decision = await this.options.authz.authorize({
       accountId,
@@ -143,25 +137,53 @@ export class ProjectProfileService {
       throw new ProjectProfileError("Project profile update denied: " + decision.reason);
     }
 
-    if (coverArtifactId !== null) {
+    // Read current profile so we can preserve fields that were not explicitly provided
+    const existing = await this.options.profiles.getProfileByProjectId(projectId);
+
+    // Determine effective description:
+    // - if input.description is undefined, preserve current value
+    // - if input.description is null, clear it
+    // - if input.description is a string, set it
+    let effectiveDescription: string | null;
+    if (input.description === undefined) {
+      effectiveDescription = existing ? existing.description : null;
+    } else {
+      effectiveDescription = requireDescription(input.description);
+    }
+
+    // Determine effective coverArtifactId:
+    // - if input.coverArtifactId is undefined, preserve current value
+    // - if input.coverArtifactId is null, clear it
+    // - if input.coverArtifactId is a string, set it
+    let effectiveCoverArtifactId: string | null;
+    if (input.coverArtifactId === undefined) {
+      effectiveCoverArtifactId = existing ? existing.coverArtifactId : null;
+    } else if (input.coverArtifactId === null) {
+      effectiveCoverArtifactId = null;
+    } else {
+      effectiveCoverArtifactId = requireUuid("coverArtifactId", input.coverArtifactId);
+    }
+
+    // If cover artifact is being set (not null), authorize and verify same-Project
+    if (effectiveCoverArtifactId !== null) {
       const artifactDecision = await this.options.authz.authorize({
         accountId,
         action: "read",
-        resource: { type: "artifact", id: coverArtifactId },
+        resource: { type: "artifact", id: effectiveCoverArtifactId },
       });
 
       if (!artifactDecision.allowed) {
         if (artifactDecision.reason === "unknown_resource") {
-          throw new ProjectNotFoundError("Artifact not found: " + coverArtifactId);
+          throw new ProjectNotFoundError("Artifact not found: " + effectiveCoverArtifactId);
         }
         throw new ProjectProfileError("Cover artifact access denied: " + artifactDecision.reason);
       }
 
       let coverArtifact: ArtifactRow;
       try {
-        coverArtifact = await this.options.artifacts.getArtifactById(coverArtifactId);
+        coverArtifact = await this.options.artifacts.getArtifactById(effectiveCoverArtifactId);
       } catch {
-        throw new ProjectNotFoundError("Cover artifact not found: " + coverArtifactId);
+        throw new ProjectNotFoundError("Cover artifact not found: " + effectiveCoverArtifactId);
       }
 
       if (coverArtifact.projectId !== projectId) {
@@ -173,8 +195,8 @@ export class ProjectProfileService {
       const profile = await this.options.profiles.upsertProfile({
         projectId,
         expectedVersion,
-        description,
-        coverArtifactId,
+        description: effectiveDescription,
+        coverArtifactId: effectiveCoverArtifactId,
       });
 
       return {

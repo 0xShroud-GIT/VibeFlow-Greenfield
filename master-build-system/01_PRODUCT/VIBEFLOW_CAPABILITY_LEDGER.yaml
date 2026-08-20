@@ -1377,7 +1377,8 @@ capabilities:
   authority_rule: VibeFlow is authoritative for ProjectCapabilityProfile state/policy; external IDs are references, never
     the source of VibeFlow truth.
   verification_gate: Resource ownership + import integrity + lifecycle tests
-  status: NOT_STARTED
+  status: IMPLEMENTED
+
 - vf_id: VF-PRJ-015
   domain: 05 Projects, artifacts, imports and lifecycle
   domain_code: PRJ
@@ -1392,7 +1393,8 @@ capabilities:
   authority_rule: VibeFlow is authoritative for Project state/policy; external IDs are references, never the source of VibeFlow
     truth.
   verification_gate: Resource ownership + import integrity + lifecycle tests
-  status: IN_PROGRESS
+  status: IMPLEMENTED
+
 - vf_id: VF-PRJ-016
   domain: 05 Projects, artifacts, imports and lifecycle
   domain_code: PRJ

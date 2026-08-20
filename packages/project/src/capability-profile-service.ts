@@ -107,9 +107,8 @@ export class ProjectCapabilityProfileService {
 
     const rows = await this.options.capabilities.getCapabilitiesByProjectId(projectId);
     const capabilities = rows.map((r) => r.capabilityKey);
-    const firstRow = rows.length > 0 ? rows[0] : undefined;
-    const version = firstRow ? firstRow.version : 0;
-    const createdAt = firstRow ? firstRow.createdAt : null;
+    const version = await this.options.capabilities.getVersionByProjectId(projectId);
+    const createdAt = rows.length > 0 ? rows[0]!.createdAt : null;
 
     return {
       projectId,

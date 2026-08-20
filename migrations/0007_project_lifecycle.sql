@@ -37,6 +37,7 @@ CREATE TABLE project_profiles (
   version integer NOT NULL DEFAULT 1,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  capability_profile_version integer NOT NULL DEFAULT 0,
 
   -- Description is a safety-bound text field. The Master defines no numeric
   -- length; the chosen bound is a conservative implementation constant.

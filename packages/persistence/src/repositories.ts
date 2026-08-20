@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { ControlPlaneDatabase } from "./client.js";
 import {
@@ -513,24 +513,13 @@ export class ArtifactRepository {
       .where(eq(artifactRelations.projectId, id));
   }
 }
-
 /**
  * M-015 ProjectProfile repository.
- *
- * Subordinate Project-domain state: optional description and cover Artifact
- * reference. Version-based optimistic concurrency. The cover Artifact is
- * enforced to belong to the same canonical Project by a composite FK.
  */
 export class ProjectProfileRepository {
   public constructor(private readonly db: ControlPlaneDatabase) {}
 
-  /**
-   * Get the profile for a Project. Returns undefined when no profile row
-   * exists yet (deterministic empty default).
-   */
-  public async getProfileByProjectId(
-    projectId: string,
-  ): Promise<ProjectProfileRow | undefined> {
+  public async getProfileByProjectId(projectId: string): Promise<ProjectProfileRow | undefined> {
     const id = requireId("projectId", projectId);
     const rows = await this.db
       .select()
@@ -539,14 +528,6 @@ export class ProjectProfileRepository {
     return rows[0];
   }
 
-  /**
-   * Upsert the Project profile with optimistic concurrency.
-   *
-   * When a row exists with the expected version, it atomically replaces the
-   * profile data and increments the version. When no row exists and
-   * expectedVersion is 0, it inserts a new row. Stale expectedVersion is
-   * detected and rejected.
-   */
   public async upsertProfile(input: {
     projectId: string;
     expectedVersion: number;
@@ -554,17 +535,15 @@ export class ProjectProfileRepository {
     coverArtifactId: string | null;
   }): Promise<ProjectProfileRow> {
     rejectProviderAuthority(input as unknown as Record<string, unknown>);
-    const projectId = requireId("projectId", input.projectId);
+    const projId = requireId("projectId", input.projectId);
     const updatedAt = now();
 
-    // Try to find existing row
-    const existing = await this.getProfileByProjectId(projectId);
+    const existing = await this.getProfileByProjectId(projId);
 
     if (existing) {
-      // Update with version check
       if (existing.version !== input.expectedVersion) {
         throw new StaleVersionError(
-          `profile version conflict: expected ${input.expectedVersion}, current ${existing.version}`,
+          "profile version conflict: expected " + input.expectedVersion + ", current " + existing.version,
         );
       }
 
@@ -576,36 +555,29 @@ export class ProjectProfileRepository {
           version: existing.version + 1,
           updatedAt,
         })
-        .where(
-          and(
-            eq(projectProfiles.projectId, projectId),
-            eq(projectProfiles.version, input.expectedVersion),
-          ),
-        )
+        .where(and(eq(projectProfiles.projectId, projId), eq(projectProfiles.version, input.expectedVersion)))
         .returning();
 
       const row = rows[0];
       if (!row) {
-        throw new StaleVersionError(
-          `profile version conflict: expected ${input.expectedVersion}, current updated concurrently`,
-        );
+        throw new StaleVersionError("profile version conflict: concurrent update");
       }
       return row;
     }
 
-    // Insert new row; expectedVersion must be 0 (the sentinel for "no row")
     if (input.expectedVersion !== 0) {
       throw new StaleVersionError(
-        `profile version conflict: expected ${input.expectedVersion}, no profile exists (version 0)`,
+        "profile version conflict: expected " + input.expectedVersion + ", no profile exists (version 0)",
       );
     }
 
     const createdAt = now();
     const row = {
-      projectId,
+      projectId: projId,
       description: input.description ?? null,
       coverArtifactId: input.coverArtifactId ?? null,
       version: 1,
+      capabilityProfileVersion: 0,
       createdAt,
       updatedAt: createdAt,
     };
@@ -626,20 +598,13 @@ export class ProjectProfileRepository {
 /**
  * M-015 ProjectCapabilityProfile repository.
  *
- * Normalized set representation of capability/trait keys for a canonical
- * Project. The version tracks the EPOCH version of the whole set, incremented
- * atomically on each replacement.
+ * The version is stored durably in project_profiles.capability_profile_version.
+ * Uses SELECT FOR UPDATE for genuine concurrent CAS semantics.
  */
 export class ProjectCapabilityRepository {
   public constructor(private readonly db: ControlPlaneDatabase) {}
 
-  /**
-   * Get all capability keys for a Project, ordered deterministically.
-   * Returns an empty array when no capabilities exist yet.
-   */
-  public async getCapabilitiesByProjectId(
-    projectId: string,
-  ): Promise<ProjectCapabilityRow[]> {
+  public async getCapabilitiesByProjectId(projectId: string): Promise<ProjectCapabilityRow[]> {
     const id = requireId("projectId", projectId);
     return this.db
       .select()
@@ -648,81 +613,123 @@ export class ProjectCapabilityRepository {
       .orderBy(projectCapabilities.capabilityKey);
   }
 
-  /**
-   * Get the current EPOCH version for a Project's capability set.
-   * Returns 0 when no capabilities exist (deterministic empty state).
-   */
   public async getVersionByProjectId(projectId: string): Promise<number> {
     const id = requireId("projectId", projectId);
     const rows = await this.db
-      .select({ version: projectCapabilities.version })
-      .from(projectCapabilities)
-      .where(eq(projectCapabilities.projectId, id))
-      .limit(1);
+      .select({ version: projectProfiles.capabilityProfileVersion })
+      .from(projectProfiles)
+      .where(eq(projectProfiles.projectId, id));
     const row = rows[0];
     return row?.version ?? 0;
   }
 
-  /**
-   * Atomically replace the capability set for a Project.
-   *
-   * This runs in one transaction: deletes all existing capabilities for the
-   * Project and inserts the new set with an incremented version. If the
-   * expectedVersion does not match the current version, the operation fails.
-   */
   public async replaceCapabilities(input: {
     projectId: string;
     expectedVersion: number;
     capabilities: readonly string[];
   }): Promise<ProjectCapabilityRow[]> {
     rejectProviderAuthority(input as unknown as Record<string, unknown>);
-    const projectId = requireId("projectId", input.projectId);
+    const projId = requireId("projectId", input.projectId);
 
-    // Validate capabilities inside the repository as well
     for (const key of input.capabilities) {
       requireCapabilityKey(key);
     }
 
     return this.db.transaction(async (tx) => {
-      const scoped = new ProjectCapabilityRepository(tx);
+      // Raw SQL for SELECT FOR UPDATE
+      const lockResult = await tx.execute(
+        sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
+            FROM project_profiles
+            WHERE project_id = ${projId}
+            FOR UPDATE`
+      );
 
-      // Read current version inside the transaction
-      const currentVersion = await scoped.getVersionByProjectId(projectId);
-      if (currentVersion !== input.expectedVersion) {
+      type LockRow = {
+        project_id: string;
+        description: string | null;
+        cover_artifact_id: string | null;
+        version: number;
+        capability_profile_version: number;
+      };
+      let profile: LockRow | undefined = (lockResult.rows as LockRow[] | undefined)?.[0];
+
+      if (!profile) {
+        try {
+          const n2 = now();
+          await tx.execute(
+            sql`INSERT INTO project_profiles (project_id, version, capability_profile_version, created_at, updated_at)
+                VALUES (${projId}, 0, 0, ${n2}, ${n2})`
+          );
+          const lock2 = await tx.execute(
+            sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
+                FROM project_profiles
+                WHERE project_id = ${projId}
+                FOR UPDATE`
+          );
+          profile = (lock2.rows as LockRow[] | undefined)?.[0];
+          if (!profile) {
+            throw new PersistenceError("concurrent profile creation failed");
+          }
+        } catch (insertErr: unknown) {
+          const err = insertErr as { code?: string };
+          if (err?.code === "23505") {
+            const lock2 = await tx.execute(
+              sql`SELECT project_id, description, cover_artifact_id, version, capability_profile_version
+                  FROM project_profiles
+                  WHERE project_id = ${projId}
+                  FOR UPDATE`
+            );
+            profile = (lock2.rows as LockRow[] | undefined)?.[0];
+            if (!profile) {
+              throw new PersistenceError("concurrent profile creation retry failed");
+            }
+          } else {
+            throw insertErr;
+          }
+        }
+      }
+
+      if (!profile) {
+        throw new PersistenceError("profile not found after lock");
+      }
+
+      if (profile.capability_profile_version !== input.expectedVersion) {
         throw new StaleVersionError(
-          `capability version conflict: expected ${input.expectedVersion}, current ${currentVersion}`,
+          "capability version conflict: expected " + input.expectedVersion + ", current " + profile.capability_profile_version,
         );
       }
 
-      const newVersion = currentVersion + 1;
-      const createdAt = now();
+      const newVersion = profile.capability_profile_version + 1;
+      const n2 = now();
 
-      // Delete all existing capabilities for this Project
-      await tx
-        .delete(projectCapabilities)
-        .where(eq(projectCapabilities.projectId, projectId));
+      await tx.delete(projectCapabilities).where(eq(projectCapabilities.projectId, projId));
+
+      await tx.update(projectProfiles)
+        .set({
+          capabilityProfileVersion: newVersion,
+          version: profile.version + 1,
+          updatedAt: n2,
+        })
+        .where(eq(projectProfiles.projectId, projId));
 
       if (input.capabilities.length === 0) {
         return [];
       }
 
-      // Canonicalize: deduplicate and sort deterministically
       const uniqueSorted = [...new Set(input.capabilities)].sort();
-
-      const rows = await tx
-        .insert(projectCapabilities)
+      const resultRows = await tx.insert(projectCapabilities)
         .values(
           uniqueSorted.map((key) => ({
             id: newId(),
-            projectId,
+            projectId: projId,
             capabilityKey: key,
             version: newVersion,
-            createdAt,
+            createdAt: n2,
           })),
         )
         .returning();
 
-      return rows.sort((a, b) => a.capabilityKey.localeCompare(b.capabilityKey));
+      return resultRows.sort((a, b) => a.capabilityKey.localeCompare(b.capabilityKey));
     });
   }
 }

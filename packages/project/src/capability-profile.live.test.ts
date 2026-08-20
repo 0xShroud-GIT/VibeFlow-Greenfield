@@ -18,7 +18,7 @@ import { TenantAuthorizationService } from "@vibeflow/authorization";
 
 import { ProjectService } from "./service.js";
 import { ProjectCapabilityProfileService } from "./capability-profile-service.js";
-import { ProjectNotFoundError } from "./errors.js";
+import { ProjectNotFoundError, ProjectCapabilityProfileError } from "./errors.js";
 
 const connectionString = process.env["VIBEFLOW_DATABASE_URL"] ?? process.env["DATABASE_URL"];
 
@@ -82,7 +82,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
     await controlPlane.close();
   });
 
-  it("deterministic empty profile", async () => {
+  it("deterministic empty profile returns version 0", async () => {
     const profile = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: project.id });
     expect(profile.version).toBe(0);
     expect(profile.capabilities).toEqual([]);
@@ -93,7 +93,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
     expect(profile.projectId).toBe(project.id);
   });
 
-  it("normalized replace", async () => {
+  it("normalized replace (0 -> nonempty -> version 1", async () => {
     const profile = await capService.replaceProjectCapabilityProfile({
       accountId: alice.id,
       projectId: project.id,
@@ -107,17 +107,59 @@ describePostgres("M-015 Project Capability Profile service", () => {
   it("deterministic returned ordering", async () => {
     const profile = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: project.id });
     expect(profile.capabilities).toEqual(["artifact/web", "runtime/node", "tooling/typescript"]);
+    expect(profile.version).toBe(1);
+  });
+
+  it("nonempty -> empty -> version remains monotonic (2)", async () => {
+    let profile = await capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 1,
+      capabilities: [],
+    });
+    expect(profile.version).toBe(2);
+    expect(profile.capabilities).toEqual([]);
+
+    // Read back: empty but version remains 2
+    profile = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: project.id });
+    expect(profile.version).toBe(2);
+    expect(profile.capabilities).toEqual([]);
+  });
+
+  it("empty -> nonempty continues from prior version (3)", async () => {
+    const profile = await capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: project.id,
+      expectedVersion: 2,
+      capabilities: ["runtime/node"],
+    });
+    expect(profile.version).toBe(3);
+    expect(profile.capabilities).toEqual(["runtime/node"]);
+  });
+
+  it("stale expectedVersion (0) after nonempty fails", async () => {
+    await expect(
+      capService.replaceProjectCapabilityProfile({
+        accountId: alice.id,
+        projectId: project.id,
+        expectedVersion: 0,
+        capabilities: ["runtime/node"],
+      }),
+    ).rejects.toBeInstanceOf(ProjectCapabilityProfileError);
+    // Version should still be 3
+    const profile = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: project.id });
+    expect(profile.version).toBe(3);
   });
 
   it("duplicate keys canonicalized", async () => {
     const profile = await capService.replaceProjectCapabilityProfile({
       accountId: alice.id,
       projectId: project.id,
-      expectedVersion: 1,
+      expectedVersion: 3,
       capabilities: ["runtime/node", "runtime/node", "artifact/web"],
     });
     expect(profile.capabilities).toEqual(["artifact/web", "runtime/node"]);
-    expect(profile.version).toBe(2);
+    expect(profile.version).toBe(4);
   });
 
   it("malformed token rejected", async () => {
@@ -125,7 +167,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
       capService.replaceProjectCapabilityProfile({
         accountId: alice.id,
         projectId: project.id,
-        expectedVersion: 2,
+        expectedVersion: 4,
         capabilities: ["invalid"],
       }),
     ).rejects.toThrow();
@@ -142,7 +184,7 @@ describePostgres("M-015 Project Capability Profile service", () => {
       capService.replaceProjectCapabilityProfile({
         accountId: bob.id,
         projectId: project.id,
-        expectedVersion: 2,
+        expectedVersion: 4,
         capabilities: ["runtime/node"],
       }),
     ).rejects.toThrow();
@@ -164,5 +206,51 @@ describePostgres("M-015 Project Capability Profile service", () => {
     await expect(
       capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: unknown }),
     ).rejects.toBeInstanceOf(ProjectNotFoundError);
+  });
+
+  it("concurrent expectedVersion race has exactly one winner", async () => {
+    // Create a separate project for this test
+    const raceProject = await projectService.createProject({
+      accountId: alice.id,
+      organizationId: orgA.id,
+      name: "Race Test Project",
+    });
+
+    // Get current version (should be 0)
+    const before = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: raceProject.id });
+    expect(before.version).toBe(0);
+
+    // Launch two concurrent replacements with expectedVersion 0
+    const p1 = capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: raceProject.id,
+      expectedVersion: 0,
+      capabilities: ["runtime/one"],
+    });
+
+    const p2 = capService.replaceProjectCapabilityProfile({
+      accountId: alice.id,
+      projectId: raceProject.id,
+      expectedVersion: 0,
+      capabilities: ["runtime/two"],
+    });
+
+    const results = await Promise.allSettled([p1, p2]);
+
+    const fulfilled = results.filter(r => r.status === "fulfilled");
+    const rejected = results.filter(r => r.status === "rejected");
+
+    // Exactly one should succeed
+    expect(fulfilled.length).toBe(1);
+    expect(rejected.length).toBe(1);
+
+    // The successful write consumed version 0 -> 1
+    const after = await capService.getProjectCapabilityProfile({ accountId: alice.id, projectId: raceProject.id });
+    expect(after.version).toBe(1);
+
+    // The rejected one should be a StaleVersionError
+    if (rejected[0] && rejected[0].status === "rejected") {
+      expect(rejected[0].reason).toBeInstanceOf(ProjectCapabilityProfileError);
+    }
   });
 });
