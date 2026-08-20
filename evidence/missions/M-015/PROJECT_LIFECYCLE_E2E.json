@@ -8,8 +8,12 @@
   "starting_main_sha": "55cec7b93bd2f0f1cb41e7707a986eb9ff4792ef",
   "implementation_commits": [
     {
-      "sha": "pending",
+      "sha": "dcbc008",
       "summary": "M-015 implementation: migration 0007, ProjectProfile/ProjectCapabilityProfile repositories, service layer, ProjectOverview read model, package exports, live + contract tests, capability ledger delta."
+    },
+    {
+      "sha": "dcbc008",
+      "summary": "M-015: Fix capability ledger and contract trace entries"
     }
   ],
   "authority_model": "Account -> Organization membership -> Project -> Artifact/ArtifactRelation. ProjectProfile and ProjectCapabilityProfile are subordinate Project-domain state, not new canonical authority roots. ProjectOverview is a read model/projection, not a canonical resource.",
