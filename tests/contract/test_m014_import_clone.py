@@ -579,7 +579,9 @@ class M014VerificationWiringTests(unittest.TestCase):
         self.assertIn("scripts/run-m014-import-clone-integration.py", check)
         # Retained regressions must still run.
         for retained in range(8, 14):
-            self.assertIn(f"test_m0{retained}_", check)
+            self.assertIn(f"test_m{retained:03d}_", check)
+            if retained >= 9:
+                self.assertIn(f"run-m{retained:03d}-", check)
 
     def test_integration_runner_requires_database_in_ci(self) -> None:
         runner = ROOT / "scripts/run-m014-import-clone-integration.py"
@@ -606,24 +608,43 @@ class M014EvidenceTests(unittest.TestCase):
             "implementation_commits",
             "migrations",
             "changed_file_scope",
+            "archive_import_authority_model",
             "archive_scan_policy",
             "manifest_hash_rules",
-            "import_authority_sequence",
-            "clone_authority_sequence",
+            "import_authority_sequence_proof",
+            "clone_authority_sequence_proof",
+            "clone_plan_model",
+            "clone_materialization_model",
+            "blob_staging_boundary",
             "transaction_idempotency_semantics",
             "artifact_relation_remapping_proof",
             "cross_tenant_idor_negatives",
             "audit_proof",
+            "package_root_exports",
+            "testing",
             "postgresql_results",
             "capability_changes",
+            "capabilities_deliberately_not_advanced",
+            "canonical_gaps_documented_not_invented",
             "deferred_provider_scope",
             "exact_head_ci_policy",
+            "overclaim_check",
         ):
             self.assertIn(key, record)
 
     def test_evidence_never_claims_done(self) -> None:
         record = json.loads(EVIDENCE_JSON.read_text(encoding="utf-8"))
         self.assertNotEqual(record["mission_status"], "DONE")
+
+        overclaim = record["overclaim_check"]
+        self.assertEqual(overclaim["capabilities_claimed_verified_or_complete"], [])
+        self.assertFalse(overclaim["mission_claimed_done"])
+        self.assertFalse(overclaim["malware_scanning_claimed"])
+        self.assertFalse(overclaim["provider_integration_claimed"])
+
+        # No capability may be recorded above IMPLEMENTED by M-014.
+        for change in record["capability_changes"]:
+            self.assertEqual(change["to"], "IMPLEMENTED")
 
     def test_markdown_parity_exists(self) -> None:
         text = EVIDENCE_MD.read_text(encoding="utf-8")

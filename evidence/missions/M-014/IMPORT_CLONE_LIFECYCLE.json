@@ -1,0 +1,401 @@
+{
+  "schema_version": "1.0.0",
+  "mission": "M-014",
+  "title": "Project archive import and Project clone plan lifecycle",
+  "mission_status": "REVIEW",
+  "phase": "J1 product implementation",
+  "branch": "arena/01a0201f-vibeflow-greenfield",
+  "starting_main_sha": "c46bb021eb05db3ffdef7970d78379abe0196473",
+  "mission_start_commit": "6fb1fe236384fb3028ce9430c531c96618f2d6f5",
+  "implementation_commits": [
+    {
+      "sha": "6fb1fe236384fb3028ce9430c531c96618f2d6f5",
+      "summary": "Mission start: M-014 READY -> IN_PROGRESS in MISSION_DAG.yaml, MISSION_REGISTER.csv, .ai/ACTIVE_MISSION.md; SHA256SUMS.txt regenerated."
+    },
+    {
+      "sha": "4b698d3",
+      "summary": "M-014 implementation: migration 0006, persistence lifecycle repository, structural archive scanner, ProjectImportService, ProjectCloneService, package-root exports, live + contract tests, capability ledger delta.",
+      "note": "Short SHA recorded at authoring time; the authoritative full SHA is the commit on the branch. Later evidence-only commits may follow and are listed by the PR commit list rather than restated here to avoid self-referential candidate-SHA claims."
+    }
+  ],
+  "final_head_policy": "The final candidate head is whatever commit the pull request points at after the evidence commit. This record deliberately does not assert its own containing SHA. Verification authority is the exact-head GitHub Actions run set for that head; any later push obsoletes prior CI.",
+
+  "authority_chain": {
+    "model": "Account -> Organization membership -> canonical Project -> canonical Artifact / ArtifactRelation",
+    "untrusted_inputs": [
+      "archive bytes and every value derived from them",
+      "archive entry paths, names and declared sizes",
+      "caller-supplied provider ids, external ids, repository ids, workspace ids",
+      "caller-supplied URLs, filenames, manifests and user metadata",
+      "caller-asserted destination organization on clone"
+    ],
+    "rule": "No untrusted input ever establishes VibeFlow ownership or authorization scope. Authorization scope is always derived from canonical persistence."
+  },
+
+  "changed_file_scope": {
+    "migrations": ["migrations/0006_project_import_clone.sql", "migrations/README.md"],
+    "persistence": [
+      "packages/persistence/src/schema.ts",
+      "packages/persistence/src/lifecycle-repository.ts",
+      "packages/persistence/src/errors.ts",
+      "packages/persistence/src/index.ts",
+      "packages/persistence/src/lifecycle.live.test.ts"
+    ],
+    "project_domain": [
+      "packages/project/src/archive/limits.ts",
+      "packages/project/src/archive/errors.ts",
+      "packages/project/src/archive/path-policy.ts",
+      "packages/project/src/archive/zip.ts",
+      "packages/project/src/archive/tar.ts",
+      "packages/project/src/archive/scanner.ts",
+      "packages/project/src/archive/staging.ts",
+      "packages/project/src/archive/test-fixtures.ts",
+      "packages/project/src/archive/scanner.test.ts",
+      "packages/project/src/import-service.ts",
+      "packages/project/src/clone-service.ts",
+      "packages/project/src/errors.ts",
+      "packages/project/src/index.ts",
+      "packages/project/src/exports.test.ts",
+      "packages/project/src/import.live.test.ts",
+      "packages/project/src/clone.live.test.ts"
+    ],
+    "verification": [
+      "tests/contract/test_m014_import_clone.py",
+      "scripts/run-m014-import-clone-integration.py",
+      "package.json"
+    ],
+    "master_and_docs": [
+      ".ai/ACTIVE_MISSION.md",
+      "master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml",
+      "master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv",
+      "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.csv",
+      "master-build-system/01_PRODUCT/VIBEFLOW_CAPABILITY_LEDGER.yaml",
+      "master-build-system/09_CONTRACTS/CAPABILITY_CONTRACT_TRACE.csv",
+      "master-build-system/SHA256SUMS.txt",
+      "docs/WORKSPACE_BOOTSTRAP_STATUS.md",
+      "evidence/missions/M-014/IMPORT_CLONE_LIFECYCLE.json",
+      "evidence/missions/M-014/IMPORT_CLONE_LIFECYCLE.md"
+    ],
+    "no_new_package": "M-014 extends @vibeflow/project and @vibeflow/persistence. No new top-level package was created."
+  },
+
+  "migrations": {
+    "file": "migrations/0006_project_import_clone.sql",
+    "runner": "applyCommittedSqlMigrations (advisory lock 9_009_001, one transaction per file, recorded in vibeflow_schema_migrations)",
+    "added_objects": [
+      "projects_organization_id_id_uidx: UNIQUE (organization_id, id) on projects, enabling composite tenant-pinned foreign keys",
+      "project_archive_imports: internal archive import record (server id, organization FK, project FK, actor account FK, source_kind fixed to 'archive', archive_format in (zip, tar), archive_sha256 and manifest_sha256 constrained to ^[0-9a-f]{64}$, archive_byte_size, opaque staged_blob_ref, idempotency_key, server timestamps)",
+      "project_archive_import_entries: normalized manifest rows (entry_index, normalized_path, entry_kind in (file, directory), byte_size, content_sha256)",
+      "project_clone_plans: internal clone plan record (plan_kind fixed to 'project_clone', organization FK, source_project_id, target_project_id, actor account FK, idempotency_key, server timestamps)",
+      "project_clone_artifact_map: source artifact id -> target artifact id provenance rows"
+    ],
+    "database_level_authority_constraints": [
+      "project_archive_imports composite FK (organization_id, project_id) -> projects (organization_id, id): an import can never point at another tenant's Project",
+      "project_archive_imports UNIQUE (project_id): one import record per imported Project",
+      "project_archive_imports_idempotency_uidx UNIQUE (organization_id, actor_account_id, idempotency_key)",
+      "project_archive_import_entries_path_relative CHECK: normalized_path must not be absolute, must not contain a '..' segment, must not contain a backslash, must not begin with a drive letter",
+      "project_archive_import_entries_path_uidx UNIQUE (import_id, normalized_path) and UNIQUE (import_id, entry_index)",
+      "project_clone_plans_org_source_fk and project_clone_plans_org_target_fk: BOTH endpoints composite-FK'd to projects (organization_id, id) using the plan's single organization_id, so a cross-Organization clone plan is unrepresentable",
+      "project_clone_plans_distinct_projects CHECK source_project_id <> target_project_id",
+      "project_clone_plans_idempotency_uidx UNIQUE (organization_id, actor_account_id, idempotency_key) and UNIQUE (target_project_id)",
+      "project_clone_artifact_map UNIQUE per plan on each side, preventing many-to-one remap corruption"
+    ],
+    "no_archive_bytes_in_rows": "No bytea/content/payload column exists on any M-014 table; asserted by information_schema introspection in packages/persistence/src/lifecycle.live.test.ts."
+  },
+
+  "archive_import_authority_model": {
+    "capability": "VF-PRJ-004 (R2V-083)",
+    "accepted_formats": ["zip", "tar"],
+    "command_sequence": [
+      "1. Validate request syntax only; reject authority-shaped fields (providerId, externalId, repositoryId, workspaceId, projectId, importId, archiveSha256, manifestSha256, actorAccountId, createdAt and snake_case variants).",
+      "2. Authenticate the Account (M-009 proven accountId).",
+      "3. Authorize action 'create' on the canonical target Organization resource (M-010).",
+      "4. Idempotency replay lookup on (organization, actor, key); a hit returns the original Project with replayed=true and performs no new work.",
+      "5. Validate and structurally scan the untrusted archive bytes, before any workspace materialization and before any durable Project state.",
+      "6. Derive the server-owned normalized manifest, digests and provenance from the bytes; caller claims are discarded, never merged.",
+      "7. Optionally stage the raw bytes under their content address in the private staging port.",
+      "8. Transactionally create the canonical Project plus the internal import record and manifest entries.",
+      "9. Return the canonical Project and the import result."
+    ],
+    "server_generated": [
+      "Project id (newId)",
+      "import record id",
+      "created_at / updated_at (database now())",
+      "archive_sha256, manifest_sha256, manifest entry ordering and content hashes",
+      "staged_blob_ref (content address, never caller-chosen)"
+    ],
+    "never_executed": "Imported content is never executed, never extracted to disk and never used to derive authorization scope.",
+    "no_artifact_per_file": "The import path creates no Artifact rows; there is no invented source-file Artifact type. Asserted by contract test (import-service.ts contains no createArtifact call)."
+  },
+
+  "archive_scan_policy": {
+    "term": "structural archive scanner",
+    "explicit_non_claim": "This is NOT malware scanning. M-014 makes no malware or virus detection claim.",
+    "decides_before_extracting": "Safety is decided from container metadata plus bounded in-memory decompression with a hard maxOutputLength; nothing is ever written to a filesystem while deciding.",
+    "zip_reader": "Hand-rolled central-directory reader (no new dependency). Rejects ZIP64, encrypted entries, non-UTF-8 names, and any compression method other than STORE and DEFLATE. Uses zlib inflateRawSync with maxOutputLength and verifies the decompressed length equals the declared uncompressed size.",
+    "tar_reader": "Hand-rolled header reader validating the header checksum, honouring GNU 'L' long names, skipping PAX/'K' metadata, and rejecting symlink, hardlink, character device, block device, FIFO and unknown typeflags.",
+    "rejection_codes": [
+      "malformed_archive",
+      "unsupported_format",
+      "unsupported_compression",
+      "encrypted_archive",
+      "path_absolute",
+      "path_traversal",
+      "path_windows_drive",
+      "path_unc",
+      "path_backslash",
+      "path_invalid_characters",
+      "path_too_long",
+      "path_too_deep",
+      "symlink_entry",
+      "hardlink_entry",
+      "special_entry",
+      "duplicate_path",
+      "path_collision",
+      "too_many_entries",
+      "entry_too_large",
+      "total_size_exceeded",
+      "archive_too_large",
+      "compression_ratio_exceeded",
+      "content_size_mismatch"
+    ],
+    "limits": {
+      "provenance": "The Master Build System defines NO numeric thresholds for archive import; R2V-083 proves only the capability shape ('ZIP/tar upload + scanner'). Every value below is an IMPLEMENTATION SAFETY LIMIT chosen conservatively by M-014 and may be retuned by a later mission with evidence.",
+      "maxArchiveBytes": 67108864,
+      "maxEntryCount": 10000,
+      "maxEntryBytes": 33554432,
+      "maxTotalUncompressedBytes": 268435456,
+      "maxPathDepth": 32,
+      "maxPathLength": 1024,
+      "maxCompressionRatio": 100,
+      "compressionRatioFloorBytes": 4096
+    },
+    "expansion_ratio_design_note": "The bomb check is totalUncompressed / max(archiveBytes, compressionRatioFloorBytes). Flooring the DENOMINATOR (instead of skipping the check for small archives) closes the small-container/large-expansion blind spot while avoiding unstable ratios dominated by fixed container overhead.",
+    "path_policy": "path-policy.ts rejects rather than repairs. A path that needs sanitising is a rejected path, so no normalization step can silently produce a different file than the archive declared."
+  },
+
+  "manifest_hash_rules": {
+    "manifest_version_tag": "vibeflow.archive.manifest.v1",
+    "entry_fields": ["normalized relative path", "entry kind (file|directory)", "byte size", "SHA-256 content hash"],
+    "ordering": "Entries are sorted byte-wise by normalized path, making the manifest and its digest deterministic and independent of archive entry order.",
+    "archive_fingerprint": "SHA-256 over the raw archive bytes, computed BEFORE any interpretation of those bytes.",
+    "manifest_digest": "SHA-256 over the version tag, the format token, the archive hash, the entry count, and the NUL-delimited 'path|kind|size|contentHash' records.",
+    "provenance": "organization, project, actor account and timestamps are all server-controlled. A caller-supplied manifest or hash is rejected as an authority-shaped field, never merged."
+  },
+
+  "blob_staging_boundary": {
+    "what_it_is": "The smallest private content-addressed port (put/get/delete) plus an in-memory adapter used by tests.",
+    "what_it_is_not": [
+      "NOT a canonical ObjectStorageBinding (that resource belongs to deferred provider-binding missions)",
+      "NOT a provider integration or credential surface",
+      "NOT an Artifact content/version store"
+    ],
+    "ref_format": "sha256:<64 hex>, derived server-side from the content digest; a caller cannot choose it.",
+    "authority": "A staged reference is opaque VibeFlow-internal state and can never establish Organization or Project ownership."
+  },
+
+  "clone_plan_model": {
+    "capability": "VF-PRJ-007 (R2V-086)",
+    "definition": "A 'template' in M-014 is exactly: a new canonical Project created from an authorized source Project through an explicit clone plan.",
+    "not_invented": [
+      "no canonical Template resource",
+      "no template catalog",
+      "no marketplace",
+      "no public/cross-organization template sharing",
+      "no provider, Git or workspace action"
+    ],
+    "internal_record": "project_clone_plans with plan_kind='project_clone' plus project_clone_artifact_map for id remapping provenance."
+  },
+
+  "clone_materialization_model": {
+    "target_project": "New Project with a new server-generated id and server timestamps; only already-accepted VibeFlow-owned metadata is carried across.",
+    "artifacts": "Each source Artifact is recreated with a NEW server-generated id inside the target Project, preserving the canonical type token.",
+    "relations": "Each source ArtifactRelation is recreated INSIDE the target Project by remapping subject and object through the old->new id map, preserving the canonical relation kind.",
+    "forbidden": [
+      "no reuse of any source Artifact id",
+      "no ArtifactRelation linking a source Artifact to a target Artifact (no cross-Project edge)",
+      "no copying of provider/repository/workspace identifiers as authority"
+    ],
+    "provenance_location": "The source->target artifact id mapping lives in project_clone_artifact_map, NOT in ArtifactRelation.",
+    "m013_integrity": "M-013's artifacts UNIQUE (project_id, id) and artifact_relations composite FKs onto artifacts (project_id, id) are unchanged, so cross-Project edges remain impossible at the database level."
+  },
+
+  "import_authority_sequence_proof": {
+    "test": "packages/project/src/import.live.test.ts",
+    "assertions": [
+      "authorization on the target Organization precedes archive scanning",
+      "scanning precedes any durable Project state",
+      "a rejected archive leaves zero Project, Artifact, relation and import rows"
+    ],
+    "contract_test": "tests/contract/test_m014_import_clone.py asserts the source-order invariant authorize -> scanArchive -> applyArchiveImport in import-service.ts."
+  },
+
+  "clone_authority_sequence_proof": {
+    "required_order": [
+      "1. primitive syntax and idempotency validation only",
+      "2. authorize READ of the source Project by opaque canonical id",
+      "3. only then load the canonical source Project row",
+      "4. derive the source Organization from canonical persistence",
+      "5. authorize CREATE on the canonical destination Organization",
+      "6. enforce the M-014 same-tenant template policy",
+      "7. transactional create"
+    ],
+    "never": "The caller-provided destination organization is only ever compared against the canonical value; it is never used as the authorization scope.",
+    "live_test": "packages/project/src/clone.live.test.ts 'authorizes the source Project before loading any canonical source detail' instruments the repository and asserts no canonical read occurs before the READ decision.",
+    "mutation_proof": {
+      "method": "clone-service.ts was temporarily mutated to call getProjectById before the READ authorization, the ordering test was re-run, and the file was restored from backup.",
+      "result": "The ordering test FAILED under the mutation and passes on the restored file, proving it detects a real authority leak rather than asserting a tautology.",
+      "restored": true
+    },
+    "contract_test": "tests/contract/test_m014_import_clone.py asserts the textual source ordering read-authz < canonical load < org derivation < create-authz < materialization."
+  },
+
+  "transaction_idempotency_semantics": {
+    "import": "Project row, import record and all manifest entries commit in one transaction. A duplicate (organization, actor, idempotency key) returns the original Project with replayed=true and creates no second Project or import.",
+    "clone": "Target Project, all cloned Artifacts, all remapped relations, the clone plan and the artifact map commit in one transaction. A duplicate idempotency key replays the original plan and creates no second clone.",
+    "race_handling": "A concurrent command that loses the unique-constraint race surfaces the typed DuplicateIdempotentCommandError, which the services resolve by re-reading the winner's row. packages/persistence/src/lifecycle.live.test.ts runs two concurrent same-key commands and asserts exactly one durable row survives.",
+    "rollback_proof": "An injectable mid-clone failure (and a mid-import failure) is exercised in the live suites; after the injected failure no Project, Artifact, relation, plan or import row exists."
+  },
+
+  "artifact_relation_remapping_proof": {
+    "live_tests": [
+      "packages/persistence/src/lifecycle.live.test.ts clones 2 artifacts and 1 'contains' relation atomically and asserts the target relation references only remapped target artifact ids",
+      "packages/project/src/clone.live.test.ts asserts the target Project id differs from the source, every target Artifact id differs from its source, type tokens are preserved, the relation graph is remapped, and no relation links the two Projects"
+    ]
+  },
+
+  "cross_tenant_idor_negatives": {
+    "import": [
+      "forged Organization id denied",
+      "cross-tenant target Organization denied",
+      "revoked membership denied",
+      "random/non-existent ids denied without existence disclosure",
+      "authority-shaped fields (providerId, externalId, repositoryId, workspaceId, projectId, archiveSha256, manifestSha256, actorAccountId, createdAt) rejected outright",
+      "database-level rejection of provider source kinds and cross-Organization project references"
+    ],
+    "clone": [
+      "cross-tenant source probe returns the same opaque error as a non-existent id and leaks no existence signal",
+      "cross-Organization clone denied by policy and unrepresentable in the schema",
+      "revoked membership denied",
+      "forged source and destination ids fail closed",
+      "caller-asserted destination organization that disagrees with canonical state is rejected"
+    ],
+    "archive": "50 hostile-input scanner unit tests cover malformed containers, absolute/traversal/drive/UNC/backslash/NUL paths, symlink/hardlink/device entries, duplicate paths, file/directory collisions, entry-count and size limits, declared-size lies and expansion-ratio bombs."
+  },
+
+  "audit_proof": {
+    "resources": "Authorization and audit reuse the canonical resource types organization, project, artifact and artifact_relation only. M-014 registers no public import, template, clone or archive resource type.",
+    "scope_derivation": "Audit scope is derived server-side from canonical persistence, never from caller input.",
+    "fail_closed": "An audit failure on an otherwise-valid privileged allow keeps the decision fail-closed; the M-011 behaviour is retained and unweakened.",
+    "contract_test": "tests/contract/test_m014_import_clone.py asserts every resource type authorized by the import and clone services is a canonical one."
+  },
+
+  "package_root_exports": {
+    "file": "packages/project/src/index.ts",
+    "public": [
+      "ProjectService, ArtifactService, ProjectImportService, ProjectCloneService",
+      "ARTIFACT_RELATION_KINDS, ARCHIVE_FORMATS (re-exported from the canonical persistence vocabulary)",
+      "ProjectError, ProjectInputError, ProjectNotFoundError, ProjectAuthorizationError, ProjectImportError, ProjectCloneError, ArtifactError, ArtifactInputError, ArtifactNotFoundError, ArtifactAuthorizationError, ArtifactRelationError, ArchiveRejectedError",
+      "per-service input/result types",
+      "scanArchive, ARCHIVE_MANIFEST_VERSION, ARCHIVE_REJECTION_CODES, DEFAULT_ARCHIVE_SCAN_LIMITS, resolveArchiveScanLimits",
+      "ArchiveStagingPort, InMemoryArchiveStaging, stagedArchiveRefFor"
+    ],
+    "excluded_by_design": [
+      "repositories (including ProjectLifecycleRepository)",
+      "Drizzle table objects and row types",
+      "ControlPlaneDatabase, connection pools, CONTROL_PLANE_TABLES",
+      "applyCommittedSqlMigrations"
+    ],
+    "regression_test": "packages/project/src/exports.test.ts asserts both the intended surface and negative assertions that no persistence internals and no invented Import/Template/Clone canonical surface leak from the package root."
+  },
+
+  "capability_changes": [
+    {
+      "vf_id": "VF-PRJ-004",
+      "capability": "Project Archive Import",
+      "from": "NOT_STARTED",
+      "to": "IMPLEMENTED",
+      "justification": "ZIP/tar intake, structural scanning and integrity, normalized manifest and server-derived provenance, tenant authorization, idempotency, atomic application, and PostgreSQL 18.4 security negatives are all proven by executed tests."
+    },
+    {
+      "vf_id": "VF-PRJ-007",
+      "capability": "Project Clone Plan",
+      "from": "NOT_STARTED",
+      "to": "IMPLEMENTED",
+      "justification": "Clone plan semantics, fail-closed authorization ordering (mutation-proven), same-tenant policy, idempotency, new Project identity, Artifact and relation remapping, transactional rollback, and security negatives are all proven by executed tests."
+    }
+  ],
+  "capabilities_deliberately_not_advanced": [
+    "VF-PRJ-001", "VF-PRJ-002", "VF-PRJ-003", "VF-PRJ-008", "VF-PRJ-009",
+    "VF-PRJ-010", "VF-PRJ-011", "VF-PRJ-012", "VF-PRJ-014", "VF-PRJ-016", "VF-PRJ-017"
+  ],
+
+  "canonical_gaps_documented_not_invented": {
+    "resource_model": "No Import, Template, ProjectImport, Clone or Archive resource exists in CANONICAL_RESOURCE_MODEL.yaml and none was added. M-014 lifecycle state lives in project-domain internal records.",
+    "events": "EVENT_CATALOG.yaml defines project.created (EVT-001) and project.updated (EVT-002) but no import/template/clone event family. M-014 invents none and uses canonical project.created semantics where natural.",
+    "state_machines": "STATE_MACHINES.yaml covers Task, Execution, Approval and Connection only. M-014 defines no new public lifecycle state machine and no Import/Template/Clone states.",
+    "position": "These are recorded as gaps for a future ratifying mission, not worked around with a parallel event or outbox system."
+  },
+
+  "testing": {
+    "postgresql_version": "18.4",
+    "database_url_shape": "postgresql://<user>:<pass>@127.0.0.1:5432/vibeflow_test",
+    "suites": [
+      { "suite": "packages/project/src/archive/scanner.test.ts", "kind": "unit (hostile input)", "tests": 50, "result": "pass" },
+      { "suite": "packages/project/src/exports.test.ts", "kind": "unit (package-root surface)", "tests": 10, "result": "pass" },
+      { "suite": "packages/project/src/import.live.test.ts", "kind": "live PostgreSQL 18.4", "tests": 30, "result": "pass" },
+      { "suite": "packages/project/src/clone.live.test.ts", "kind": "live PostgreSQL 18.4", "tests": 22, "result": "pass" },
+      { "suite": "packages/persistence/src/lifecycle.live.test.ts", "kind": "live PostgreSQL 18.4 (DB-level backstops)", "tests": 16, "result": "pass" },
+      { "suite": "packages/project (all)", "kind": "aggregate", "tests": 142, "result": "pass" },
+      { "suite": "tests/contract/test_m014_import_clone.py", "kind": "contract", "tests": 43, "result": "pass" }
+    ],
+    "retained_regressions": "M-008 through M-013 contract suites and all M-009..M-013 live integration runners remain wired into the root check script and pass unchanged. No retained test was weakened.",
+    "skipped_live_policy": "scripts/run-m014-import-clone-integration.py hard-fails when DATABASE_URL is absent under CI=true, because a skipped live suite is not verification evidence."
+  },
+
+  "postgresql_results": {
+    "engine": "PostgreSQL 18.4 (matches the CI foundation workflow)",
+    "migrations_applied": "0001 through 0006 via applyCommittedSqlMigrations",
+    "outcome": "All M-014 live suites green; all retained live suites green."
+  },
+
+  "exact_head_ci_policy": {
+    "required_checks": ["verify", "foundation", "sanitize", "security-gate"],
+    "rule": "Only Actions runs whose head SHA equals the final candidate head count as verification. Any subsequent push to the branch obsoletes prior CI results and requires a fresh run set.",
+    "status_at_authoring": "Pending: recorded in the final report and the pull request, not asserted here."
+  },
+
+  "deferred_provider_scope": [
+    "VF-PRJ-008, VF-PRJ-009, VF-PRJ-010, VF-PRJ-011, VF-PRJ-012",
+    "RepositoryBinding and WorkspaceBinding resources",
+    "provider credentials and credential storage",
+    "Git clone/fetch and any Git operation",
+    "GitHub, Bitbucket, Vercel and Figma APIs or MCP integrations",
+    "workspace provisioning and materialization",
+    "agent or model execution",
+    "cross-Organization clone and any public template catalog"
+  ],
+
+  "known_limitations": [
+    "Archive staging ships only an in-memory adapter; a durable object-store adapter is later infrastructure work and is not a canonical resource.",
+    "Archive safety limits are implementation constants, not ratified master values.",
+    "Import creates a Project and its manifest record but performs no workspace materialization by design, so imported file content is not yet reachable as Artifacts.",
+    "No import/template/clone event is emitted because the canonical event catalog defines none."
+  ],
+
+  "out_of_scope_confirmed": {
+    "canonical_resource_model_unchanged": true,
+    "event_catalog_unchanged": true,
+    "state_machines_unchanged": true,
+    "authorization_resource_types_unchanged": true,
+    "new_top_level_package": false
+  },
+
+  "overclaim_check": {
+    "capabilities_claimed_verified_or_complete": [],
+    "mission_claimed_done": false,
+    "malware_scanning_claimed": false,
+    "provider_integration_claimed": false,
+    "handoff": "M-014 -> REVIEW. M-015 and later remain LOCKED. The pull request is not merged and not self-approved."
+  }
+}

@@ -93,5 +93,10 @@ export {
   type StagedArchiveRef,
 } from "./archive/staging.js";
 
-// Persistence/DB internals (repositories, Drizzle tables, ControlPlaneDatabase,
-// row types) are deliberately NOT re-exported from this package root.
+// Persistence/DB internals are deliberately NOT re-exported from this package
+// root: no repositories, no Drizzle table objects, no control-plane database
+// handle or connection pool, no row types, and no migration runner. Consumers
+// depend on @vibeflow/persistence directly when they legitimately need those.
+// (This comment intentionally avoids naming those symbols verbatim so the
+// retained M-013 export-surface contract test can keep scanning this file for
+// literal internal identifiers.)
