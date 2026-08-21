@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { ControlPlaneDatabase } from "./client.js";
-import { NotFoundError } from "./errors.js";
+import { NotFoundError, PersistenceError } from "./errors.js";
 import { requireId } from "./ids.js";
 import {
   artifactRelations,
@@ -20,6 +20,17 @@ import {
   type ProjectRow,
 } from "./schema.js";
 
+function capabilityProfileVersion(rows: readonly Record<string, unknown>[]): number {
+  const raw = rows[0]?.["version"];
+  if (raw === undefined) {
+    return 0;
+  }
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
+    throw new PersistenceError("Project overview capability epoch query returned an invalid version");
+  }
+  return raw;
+}
+
 /**
  * One point-in-time Project-domain read snapshot for M-015 Project Overview.
  * This is a projection/read model, not a canonical resource or new authority
@@ -28,6 +39,7 @@ import {
 export interface ProjectOverviewSnapshot {
   readonly project: ProjectRow;
   readonly profile: ProjectProfileRow | undefined;
+  readonly capabilityProfileVersion: number;
   readonly capabilities: readonly ProjectCapabilityRow[];
   readonly artifacts: readonly ArtifactRow[];
   readonly artifactRelations: readonly ArtifactRelationRow[];
@@ -63,6 +75,11 @@ export class ProjectOverviewRepository {
         .from(projectProfiles)
         .where(eq(projectProfiles.projectId, id));
 
+      const capabilityVersionResult = await tx.execute(
+        sql`SELECT version FROM project_capability_profiles WHERE project_id = ${id}`,
+      );
+      const currentCapabilityProfileVersion = capabilityProfileVersion(capabilityVersionResult.rows);
+
       const capabilityRows = await tx
         .select()
         .from(projectCapabilities)
@@ -92,6 +109,7 @@ export class ProjectOverviewRepository {
       return {
         project,
         profile: profileRows[0],
+        capabilityProfileVersion: currentCapabilityProfileVersion,
         capabilities: capabilityRows,
         artifacts: artifactRows,
         artifactRelations: relationRows,

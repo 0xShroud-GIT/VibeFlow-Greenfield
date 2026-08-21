@@ -28,7 +28,8 @@ export {
   requireId,
   requireNonEmpty,
 } from "./ids.js";
-export { ArtifactRepository, ProjectProfileRepository, ProjectRepository, ProjectCapabilityRepository, TenantRepository } from "./repositories.js";
+export { ArtifactRepository, ProjectProfileRepository, ProjectRepository, TenantRepository } from "./repositories.js";
+export { ProjectCapabilityRepository } from "./capability-repository.js";
 export {
   ProjectLifecycleRepository,
   type ApplyArchiveImportInput,
