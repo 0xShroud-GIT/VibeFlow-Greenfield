@@ -39,6 +39,10 @@ export {
   type CloneSourceGraph,
 } from "./lifecycle-repository.js";
 export {
+  ProjectOverviewRepository,
+  type ProjectOverviewSnapshot,
+} from "./overview-repository.js";
+export {
   accounts,
   ARCHIVE_ENTRY_KINDS,
   ARCHIVE_FORMATS,
