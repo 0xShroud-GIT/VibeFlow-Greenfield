@@ -5,6 +5,17 @@
  * both rooted in canonical Project ownership. No client, agent, repository,
  * workspace, blob store or provider may assert canonical Project/Organization
  * ownership for an Artifact or relation.
+ *
+ * Authority invariants:
+ * - Artifact id is server-generated UUID; Project ownership is a canonical
+ *   Project row resolved from persistence, never a client claim.
+ * - Artifact `type` is a bounded, syntax-validated typed-output token, not a
+ *   closed canonical enum.
+ * - ArtifactRelation Project ownership is derived from the canonical endpoint
+ *   Artifacts; endpoints in different Projects (including two Projects inside
+ *   the same Organization) are rejected.
+ * - Authorization resolves canonical tenant membership on every decision.
+ * - Cross-tenant, forged, unknown, revoked/stale access fails closed.
  */
 
 import {
@@ -75,6 +86,15 @@ function requireUuid(name: string, value: string): string {
   return value;
 }
 
+/**
+ * Validate an Artifact `type` as an opaque typed-output token.
+ *
+ * Syntax-only validation: trims outer whitespace, rejects empty/over-length
+ * input, control characters, whitespace and malformed token syntax. This is
+ * NOT a closed taxonomy and NOT a normalized registry (VF-PRJ-017 deferred).
+ * The grammar is shared with the persistence boundary via
+ * `isArtifactTypeToken`, so the service and repository never disagree.
+ */
 function requireType(value: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new ArtifactInputError("type is required");
@@ -100,6 +120,12 @@ function requireRelationKind(value: ArtifactRelationKind): ArtifactRelationKind 
 export class ArtifactService {
   public constructor(private readonly options: ArtifactServiceOptions) {}
 
+  /**
+   * Create a canonical Artifact under a canonical Project. The caller must be
+   * a current member of the Project's Organization. Server generates id and
+   * timestamps; projectId is resolved as canonical ownership, never trusted
+   * from a client claim alone.
+   */
   public async createArtifact(input: CreateArtifactInput): Promise<ArtifactRow> {
     const accountId = requireUuid("accountId", input.accountId);
     const projectId = requireUuid("projectId", input.projectId);
@@ -120,6 +146,10 @@ export class ArtifactService {
     return this.options.artifacts.createArtifact({ projectId, type });
   }
 
+  /**
+   * Get an Artifact by canonical id. Authorization resolves the Artifact's
+   * canonical Project -> Organization and requires current membership.
+   */
   public async getArtifact(input: GetArtifactInput): Promise<ArtifactRow> {
     const accountId = requireUuid("accountId", input.accountId);
     const artifactId = requireUuid("artifactId", input.artifactId);
@@ -149,6 +179,10 @@ export class ArtifactService {
     }
   }
 
+  /**
+   * List Artifacts for a canonical Project. Tenant-safe: only returns
+   * artifacts whose canonical project matches and where caller is member.
+   */
   public async listArtifacts(input: ListArtifactsInput): Promise<ArtifactRow[]> {
     const accountId = requireUuid("accountId", input.accountId);
     const projectId = requireUuid("projectId", input.projectId);
@@ -171,21 +205,52 @@ export class ArtifactService {
     return this.options.artifacts.listArtifactsForProject(projectId);
   }
 
+  /**
+   * Create a durable directed relation between two canonical Artifacts.
+   *
+   * Authority ordering is fail-closed and never reveals canonical resource
+   * existence, project ownership, or same-project relationships before the
+   * caller is authorized:
+   *
+   *   1. Validate request syntax only (UUIDs, relation kind, distinct ends).
+   *   2. Authorize read access to the subject Artifact by its opaque id.
+   *   3. Authorize read access to the object Artifact by its opaque id.
+   *   4. Only after both endpoint authorizations succeed, load the canonical
+   *      persisted Artifact rows.
+   *   5. Derive each endpoint's canonical `project_id` from persistence.
+   *   6. Require both endpoints to belong to the same canonical Project.
+   *   7. Derive the relation Project from those canonical endpoints — never
+   *      from a client/provider claim.
+   *   8. Authorize relation creation against the canonical Project scope.
+   *   9. Persist the relation (the repository re-derives the Project and the
+   *      composite FKs remain a database-level cross-Project backstop).
+   *
+   * Cross-tenant, forged, unknown, and revoked/stale access fails closed.
+   */
   public async createArtifactRelation(
     input: CreateArtifactRelationInput,
   ): Promise<ArtifactRelationRow> {
+    // 1. Syntax only.
     const accountId = requireUuid("accountId", input.accountId);
     const subjectArtifactId = requireUuid("subjectArtifactId", input.subjectArtifactId);
     const objectArtifactId = requireUuid("objectArtifactId", input.objectArtifactId);
     const relationKind = requireRelationKind(input.relationKind);
 
     if (subjectArtifactId === objectArtifactId) {
-      throw new ArtifactInputError("artifact relation must link two distinct artifacts");
+      throw new ArtifactInputError(
+        "artifact relation must link two distinct artifacts",
+      );
     }
 
+    // 2 & 3. Authorize each endpoint by opaque id BEFORE any persistence load,
+    // so a caller cannot learn endpoint/project existence or relationship
+    // through a relation attempt.
     await this.authorizeEndpointRead(accountId, subjectArtifactId);
     await this.authorizeEndpointRead(accountId, objectArtifactId);
 
+    // 4. Only now load canonical rows (both already authorized to exist and be
+    // readable; a missing row here still fails closed). Infrastructure errors
+    // propagate rather than being mislabeled as a missing endpoint.
     let subject: ArtifactRow;
     let object: ArtifactRow;
     try {
@@ -198,13 +263,17 @@ export class ArtifactService {
       throw error;
     }
 
+    // 5 & 6. Derive canonical project ids and require the same Project.
     if (subject.projectId !== object.projectId) {
       throw new ArtifactRelationError(
         "Artifact relation endpoints must belong to the same canonical Project",
       );
     }
 
+    // 7. The relation Project is the canonical endpoint Project.
     const relationProjectId = subject.projectId;
+
+    // 8. Authorize relation creation against the canonical Project scope.
     const decision = await this.options.authz.authorize({
       accountId,
       action: "create",
@@ -217,6 +286,8 @@ export class ArtifactService {
       );
     }
 
+    // 9. Persist. The repository re-derives the Project from canonical
+    // endpoints and the composite FKs reject any cross-Project edge.
     try {
       return await this.options.artifacts.createArtifactRelation({
         subjectArtifactId,
@@ -233,6 +304,12 @@ export class ArtifactService {
     }
   }
 
+  /**
+   * Authorize read access to an Artifact endpoint by its opaque id, failing
+   * closed without disclosing whether the id exists or what it owns. Unknown
+   * ids surface as not-found (no existence to disclose); existing-but-foreign
+   * ids surface as an authorization denial (membership not proven).
+   */
   private async authorizeEndpointRead(
     accountId: string,
     artifactId: string,
@@ -253,6 +330,10 @@ export class ArtifactService {
     }
   }
 
+  /**
+   * Get an ArtifactRelation by canonical id. Authorization resolves the
+   * relation's canonical Project -> Organization and requires membership.
+   */
   public async getArtifactRelation(
     input: GetArtifactRelationInput,
   ): Promise<ArtifactRelationRow> {
@@ -284,6 +365,9 @@ export class ArtifactService {
     }
   }
 
+  /**
+   * List ArtifactRelations for a canonical Project. Tenant-safe.
+   */
   public async listArtifactRelations(
     input: ListArtifactRelationsInput,
   ): Promise<ArtifactRelationRow[]> {
