@@ -13,6 +13,18 @@ interface CapabilityProfileVersionRow {
   version: number;
 }
 
+function capabilityProfileVersionRows(
+  rows: readonly Record<string, unknown>[],
+): CapabilityProfileVersionRow[] {
+  return rows.map((row) => {
+    const version = row["version"];
+    if (typeof version !== "number" || !Number.isInteger(version) || version < 0) {
+      throw new PersistenceError("capability profile version query returned an invalid version");
+    }
+    return { version };
+  });
+}
+
 /**
  * M-015 ProjectCapabilityProfile subordinate persistence.
  *
@@ -39,7 +51,7 @@ export class ProjectCapabilityRepository {
     const result = await this.db.execute(
       sql`SELECT version FROM project_capability_profiles WHERE project_id = ${id}`,
     );
-    const rows = (result.rows as CapabilityProfileVersionRow[] | undefined) ?? [];
+    const rows = capabilityProfileVersionRows(result.rows);
     return rows[0]?.version ?? 0;
   }
 
@@ -73,7 +85,7 @@ export class ProjectCapabilityRepository {
             WHERE project_id = ${projectId}
             FOR UPDATE`,
       );
-      const rows = (lockResult.rows as CapabilityProfileVersionRow[] | undefined) ?? [];
+      const rows = capabilityProfileVersionRows(lockResult.rows);
       const current = rows[0];
       if (!current) {
         throw new PersistenceError("project_capability_profiles row not found after insert");
