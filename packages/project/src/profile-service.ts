@@ -8,6 +8,7 @@
 
 import {
   isUuid,
+  NotFoundError,
   type ArtifactRepository,
   type ArtifactRow,
   ProjectProfileRepository,
@@ -138,13 +139,8 @@ export class ProjectProfileService {
       throw new ProjectProfileError("Project profile update denied: " + decision.reason);
     }
 
-    // Read current profile so we can preserve fields that were not explicitly provided
     const existing = await this.options.profiles.getProfileByProjectId(projectId);
 
-    // Determine effective description:
-    // - if input.description is undefined, preserve current value
-    // - if input.description is null, clear it
-    // - if input.description is a string, set it
     let effectiveDescription: string | null;
     if (input.description === undefined) {
       effectiveDescription = existing ? existing.description : null;
@@ -152,10 +148,6 @@ export class ProjectProfileService {
       effectiveDescription = requireDescription(input.description);
     }
 
-    // Determine effective coverArtifactId:
-    // - if input.coverArtifactId is undefined, preserve current value
-    // - if input.coverArtifactId is null, clear it
-    // - if input.coverArtifactId is a string, set it
     let effectiveCoverArtifactId: string | null;
     if (input.coverArtifactId === undefined) {
       effectiveCoverArtifactId = existing ? existing.coverArtifactId : null;
@@ -165,7 +157,6 @@ export class ProjectProfileService {
       effectiveCoverArtifactId = requireUuid("coverArtifactId", input.coverArtifactId);
     }
 
-    // If cover artifact is being set (not null), authorize and verify same-Project
     if (effectiveCoverArtifactId !== null) {
       const artifactDecision = await this.options.authz.authorize({
         accountId,
@@ -183,8 +174,11 @@ export class ProjectProfileService {
       let coverArtifact: ArtifactRow;
       try {
         coverArtifact = await this.options.artifacts.getArtifactById(effectiveCoverArtifactId);
-      } catch {
-        throw new ProjectNotFoundError("Cover artifact not found: " + effectiveCoverArtifactId);
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw new ProjectNotFoundError("Cover artifact not found: " + effectiveCoverArtifactId);
+        }
+        throw error;
       }
 
       if (coverArtifact.projectId !== projectId) {
@@ -210,9 +204,6 @@ export class ProjectProfileService {
       };
     } catch (error) {
       if (error instanceof StaleVersionError || error instanceof UniqueConstraintError) {
-        // The only uniqueness race reachable from this boundary is concurrent
-        // first creation of project_profiles for expectedVersion=0. Normalize
-        // it to the same optimistic-concurrency contract as an UPDATE CAS miss.
         throw new ProjectProfileError("Project profile update failed: version conflict");
       }
       throw error instanceof Error ? error : new Error(String(error));
