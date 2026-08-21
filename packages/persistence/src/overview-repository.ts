@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { ControlPlaneDatabase } from "./client.js";
-import { NotFoundError } from "./errors.js";
+import { NotFoundError, PersistenceError } from "./errors.js";
 import { requireId } from "./ids.js";
 import {
   artifactRelations,
@@ -20,8 +20,15 @@ import {
   type ProjectRow,
 } from "./schema.js";
 
-interface CapabilityProfileVersionRow {
-  version: number;
+function capabilityProfileVersion(rows: readonly Record<string, unknown>[]): number {
+  const raw = rows[0]?.["version"];
+  if (raw === undefined) {
+    return 0;
+  }
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 0) {
+    throw new PersistenceError("Project overview capability epoch query returned an invalid version");
+  }
+  return raw;
 }
 
 /**
@@ -71,8 +78,7 @@ export class ProjectOverviewRepository {
       const capabilityVersionResult = await tx.execute(
         sql`SELECT version FROM project_capability_profiles WHERE project_id = ${id}`,
       );
-      const capabilityVersionRows =
-        (capabilityVersionResult.rows as CapabilityProfileVersionRow[] | undefined) ?? [];
+      const currentCapabilityProfileVersion = capabilityProfileVersion(capabilityVersionResult.rows);
 
       const capabilityRows = await tx
         .select()
@@ -103,7 +109,7 @@ export class ProjectOverviewRepository {
       return {
         project,
         profile: profileRows[0],
-        capabilityProfileVersion: capabilityVersionRows[0]?.version ?? 0,
+        capabilityProfileVersion: currentCapabilityProfileVersion,
         capabilities: capabilityRows,
         artifacts: artifactRows,
         artifactRelations: relationRows,
