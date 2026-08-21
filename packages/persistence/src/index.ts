@@ -11,6 +11,7 @@ export {
   ProviderAuthorityRejectedError,
   rejectProviderAuthority,
   StaleVersionError,
+  UniqueConstraintError,
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
 export {
