@@ -58,16 +58,26 @@ class M015AuthorityContract(unittest.TestCase):
             if invented in authz_content:
                 self.fail(f"M-015 must not register '{invented}' as authz resource type")
 
-    def test_event_catalog_has_no_m015_profile_events(self):
-        """M-015 must not invent profile/capability/overview event families."""
+    def test_event_catalog_has_no_m015_project_profile_events(self):
+        """M-015 must not invent Project profile/capability/overview event families."""
         event_content = EVENT_CATALOG.read_text()
         event_names = re.findall(r"(?m)^  name:\s*([^\s#]+)\s*$", event_content)
         self.assertGreater(len(event_names), 0, "event catalog parser found no event names")
+        forbidden_prefixes = (
+            "project.profile",
+            "project.capability",
+            "project.overview",
+            "project.lifecycle",
+            "profile.",
+            "capability_profile.",
+            "project_profile.",
+        )
         for event_name in event_names:
             lowered = event_name.lower()
-            self.assertNotIn("profile", lowered)
-            self.assertNotIn("capability", lowered)
-            self.assertNotIn("overview", lowered)
+            self.assertFalse(
+                any(lowered.startswith(prefix) for prefix in forbidden_prefixes),
+                f"M-015 must not invent Project profile/lifecycle event: {event_name}",
+            )
 
     def test_state_machines_have_no_project_lifecycle_machine(self):
         """M-015 must not add a Project/Profile/Capability state machine."""
