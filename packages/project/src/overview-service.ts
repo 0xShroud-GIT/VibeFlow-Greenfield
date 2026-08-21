@@ -127,7 +127,7 @@ export class ProjectOverviewService {
     const capabilityProfile: ProjectCapabilityProfileResult = {
       projectId,
       capabilities: snapshot.capabilities.map((row) => row.capabilityKey),
-      version: snapshot.profile?.capabilityProfileVersion ?? 0,
+      version: snapshot.capabilityProfileVersion,
       createdAt:
         snapshot.capabilities.length > 0
           ? snapshot.capabilities[0]!.createdAt
