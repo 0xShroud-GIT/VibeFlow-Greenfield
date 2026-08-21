@@ -15,14 +15,14 @@ Human or AI contributor:
 
 ## Mission state
 
-The current authoritative active/reviewable mission is **M-015**. This pointer exists because retained integrity validation requires human-facing entry points to name the mission selected by the DAG; do not infer broader status or acceptance from this README.
+The current authoritative active/reviewable mission is **M-016**. This pointer exists because retained integrity validation requires human-facing entry points to name the mission selected by the DAG; do not infer broader status or acceptance from this README.
 
 - Current mission packet: `.ai/ACTIVE_MISSION.md`
 - Authoritative mission status/dependencies: `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml`
 - Human-readable mission register: `master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv`
 - Historical acceptance evidence: `evidence/missions/`
 
-Update the M-015 pointer in this README only in the same mission-progression change that updates the authoritative DAG. If a historical document or evidence file disagrees with current mission authority, the Master Build System and mission DAG win.
+Update the M-016 pointer in this README only in the same mission-progression change that updates the authoritative DAG. If a historical document or evidence file disagrees with current mission authority, the Master Build System and mission DAG win.
 
 ## Repository map
 
