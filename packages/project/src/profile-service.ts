@@ -12,6 +12,7 @@ import {
   type ArtifactRow,
   ProjectProfileRepository,
   StaleVersionError,
+  UniqueConstraintError,
 } from "@vibeflow/persistence";
 import { TenantAuthorizationService } from "@vibeflow/authorization";
 
@@ -208,8 +209,11 @@ export class ProjectProfileService {
         updatedAt: profile.updatedAt,
       };
     } catch (error) {
-      if (error instanceof StaleVersionError) {
-        throw new ProjectProfileError("Project profile update failed: " + error.message);
+      if (error instanceof StaleVersionError || error instanceof UniqueConstraintError) {
+        // The only uniqueness race reachable from this boundary is concurrent
+        // first creation of project_profiles for expectedVersion=0. Normalize
+        // it to the same optimistic-concurrency contract as an UPDATE CAS miss.
+        throw new ProjectProfileError("Project profile update failed: version conflict");
       }
       throw error instanceof Error ? error : new Error(String(error));
     }
