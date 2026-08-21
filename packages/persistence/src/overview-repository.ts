@@ -20,6 +20,10 @@ import {
   type ProjectRow,
 } from "./schema.js";
 
+interface CapabilityProfileVersionRow {
+  version: number;
+}
+
 /**
  * One point-in-time Project-domain read snapshot for M-015 Project Overview.
  * This is a projection/read model, not a canonical resource or new authority
@@ -28,6 +32,7 @@ import {
 export interface ProjectOverviewSnapshot {
   readonly project: ProjectRow;
   readonly profile: ProjectProfileRow | undefined;
+  readonly capabilityProfileVersion: number;
   readonly capabilities: readonly ProjectCapabilityRow[];
   readonly artifacts: readonly ArtifactRow[];
   readonly artifactRelations: readonly ArtifactRelationRow[];
@@ -63,6 +68,12 @@ export class ProjectOverviewRepository {
         .from(projectProfiles)
         .where(eq(projectProfiles.projectId, id));
 
+      const capabilityVersionResult = await tx.execute(
+        sql`SELECT version FROM project_capability_profiles WHERE project_id = ${id}`,
+      );
+      const capabilityVersionRows =
+        (capabilityVersionResult.rows as CapabilityProfileVersionRow[] | undefined) ?? [];
+
       const capabilityRows = await tx
         .select()
         .from(projectCapabilities)
@@ -92,6 +103,7 @@ export class ProjectOverviewRepository {
       return {
         project,
         profile: profileRows[0],
+        capabilityProfileVersion: capabilityVersionRows[0]?.version ?? 0,
         capabilities: capabilityRows,
         artifacts: artifactRows,
         artifactRelations: relationRows,
