@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import type { TenantAuthorizationService } from "@vibeflow/authorization";
@@ -13,7 +14,7 @@ const PROJECT_ID = "00000000-0000-4000-8000-000000000002";
 
 function capabilityRow(key: string, version: number): ProjectCapabilityRow {
   return {
-    id: crypto.randomUUID(),
+    id: randomUUID(),
     projectId: PROJECT_ID,
     capabilityKey: key,
     version,
