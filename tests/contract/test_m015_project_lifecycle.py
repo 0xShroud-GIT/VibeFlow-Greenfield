@@ -13,8 +13,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 MIGRATION = ROOT / "migrations/0007_project_lifecycle.sql"
+RESIDUAL_MIGRATION = ROOT / "migrations/0009_audit_residual_integrity.sql"
 PERSISTENCE_INDEX = ROOT / "packages/persistence/src/index.ts"
 REPOSITORIES = ROOT / "packages/persistence/src/repositories.ts"
+CAPABILITY_REPOSITORY = ROOT / "packages/persistence/src/capability-repository.ts"
 OVERVIEW_REPOSITORY = ROOT / "packages/persistence/src/overview-repository.ts"
 IDS = ROOT / "packages/persistence/src/ids.ts"
 ERRORS = ROOT / "packages/persistence/src/errors.ts"
@@ -146,10 +148,25 @@ class M015AuthorityContract(unittest.TestCase):
         self.assertLess(service_content.index("action: \"update\""), service_content.index("getArtifactById"))
 
     def test_capability_profile_replace_atomic(self):
-        """Replace must be atomic (one transaction)."""
-        repo_content = REPOSITORIES.read_text()
+        """The exported capability repository must replace in one transaction."""
+        repo_content = CAPABILITY_REPOSITORY.read_text()
+        index_content = PERSISTENCE_INDEX.read_text()
+        self.assertIn("ProjectCapabilityRepository", index_content)
+        self.assertIn('from "./capability-repository.js"', index_content)
         self.assertIn("replaceCapabilities", repo_content)
         self.assertIn("transaction", repo_content)
+        self.assertIn("FOR UPDATE", repo_content)
+
+    def test_capability_profile_has_independent_durable_epoch(self):
+        """Capability state must not manufacture or depend on ProjectProfile state."""
+        migration_content = RESIDUAL_MIGRATION.read_text()
+        repo_content = CAPABILITY_REPOSITORY.read_text()
+        self.assertIn("CREATE TABLE project_capability_profiles", migration_content)
+        self.assertIn("project_capabilities_profile_version_fk", migration_content)
+        self.assertIn("project_profiles_version_positive", migration_content)
+        self.assertIn("INSERT INTO project_capability_profiles", repo_content)
+        self.assertNotIn("INSERT INTO project_profiles", repo_content)
+        self.assertNotIn("projectProfiles", repo_content)
 
     def test_capability_profile_read_guards_against_torn_version(self):
         """Capability rows and optimistic-concurrency token must describe one version."""
@@ -165,6 +182,8 @@ class M015AuthorityContract(unittest.TestCase):
         service_content = OVERVIEW_SERVICE.read_text()
         self.assertIn("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ", repository_content)
         self.assertIn("ProjectOverviewRepository", service_content)
+        self.assertIn("project_capability_profiles", repository_content)
+        self.assertIn("snapshot.capabilityProfileVersion", service_content)
         self.assertNotIn("catch {", service_content)
 
     def test_persistence_index_exports_overview_snapshot_repository(self):
@@ -186,9 +205,11 @@ class M015AuthorityContract(unittest.TestCase):
             self.assertNotIn(field, table_portion.lower())
 
     def test_no_provider_fields_in_repositories(self):
-        """Repository rejects provider authority fields."""
+        """Repositories reject provider authority fields."""
         repo_content = REPOSITORIES.read_text()
+        capability_repo_content = CAPABILITY_REPOSITORY.read_text()
         self.assertIn("rejectProviderAuthority", repo_content)
+        self.assertIn("rejectProviderAuthority", capability_repo_content)
 
     def test_capability_key_validation_rejects_malformed(self):
         """Capability key validator must reject common malformed tokens."""
