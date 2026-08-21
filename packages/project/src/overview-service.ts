@@ -15,6 +15,7 @@ import {
   ProjectOverviewRepository,
   type ArtifactRelationRow,
   type ArtifactRow,
+  type ProjectOverviewSnapshot,
 } from "@vibeflow/persistence";
 import { TenantAuthorizationService } from "@vibeflow/authorization";
 import type { ProjectProfileResult } from "./profile-service.js";
@@ -94,7 +95,7 @@ export class ProjectOverviewService {
       throw new ProjectOverviewError("Project overview denied: " + decision.reason);
     }
 
-    let snapshot;
+    let snapshot: ProjectOverviewSnapshot;
     try {
       snapshot = await this.options.overview.getSnapshot(projectId);
     } catch (error) {
