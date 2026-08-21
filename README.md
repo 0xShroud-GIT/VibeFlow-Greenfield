@@ -15,14 +15,14 @@ Human or AI contributor:
 
 ## Mission state
 
-Do not maintain or infer live mission status in this README.
+The current authoritative active/reviewable mission is **M-015**. This pointer exists because retained integrity validation requires human-facing entry points to name the mission selected by the DAG; do not infer broader status or acceptance from this README.
 
 - Current mission packet: `.ai/ACTIVE_MISSION.md`
 - Authoritative mission status/dependencies: `master-build-system/10_IMPLEMENTATION/MISSION_DAG.yaml`
 - Human-readable mission register: `master-build-system/10_IMPLEMENTATION/MISSION_REGISTER.csv`
 - Historical acceptance evidence: `evidence/missions/`
 
-If a historical document or evidence file disagrees with current mission authority, the Master Build System and mission DAG win.
+Update the M-015 pointer in this README only in the same mission-progression change that updates the authoritative DAG. If a historical document or evidence file disagrees with current mission authority, the Master Build System and mission DAG win.
 
 ## Repository map
 
@@ -32,7 +32,7 @@ If a historical document or evidence file disagrees with current mission authori
 - `migrations/` — durable persistence migrations introduced by accepted missions.
 - `evidence/` — retained historical acceptance and verification evidence; not live implementation direction.
 - `reference/oss-harvest/` — clean-room implementation-reference evidence governed by the harvest policy.
-- `docs/` — implementation-facing documentation and ADRs; not mission-status authority.
+- `docs/` — implementation-facing documentation and ADRs; not mission-status authority except the validator-required mission pointer file.
 - `scripts/`, `tests/`, `security/`, `infrastructure/` — retained repository, verification, security, and environment tooling.
 
 ## Contracts
