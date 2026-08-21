@@ -17,8 +17,8 @@ and implementation is complete. M-016 and all later missions remain
 
 Implemented:
 - Project Profile subordinate state (VF-PRJ-016 IN_PROGRESS)
-- ProjectCapabilityProfile (VF-PRJ-014 IMPLEMENTED)
-- ProjectOverview read model
+- ProjectCapabilityProfile (VF-PRJ-014 IMPLEMENTED), with independent durable set epoch
+- ProjectOverview read model from one PostgreSQL snapshot
 - Creation-mode E2E parity (empty, archive-import, clone)
 - Full authorization/IDOR ordering compliance
 - Optimistic concurrency and transactional semantics
@@ -33,3 +33,15 @@ Explicitly out of scope:
 - UI/mobile/Canvas
 - Collaboration/sharing (M-117+)
 - later mission scope
+
+## Current validation pointer
+
+Historical mission evidence remains under `evidence/missions/M-014/` and
+`evidence/missions/M-015/`; it records the candidate state when authored and is
+not current-head CI proof.
+
+Current post-audit remediation evidence:
+`evidence/audits/2026-08-21_POST_AUDIT_RESIDUAL_REMEDIATION.md`.
+
+Before any M-015 acceptance transition, verify the required GitHub Actions runs
+for the **exact** candidate/main SHA. `CHECKPOINT.md` contains the handoff rule.
