@@ -11,6 +11,7 @@ export {
   ProviderAuthorityRejectedError,
   rejectProviderAuthority,
   StaleVersionError,
+  UniqueConstraintError,
 } from "./errors.js";
 export { applyCommittedSqlMigrations, defaultMigrationsDirectory, listCommittedSqlMigrations } from "./migrate.js";
 export {
@@ -37,6 +38,10 @@ export {
   type ArchiveManifestEntryInput,
   type CloneSourceGraph,
 } from "./lifecycle-repository.js";
+export {
+  ProjectOverviewRepository,
+  type ProjectOverviewSnapshot,
+} from "./overview-repository.js";
 export {
   accounts,
   ARCHIVE_ENTRY_KINDS,
